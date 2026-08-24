@@ -13,7 +13,7 @@ export function createEmptyBoard(): BoardMatrix {
   );
 }
 
-// 7-bag ランダマイザー
+// 7-bag ランダマイザー (Fisher-Yates シャッフル)
 export function generateBag(): TetrominoType[] {
   const types: TetrominoType[] = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
   for (let i = types.length - 1; i > 0; i--) {
@@ -21,6 +21,20 @@ export function generateBag(): TetrominoType[] {
     [types[i], types[j]] = [types[j], types[i]];
   }
   return types;
+}
+
+// キュー初期化 (最低14個のストックを確保)
+export function initPieceQueue(): TetrominoType[] {
+  return [...generateBag(), ...generateBag()];
+}
+
+// キュー補充
+export function ensureQueue(queue: TetrominoType[]): TetrominoType[] {
+  const nextQueue = [...queue];
+  while (nextQueue.length < 14) {
+    nextQueue.push(...generateBag());
+  }
+  return nextQueue;
 }
 
 export function createPiece(type: TetrominoType): Piece {
@@ -77,7 +91,6 @@ export function tryRotate(piece: Piece, board: BoardMatrix): Piece | null {
   if (piece.type === 'O') return piece; // Oミノは回転不要
 
   const rotatedShape = rotateMatrix(piece.shape);
-  // キックのオフセット試行リスト (標準, 左右1マス, 左右2マス, 上1マス)
   const kicks = [
     { x: 0, y: 0 },
     { x: 1, y: 0 },
@@ -154,15 +167,25 @@ export function clearFullLines(board: BoardMatrix): {
   };
 }
 
-// スコア計算
+// 基本スコア計算
 export function calculateScore(lines: number, level: number): number {
   const linePoints = [0, 100, 300, 500, 800]; // 1, 2, 3, 4(Tetris)
   const base = linePoints[lines] || 0;
-  return base * (level + 1);
+  return base * level;
+}
+
+// コンボボーナス計算
+export function calculateComboBonus(combo: number, level: number): number {
+  if (combo <= 0) return 0;
+  return 50 * combo * level;
+}
+
+// Back-to-Back ボーナス (Tetris連続)
+export function calculateBackToBackBonus(level: number): number {
+  return 400 * level;
 }
 
 // レベルに応じた落下間隔（ミリ秒）
 export function getDropInterval(level: number): number {
-  // レベルが上がるほど高速化 (最速約 80ms)
-  return Math.max(80, Math.floor(1000 * Math.pow(0.8 - (level - 1) * 0.005, level - 1)));
+  return Math.max(70, Math.floor(1000 * Math.pow(0.8 - (level - 1) * 0.005, level - 1)));
 }

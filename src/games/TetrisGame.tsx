@@ -1,7 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { TetrisBoard } from '../components/TetrisBoard';
-import { PiecePreview } from '../components/HoldNextPanel';
-import { MobileControls } from '../components/Controls';
 import {
   BoardMatrix,
   Piece,
@@ -9,7 +6,6 @@ import {
 } from '../types/tetris';
 import {
   createEmptyBoard,
-  generateBag,
   createPiece,
   checkCollision,
   tryRotate,
@@ -17,10 +13,17 @@ import {
   mergePieceToBoard,
   clearFullLines,
   calculateScore,
+  calculateComboBonus,
+  calculateBackToBackBonus,
   getDropInterval,
+  initPieceQueue,
+  ensureQueue,
 } from '../utils/tetrisLogic';
 import { sound } from '../utils/audio';
-import { Trophy, Zap, Layers, ArrowLeft } from 'lucide-react';
+import { Trophy, Zap, Layers, ArrowLeft, Flame } from 'lucide-react';
+import { PiecePreview, NextQueuePreview } from '../components/HoldNextPanel';
+import { TetrisBoard } from '../components/TetrisBoard';
+import { MobileControls } from '../components/Controls';
 
 const HIGH_SCORE_KEY = 'tetris_high_score_v1';
 
@@ -38,8 +41,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
   // ボードとピースの状態
   const [board, setBoard] = useState<BoardMatrix>(createEmptyBoard);
   const [currentPiece, setCurrentPiece] = useState<Piece | null>(null);
-  const [, setBag] = useState<TetrominoType[]>([]);
-  const [nextPieces, setNextPieces] = useState<TetrominoType[]>([]);
+  const [pieceQueue, setPieceQueue] = useState<TetrominoType[]>(() => initPieceQueue());
   const [holdPiece, setHoldPiece] = useState<TetrominoType | null>(null);
   const [canHold, setCanHold] = useState<boolean>(true);
 
@@ -48,15 +50,15 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
   const [lines, setLines] = useState<number>(0);
   const [level, setLevel] = useState<number>(1);
   const [highScore, setHighScore] = useState<number>(0);
+  const [combo, setCombo] = useState<number>(0);
+  const [isBackToBack, setIsBackToBack] = useState<boolean>(false);
 
-  // フラグ
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [isTetrisClear, setIsTetrisClear] = useState<boolean>(false);
 
-  // 落下タイマー用
-  const dropTimerRef = useRef<number | null>(null);
+  const dropIntervalRef = useRef<number | null>(null);
 
   // ハイスコアの読み込み
   useEffect(() => {
@@ -77,47 +79,34 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
     });
   }, []);
 
-  // 次のピースを取得
-  const getNextPieceType = useCallback(
-    (currentBag: TetrominoType[], currentNext: TetrominoType[]) => {
-      let workingBag = [...currentBag];
-      let workingNext = [...currentNext];
-
-      while (workingNext.length < 4) {
-        if (workingBag.length === 0) {
-          workingBag = generateBag();
-        }
-        workingNext.push(workingBag.shift()!);
-      }
-
-      const nextType = workingNext.shift()!;
-      return { nextType, newBag: workingBag, newNext: workingNext };
-    },
-    []
-  );
+  // キューから次のピースを取り出すヘルパー (100% 確実な 7-bag)
+  const getNextPieceFromQueue = useCallback((): { nextPiece: Piece; updatedQueue: TetrominoType[] } => {
+    let currentQueue = ensureQueue(pieceQueue);
+    const nextType = currentQueue[0];
+    const updatedQueue = ensureQueue(currentQueue.slice(1));
+    const nextPiece = createPiece(nextType);
+    return { nextPiece, updatedQueue };
+  }, [pieceQueue]);
 
   // ゲームスタート
   const startGame = useCallback(() => {
-    const initialBag1 = generateBag();
-    const initialBag2 = generateBag();
-    const allPieces = [...initialBag1, ...initialBag2];
-
-    const firstPieceType = allPieces.shift()!;
-    const firstNext = allPieces.slice(0, 3);
-    const remainingBag = allPieces.slice(3);
+    const initialQueue = initPieceQueue();
+    const firstType = initialQueue[0];
+    const remainingQueue = ensureQueue(initialQueue.slice(1));
 
     const empty = createEmptyBoard();
-    const firstPiece = createPiece(firstPieceType);
+    const firstPiece = createPiece(firstType);
 
     setBoard(empty);
     setCurrentPiece(firstPiece);
-    setBag(remainingBag);
-    setNextPieces(firstNext);
+    setPieceQueue(remainingQueue);
     setHoldPiece(null);
     setCanHold(true);
     setScore(0);
     setLines(0);
     setLevel(1);
+    setCombo(0);
+    setIsBackToBack(false);
     setIsPlaying(true);
     setIsPaused(false);
     setIsGameOver(false);
@@ -143,63 +132,63 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
   // ピースの固定とライン消去の処理
   const lockPiece = useCallback(
     (pieceToLock: Piece) => {
-      setBoard((prevBoard) => {
-        const merged = mergePieceToBoard(pieceToLock, prevBoard);
-        const { newBoard, linesCleared } = clearFullLines(merged);
+      const merged = mergePieceToBoard(pieceToLock, board);
+      const { newBoard, linesCleared } = clearFullLines(merged);
 
-        if (linesCleared > 0) {
-          sound.playClear(linesCleared);
-          if (linesCleared === 4) {
-            setIsTetrisClear(true);
-            setTimeout(() => setIsTetrisClear(false), 1200);
+      setBoard(newBoard);
+
+      if (linesCleared > 0) {
+        sound.playClear(linesCleared);
+        const newCombo = combo + 1;
+        setCombo(newCombo);
+
+        let isB2B = false;
+        if (linesCleared === 4) {
+          setIsTetrisClear(true);
+          setTimeout(() => setIsTetrisClear(false), 1400);
+          if (isBackToBack) {
+            isB2B = true;
           }
-
-          setLines((prevLines) => {
-            const updatedLines = prevLines + linesCleared;
-            const newLevel = Math.floor(updatedLines / 10) + 1;
-            setLevel(newLevel);
-            return updatedLines;
-          });
-
-          setScore((prevScore) => {
-            const added = calculateScore(linesCleared, level);
-            const newScore = prevScore + added;
-            updateHighScore(newScore);
-            return newScore;
-          });
+          setIsBackToBack(true);
+        } else {
+          setIsBackToBack(false);
         }
 
-        // 次のピースを召喚
-        setBag((currentBag) => {
-          let updatedBag = currentBag;
-          setNextPieces((currentNext) => {
-            const { nextType, newBag, newNext } = getNextPieceType(
-              currentBag,
-              currentNext
-            );
-            updatedBag = newBag;
-            const newPiece = createPiece(nextType);
+        const newLines = lines + linesCleared;
+        const newLevel = Math.floor(newLines / 10) + 1;
+        setLines(newLines);
+        setLevel(newLevel);
 
-            // スポーン位置での衝突判定 -> ゲームオーバー
-            if (checkCollision(newPiece, newBoard)) {
-              sound.playGameOver();
-              setIsGameOver(true);
-              setIsPlaying(false);
-              setCurrentPiece(null);
-            } else {
-              setCurrentPiece(newPiece);
-            }
+        const baseScore = calculateScore(linesCleared, level);
+        const comboScore = calculateComboBonus(newCombo, level);
+        const b2bScore = isB2B ? calculateBackToBackBonus(level) : 0;
+        const addedScore = baseScore + comboScore + b2bScore;
 
-            setCanHold(true);
-            return newNext;
-          });
-          return updatedBag;
+        setScore((prev) => {
+          const updated = prev + addedScore;
+          updateHighScore(updated);
+          return updated;
         });
+      } else {
+        setCombo(0);
+      }
 
-        return newBoard;
-      });
+      // 次のピースを安全にキューから取り出し
+      const { nextPiece, updatedQueue } = getNextPieceFromQueue();
+      setPieceQueue(updatedQueue);
+
+      // ゲームオーバー判定
+      if (checkCollision(nextPiece, newBoard)) {
+        setIsGameOver(true);
+        setIsPlaying(false);
+        sound.playGameOver();
+        sound.stopTetrisBgm();
+      } else {
+        setCurrentPiece(nextPiece);
+        setCanHold(true);
+      }
     },
-    [level, getNextPieceType, updateHighScore]
+    [board, combo, isBackToBack, lines, level, getNextPieceFromQueue, updateHighScore]
   );
 
   // ピースの1マス落下
@@ -249,6 +238,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
     const dropDistance = ghostY - currentPiece.y;
     const droppedPiece = { ...currentPiece, y: ghostY };
 
+    // ハードドロップボーナス (落下マス数 × 2)
     setScore((prev) => {
       const newScore = prev + dropDistance * 2;
       updateHighScore(newScore);
@@ -258,36 +248,26 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
     lockPiece(droppedPiece);
   }, [currentPiece, board, isPlaying, isPaused, isGameOver, lockPiece, updateHighScore]);
 
-  // ホールド機能
+  // ホールド
   const hold = useCallback(() => {
     if (!currentPiece || !canHold || !isPlaying || isPaused || isGameOver) return;
     sound.playHold();
 
     const currentType = currentPiece.type;
-    setCanHold(false);
 
     if (holdPiece === null) {
       setHoldPiece(currentType);
-      setBag((currentBag) => {
-        let updatedBag = currentBag;
-        setNextPieces((currentNext) => {
-          const { nextType, newBag, newNext } = getNextPieceType(
-            currentBag,
-            currentNext
-          );
-          updatedBag = newBag;
-          const newPiece = createPiece(nextType);
-          setCurrentPiece(newPiece);
-          return newNext;
-        });
-        return updatedBag;
-      });
+      const { nextPiece, updatedQueue } = getNextPieceFromQueue();
+      setPieceQueue(updatedQueue);
+      setCurrentPiece(nextPiece);
     } else {
-      const pieceFromHold = createPiece(holdPiece);
+      const nextHold = holdPiece;
       setHoldPiece(currentType);
-      setCurrentPiece(pieceFromHold);
+      setCurrentPiece(createPiece(nextHold));
     }
-  }, [currentPiece, canHold, holdPiece, isPlaying, isPaused, isGameOver, getNextPieceType]);
+
+    setCanHold(false);
+  }, [currentPiece, canHold, holdPiece, isPlaying, isPaused, isGameOver, getNextPieceFromQueue]);
 
   // ポーズ切替
   const togglePause = useCallback(() => {
@@ -295,77 +275,79 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
     setIsPaused((prev) => !prev);
   }, [isPlaying, isGameOver]);
 
-  // 自然落下ループ
+  // 自動落下タイマー
   useEffect(() => {
     if (!isPlaying || isPaused || isGameOver) {
-      if (dropTimerRef.current) clearInterval(dropTimerRef.current);
+      if (dropIntervalRef.current) clearInterval(dropIntervalRef.current);
       return;
     }
 
     const interval = getDropInterval(level);
-    dropTimerRef.current = window.setInterval(() => {
+    dropIntervalRef.current = window.setInterval(() => {
       dropPiece();
     }, interval);
 
     return () => {
-      if (dropTimerRef.current) clearInterval(dropTimerRef.current);
+      if (dropIntervalRef.current) clearInterval(dropIntervalRef.current);
     };
   }, [isPlaying, isPaused, isGameOver, level, dropPiece]);
 
   // キーボード操作リスナー
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.repeat && (e.key === ' ' || e.key.toLowerCase() === 'c')) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
 
-      switch (e.key) {
+      switch (e.code) {
         case 'ArrowLeft':
+        case 'KeyA':
           e.preventDefault();
           moveLeft();
           break;
         case 'ArrowRight':
+        case 'KeyD':
           e.preventDefault();
           moveRight();
           break;
         case 'ArrowDown':
+        case 'KeyS':
           e.preventDefault();
           dropPiece();
           break;
         case 'ArrowUp':
-        case 'x':
-        case 'X':
+        case 'KeyW':
+        case 'KeyX':
           e.preventDefault();
           rotate();
           break;
-        case ' ':
+        case 'Space':
           e.preventDefault();
           hardDrop();
           break;
-        case 'c':
-        case 'C':
-        case 'Shift':
+        case 'KeyC':
+        case 'ShiftLeft':
+        case 'ShiftRight':
           e.preventDefault();
           hold();
           break;
-        case 'p':
-        case 'P':
+        case 'KeyP':
+        case 'Escape':
           e.preventDefault();
           togglePause();
           break;
-        case 'r':
-        case 'R':
-          if (isGameOver) {
-            e.preventDefault();
+        case 'KeyR':
+          e.preventDefault();
+          if (isGameOver || !isPlaying) {
             startGame();
           }
-          break;
-        default:
           break;
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [moveLeft, moveRight, dropPiece, rotate, hardDrop, hold, togglePause, isGameOver, startGame]);
+  }, [moveLeft, moveRight, dropPiece, rotate, hardDrop, hold, togglePause, isGameOver, isPlaying, startGame]);
 
   const ghostY = currentPiece ? getGhostPosition(currentPiece, board) : null;
 
@@ -389,12 +371,25 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
           ゲーム一覧に戻る
         </button>
 
-        <div
-          className={`text-xs font-bold tracking-wider ${
-            isDark ? 'text-slate-400' : 'text-slate-500'
-          }`}
-        >
-          TETRIS NEON
+        <div className="flex items-center gap-2">
+          {combo > 1 && (
+            <span className="px-2.5 py-0.5 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 text-[11px] font-bold animate-pulse">
+              COMBO ×{combo}
+            </span>
+          )}
+          {isBackToBack && (
+            <span className="px-2.5 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[11px] font-bold flex items-center gap-1">
+              <Flame className="w-3 h-3 text-amber-500" />
+              B2B
+            </span>
+          )}
+          <div
+            className={`text-xs font-bold tracking-wider ${
+              isDark ? 'text-slate-400' : 'text-slate-500'
+            }`}
+          >
+            TETRIS NEON
+          </div>
         </div>
       </div>
 
@@ -465,6 +460,8 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
             score={score}
             highScore={highScore}
             isTetrisClear={isTetrisClear}
+            comboCount={combo}
+            isBackToBack={isBackToBack}
             isDark={isDark}
             onStart={startGame}
             onRestart={startGame}
@@ -472,12 +469,12 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
           />
         </div>
 
-        {/* 右サイドパネル: NEXT & LEVEL/LINES */}
+        {/* 右サイドパネル: NEXT (3個連続プレビュー) & LEVEL/LINES */}
         <div className="w-full md:w-auto flex md:flex-col justify-between md:justify-start gap-3 order-3">
-          <PiecePreview
-            type={nextPieces[0] || null}
-            label="NEXT"
+          <NextQueuePreview
+            queue={pieceQueue}
             isDark={isDark}
+            count={3}
           />
 
           <div

@@ -6,7 +6,7 @@ import {
   BOARD_HEIGHT,
   TETROMINO_COLORS,
 } from '../types/tetris';
-import { Play, RotateCcw, Trophy } from 'lucide-react';
+import { Play, RotateCcw, Trophy, Zap, Flame } from 'lucide-react';
 
 interface TetrisBoardProps {
   board: BoardMatrix;
@@ -18,6 +18,8 @@ interface TetrisBoardProps {
   score: number;
   highScore: number;
   isTetrisClear: boolean;
+  comboCount?: number;
+  isBackToBack?: boolean;
   isDark?: boolean;
   onStart: () => void;
   onRestart: () => void;
@@ -34,6 +36,8 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
   score,
   highScore,
   isTetrisClear,
+  comboCount = 0,
+  isBackToBack = false,
   isDark = true,
   onStart,
   onRestart,
@@ -105,14 +109,30 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
     >
       {/* TETRIS 4列消去の祝賀バナー */}
       {isTetrisClear && (
-        <div className="absolute top-1/3 left-0 right-0 z-30 flex justify-center pointer-events-none animate-bounce">
+        <div className="absolute top-1/3 left-0 right-0 z-30 flex flex-col items-center pointer-events-none animate-bounce">
           <span className="px-8 py-3 bg-gradient-to-r from-amber-400 via-rose-500 to-purple-600 text-white font-black text-2xl sm:text-3xl tracking-widest rounded-full shadow-[0_0_30px_rgba(244,63,94,0.9)] uppercase border-2 border-white/90 scale-110">
             ★ TETRIS! ★
+          </span>
+          {isBackToBack && (
+            <span className="mt-2 px-4 py-1 bg-amber-500 text-slate-950 font-black text-xs sm:text-sm tracking-wider rounded-full shadow-lg border border-white uppercase flex items-center gap-1 animate-pulse">
+              <Flame className="w-3.5 h-3.5 fill-slate-950" />
+              BACK-TO-BACK BONUS!
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* COMBO 連鎖バナー */}
+      {comboCount > 1 && !isTetrisClear && (
+        <div className="absolute top-1/4 right-4 z-30 pointer-events-none animate-in zoom-in duration-150">
+          <span className="inline-flex items-center gap-1.5 px-4 py-1.5 bg-gradient-to-r from-indigo-500 to-cyan-500 text-white font-black text-sm sm:text-base tracking-wider rounded-full shadow-lg border border-white/70">
+            <Zap className="w-4 h-4 fill-amber-300 text-amber-300" />
+            COMBO ×{comboCount}
           </span>
         </div>
       )}
 
-      {/* 20x10 グリッド (大幅にサイズアップ: w-7〜w-10) */}
+      {/* 20x10 グリッド */}
       <div
         className={`grid grid-cols-10 gap-[2px] sm:gap-1.5 p-2 sm:p-3 rounded-2xl border transition-colors ${
           isDark
