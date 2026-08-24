@@ -355,13 +355,13 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
     <div className="w-full flex flex-col items-center">
       {/* 上部ナビゲーション */}
       <div
-        className={`w-full flex items-center justify-between mb-4 transition-all ${
+        className={`w-full flex items-center justify-between mb-3 relative z-30 transition-all ${
           isFullscreen ? 'max-w-4xl' : 'max-w-2xl'
         }`}
       >
         <button
           onClick={onBackToHub}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition ${
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer relative z-30 ${
             isDark
               ? 'text-slate-300 hover:text-white bg-slate-900 border-slate-800 hover:bg-slate-800'
               : 'text-slate-700 hover:text-slate-900 bg-white border-slate-200 hover:bg-slate-50 shadow-xs'
@@ -394,8 +394,8 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
       </div>
 
       <div
-        className={`w-full flex flex-col md:flex-row items-center justify-center gap-6 lg:gap-8 transition-transform duration-300 ${
-          isFullscreen ? 'scale-105 sm:scale-110 lg:scale-120 my-4' : ''
+        className={`w-full flex flex-col md:flex-row items-center justify-center gap-6 lg:gap-8 transition-transform duration-300 relative z-10 ${
+          isFullscreen ? 'scale-100 sm:scale-105 lg:scale-110 my-2' : ''
         }`}
       >
         {/* 左サイドパネル: HOLD & STATS */}

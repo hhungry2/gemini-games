@@ -226,13 +226,13 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({
     <div className="w-full flex flex-col items-center">
       {/* 上部ナビゲーション */}
       <div
-        className={`w-full flex items-center justify-between mb-4 transition-all ${
+        className={`w-full flex items-center justify-between mb-4 relative z-30 transition-all ${
           isFullscreen ? 'max-w-5xl' : 'max-w-3xl'
         }`}
       >
         <button
           onClick={onBackToHub}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl border transition ${
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl border transition cursor-pointer relative z-30 ${
             isDark
               ? 'text-slate-300 hover:text-white bg-slate-900 border-slate-800 hover:bg-slate-800'
               : 'text-slate-700 hover:text-slate-900 bg-white border-slate-200 hover:bg-slate-50 shadow-xs'

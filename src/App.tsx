@@ -4,14 +4,27 @@ import { GameCard, RecordItem } from './components/GameCard';
 import { TetrisGame } from './games/TetrisGame';
 import { MinesweeperGame } from './games/MinesweeperGame';
 import { GeminiBrosGame } from './games/GeminiBrosGame';
+import { SpaceShooterGame } from './games/SpaceShooterGame';
 import { GameInfo, GameId } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck } from 'lucide-react';
 
 const THEME_KEY = 'games_hub_theme';
 const TETRIS_HIGH_SCORE_KEY = 'tetris_high_score_v1';
 const BROS_HIGH_SCORE_KEY = 'gemini_bros_high_score';
+const SHOOTER_HIGH_SCORE_KEY = 'star_striker_high_score';
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'shooter',
+    title: 'Star Striker (スター・ストライカー)',
+    titleEn: 'Cyber Space Vertical Shooter',
+    description:
+      '宇宙空間を舞台にした超爽快な本格縦スクロールシューティング！パワーアップ・追尾ミサイル・支援ビット機・巨大ボス戦・ハイパーボム完備。',
+    badge: '新作STG',
+    iconName: 'shooter',
+    color: 'from-cyan-500 via-indigo-600 to-rose-500',
+    tags: ['縦シュー', '弾幕', '3ステージ', '巨大ボス', 'スマホ・PC両対応'],
+  },
   {
     id: 'bros',
     title: 'Gemini 3.7 Bros.',
@@ -60,6 +73,7 @@ export function App() {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   // ハイスコア / ベストタイム状態
+  const [shooterHighScore, setShooterHighScore] = useState<number>(0);
   const [tetrisHighScore, setTetrisHighScore] = useState<number>(0);
   const [brosHighScore, setBrosHighScore] = useState<number>(0);
   const [minesweeperBests, setMinesweeperBests] = useState<{
@@ -75,6 +89,9 @@ export function App() {
   // レコードの読み込み
   const loadRecords = () => {
     if (typeof window === 'undefined') return;
+    const sScore = localStorage.getItem(SHOOTER_HIGH_SCORE_KEY);
+    if (sScore) setShooterHighScore(parseInt(sScore, 10) || 0);
+
     const tScore = localStorage.getItem(TETRIS_HIGH_SCORE_KEY);
     if (tScore) setTetrisHighScore(parseInt(tScore, 10) || 0);
 
@@ -127,7 +144,9 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'bros') {
+    if (activeGame === 'shooter') {
+      document.title = 'Star Striker (スター・ストライカー) | Games Hub';
+    } else if (activeGame === 'bros') {
       document.title = 'Gemini 3.7 Bros. | Games Hub';
     } else if (activeGame === 'tetris') {
       document.title = 'テトリス (Tetris Neon) | Games Hub';
@@ -140,6 +159,14 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'shooter') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: shooterHighScore > 0 ? `${shooterHighScore.toLocaleString()} pts` : '--',
+        },
+      ];
+    }
     if (gameId === 'bros') {
       return [
         {
@@ -193,18 +220,18 @@ export function App() {
       />
 
       <main
-        className={`flex-1 w-full flex flex-col items-center justify-center transition-all duration-300 ${
-          isFullscreen ? 'max-w-none px-2 sm:px-4 py-2' : 'max-w-6xl mx-auto px-4 py-8'
+        className={`flex-1 w-full flex flex-col items-center transition-all duration-300 ${
+          isFullscreen ? 'max-w-none px-2 sm:px-4 py-2' : 'max-w-6xl mx-auto px-4 py-4 sm:py-6'
         }`}
       >
         {!activeGame ? (
-          <div className="w-full space-y-12 animate-in fade-in duration-300">
+          <div className="w-full space-y-6 sm:space-y-8 animate-in fade-in duration-300">
             {/* ヒーローセクション */}
             <div
-              className={`relative text-center py-12 px-6 rounded-3xl border overflow-hidden transition-all ${
+              className={`relative text-center py-6 px-4 sm:py-8 sm:px-6 rounded-3xl border overflow-hidden transition-all ${
                 isDark
-                  ? 'bg-gradient-to-b from-indigo-950/40 via-slate-900/60 to-slate-950 border-slate-800/80 shadow-2xl'
-                  : 'bg-gradient-to-b from-indigo-50/80 via-white to-slate-50 border-slate-200/90 shadow-lg'
+                  ? 'bg-gradient-to-b from-indigo-950/40 via-slate-900/60 to-slate-950 border-slate-800/80 shadow-xl'
+                  : 'bg-gradient-to-b from-indigo-50/80 via-white to-slate-50 border-slate-200/90 shadow-md'
               }`}
             >
               <div
@@ -215,9 +242,9 @@ export function App() {
                 }`}
               />
 
-              <div className="relative z-10 max-w-2xl mx-auto space-y-4">
+              <div className="relative z-10 max-w-2xl mx-auto space-y-3">
                 <div
-                  className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border text-xs font-bold ${
+                  className={`inline-flex items-center gap-2 px-3.5 py-1 rounded-full border text-xs font-bold ${
                     isDark
                       ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'
                       : 'bg-indigo-50 border-indigo-200 text-indigo-700'
@@ -228,7 +255,7 @@ export function App() {
                 </div>
 
                 <h1
-                  className={`text-4xl sm:text-5xl font-black tracking-tight ${
+                  className={`text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight ${
                     isDark
                       ? 'bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-100 to-pink-300'
                       : 'bg-clip-text text-transparent bg-gradient-to-r from-slate-950 via-indigo-900 to-purple-800'
@@ -238,22 +265,22 @@ export function App() {
                 </h1>
 
                 <p
-                  className={`text-sm sm:text-base leading-relaxed ${
+                  className={`text-xs sm:text-sm leading-relaxed ${
                     isDark ? 'text-slate-400' : 'text-slate-600 font-medium'
                   }`}
                 >
-                  登録不要・APIキー不要で、PCやスマホからブラウザを開くだけで即座に遊べるWebゲームコレクションです。
+                  PCやスマホからブラウザを開くだけで即座に遊べるWebゲームコレクションです。
                 </p>
               </div>
 
               {/* 特徴ハイライト */}
               <div
-                className={`relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto mt-10 pt-8 border-t text-left ${
+                className={`relative z-10 grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto mt-6 pt-5 border-t text-left ${
                   isDark ? 'border-slate-800/80' : 'border-slate-200/80'
                 }`}
               >
                 <div
-                  className={`flex items-start gap-3 p-3.5 rounded-2xl border ${
+                  className={`flex items-start gap-3 p-3 rounded-2xl border ${
                     isDark
                       ? 'bg-slate-900/70 border-slate-800'
                       : 'bg-white border-slate-200 shadow-xs'
@@ -266,7 +293,7 @@ export function App() {
                         isDark ? 'text-white' : 'text-slate-900'
                       }`}
                     >
-                      インストール・設定不要
+                      インストール不要
                     </div>
                     <div
                       className={`text-[11px] mt-0.5 ${
@@ -353,7 +380,7 @@ export function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
                 {GAMES.map((game) => (
                   <GameCard
                     key={game.id}
@@ -368,6 +395,13 @@ export function App() {
           </div>
         ) : (
           <div className="w-full animate-in fade-in duration-300">
+            {activeGame === 'shooter' && (
+              <SpaceShooterGame
+                onBackToHub={() => setActiveGame(null)}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'bros' && (
               <GeminiBrosGame
                 onBackToHub={() => setActiveGame(null)}

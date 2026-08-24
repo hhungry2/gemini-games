@@ -1,6 +1,6 @@
 import React from 'react';
 import { GameInfo, GameId } from '../types';
-import { LayoutGrid, ArrowRight, Sparkles, Trophy } from 'lucide-react';
+import { LayoutGrid, ArrowRight, Sparkles, Trophy, Crosshair, Gamepad2, Layers, Bomb } from 'lucide-react';
 
 export interface RecordItem {
   label: string;
@@ -20,6 +20,21 @@ export const GameCard: React.FC<GameCardProps> = ({
   isDark,
   records = [],
 }) => {
+  const getGameIcon = () => {
+    switch (game.id) {
+      case 'shooter':
+        return <Crosshair className="w-6 h-6 text-white" />;
+      case 'bros':
+        return <Gamepad2 className="w-6 h-6 text-white" />;
+      case 'tetris':
+        return <Layers className="w-6 h-6 text-white" />;
+      case 'minesweeper':
+        return <Bomb className="w-6 h-6 text-white" />;
+      default:
+        return <LayoutGrid className="w-6 h-6 text-white" />;
+    }
+  };
+
   return (
     <div
       onClick={() => onSelect(game.id)}
@@ -44,7 +59,7 @@ export const GameCard: React.FC<GameCardProps> = ({
                 : 'bg-indigo-600 border-indigo-500 shadow-indigo-600/30'
             }`}
           >
-            <LayoutGrid className="w-6 h-6 text-white" />
+            {getGameIcon()}
           </div>
           <span
             className={`text-[11px] font-bold tracking-wider px-3 py-1 rounded-full border ${

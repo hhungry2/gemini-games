@@ -154,8 +154,8 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </button>
 
-            {/* テトリス操作方法ボタン (テトリスプレイ時のみ表示) */}
-            {activeGame === 'tetris' && (
+            {/* 操作方法ボタン (ゲームプレイ時に表示) */}
+            {activeGame && (
               <button
                 onClick={() => setShowHelp(true)}
                 className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition ${
@@ -172,7 +172,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </header>
 
-      {/* テトリス操作方法モーダル */}
+      {/* 操作方法モーダル */}
       {showHelp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div
@@ -194,164 +194,289 @@ export const Header: React.FC<HeaderProps> = ({
               <X className="w-5 h-5" />
             </button>
 
-            <h3 className="text-xl font-black mb-4 flex items-center gap-2">
-              <Gamepad2 className="w-5 h-5 text-indigo-500" />
-              テトリス操作方法 (Controls)
-            </h3>
+            {activeGame === 'shooter' ? (
+              <>
+                <h3 className="text-xl font-black mb-4 flex items-center gap-2">
+                  <Gamepad2 className="w-5 h-5 text-indigo-500" />
+                  Star Striker 操作方法
+                </h3>
 
-            <div className="space-y-3 text-xs">
-              <div
-                className={`p-3 rounded-xl border flex items-center justify-between ${
-                  isDark
-                    ? 'bg-slate-950/80 border-slate-800'
-                    : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                  左右移動
-                </span>
-                <span
-                  className={`font-mono px-2 py-1 rounded font-bold ${
-                    isDark
-                      ? 'bg-slate-800 text-white'
-                      : 'bg-slate-200 text-slate-900'
-                  }`}
-                >
-                  ← / →
-                </span>
-              </div>
-              <div
-                className={`p-3 rounded-xl border flex items-center justify-between ${
-                  isDark
-                    ? 'bg-slate-950/80 border-slate-800'
-                    : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                  回転
-                </span>
-                <span
-                  className={`font-mono px-2 py-1 rounded font-bold ${
-                    isDark
-                      ? 'bg-slate-800 text-white'
-                      : 'bg-slate-200 text-slate-900'
-                  }`}
-                >
-                  ↑ / X
-                </span>
-              </div>
-              <div
-                className={`p-3 rounded-xl border flex items-center justify-between ${
-                  isDark
-                    ? 'bg-slate-950/80 border-slate-800'
-                    : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                  ソフトドロップ (早落とし)
-                </span>
-                <span
-                  className={`font-mono px-2 py-1 rounded font-bold ${
-                    isDark
-                      ? 'bg-slate-800 text-white'
-                      : 'bg-slate-200 text-slate-900'
-                  }`}
-                >
-                  ↓
-                </span>
-              </div>
-              <div
-                className={`p-3 rounded-xl border flex items-center justify-between ${
-                  isDark
-                    ? 'bg-slate-950/80 border-slate-800'
-                    : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                  ハードドロップ (即時着地)
-                </span>
-                <span
-                  className={`font-mono px-2 py-1 rounded font-bold ${
-                    isDark
-                      ? 'bg-slate-800 text-white'
-                      : 'bg-slate-200 text-slate-900'
-                  }`}
-                >
-                  Space
-                </span>
-              </div>
-              <div
-                className={`p-3 rounded-xl border flex items-center justify-between ${
-                  isDark
-                    ? 'bg-slate-950/80 border-slate-800'
-                    : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                  ホールド (キープ)
-                </span>
-                <span
-                  className={`font-mono px-2 py-1 rounded font-bold ${
-                    isDark
-                      ? 'bg-slate-800 text-white'
-                      : 'bg-slate-200 text-slate-900'
-                  }`}
-                >
-                  C / Shift
-                </span>
-              </div>
-              <div
-                className={`p-3 rounded-xl border flex items-center justify-between ${
-                  isDark
-                    ? 'bg-slate-950/80 border-slate-800'
-                    : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                  ポーズ / 再開
-                </span>
-                <span
-                  className={`font-mono px-2 py-1 rounded font-bold ${
-                    isDark
-                      ? 'bg-slate-800 text-white'
-                      : 'bg-slate-200 text-slate-900'
-                  }`}
-                >
-                  P
-                </span>
-              </div>
-              <div
-                className={`p-3 rounded-xl border flex items-center justify-between ${
-                  isDark
-                    ? 'bg-slate-950/80 border-slate-800'
-                    : 'bg-slate-50 border-slate-200'
-                }`}
-              >
-                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                  リスタート
-                </span>
-                <span
-                  className={`font-mono px-2 py-1 rounded font-bold ${
-                    isDark
-                      ? 'bg-slate-800 text-white'
-                      : 'bg-slate-200 text-slate-900'
-                  }`}
-                >
-                  R
-                </span>
-              </div>
+                <div className="space-y-3 text-xs">
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-800'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                      自機の移動
+                    </span>
+                    <span
+                      className={`font-mono px-2 py-1 rounded font-bold ${
+                        isDark
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-200 text-slate-900'
+                      }`}
+                    >
+                      矢印 / WASD / マウス追従
+                    </span>
+                  </div>
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-800'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                      ショット発射 (オート射撃可)
+                    </span>
+                    <span
+                      className={`font-mono px-2 py-1 rounded font-bold ${
+                        isDark
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-200 text-slate-900'
+                      }`}
+                    >
+                      Space / Z / 左クリック
+                    </span>
+                  </div>
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-800'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                      ハイパーボム (全弾消去+大打撃)
+                    </span>
+                    <span
+                      className={`font-mono px-2 py-1 rounded font-bold ${
+                        isDark
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-200 text-slate-900'
+                      }`}
+                    >
+                      X / K / 右クリック
+                    </span>
+                  </div>
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-800'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                      低速・精密移動 (フォーカス)
+                    </span>
+                    <span
+                      className={`font-mono px-2 py-1 rounded font-bold ${
+                        isDark
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-200 text-slate-900'
+                      }`}
+                    >
+                      Shift / C
+                    </span>
+                  </div>
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-800'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                      ポーズ / 一時停止
+                    </span>
+                    <span
+                      className={`font-mono px-2 py-1 rounded font-bold ${
+                        isDark
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-200 text-slate-900'
+                      }`}
+                    >
+                      P / Esc
+                    </span>
+                  </div>
 
-              <div
-                className={`p-2.5 rounded-xl border text-[11px] flex items-center gap-2 ${
-                  isDark
-                    ? 'bg-slate-950 border-slate-800 text-slate-400'
-                    : 'bg-indigo-50/70 border-indigo-100 text-indigo-800'
-                }`}
-              >
-                <Smartphone className="w-4 h-4 text-indigo-500 shrink-0" />
-                <span>スマホ時は画面下のタッチコントローラーで全操作可能です。</span>
-              </div>
-            </div>
+                  <div
+                    className={`p-2.5 rounded-xl border text-[11px] flex items-center gap-2 ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-800 text-slate-400'
+                        : 'bg-indigo-50/70 border-indigo-100 text-indigo-800'
+                    }`}
+                  >
+                    <Smartphone className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <span>スマホ時は画面ドラッグで直感移動・下部ボムボタンで操作可能です。</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-xl font-black mb-4 flex items-center gap-2">
+                  <Gamepad2 className="w-5 h-5 text-indigo-500" />
+                  テトリス操作方法 (Controls)
+                </h3>
+
+                <div className="space-y-3 text-xs">
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-800'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                      左右移動
+                    </span>
+                    <span
+                      className={`font-mono px-2 py-1 rounded font-bold ${
+                        isDark
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-200 text-slate-900'
+                      }`}
+                    >
+                      ← / →
+                    </span>
+                  </div>
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-800'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                      回転
+                    </span>
+                    <span
+                      className={`font-mono px-2 py-1 rounded font-bold ${
+                        isDark
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-200 text-slate-900'
+                      }`}
+                    >
+                      ↑ / X
+                    </span>
+                  </div>
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-800'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                      ソフトドロップ (早落とし)
+                    </span>
+                    <span
+                      className={`font-mono px-2 py-1 rounded font-bold ${
+                        isDark
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-200 text-slate-900'
+                      }`}
+                    >
+                      ↓
+                    </span>
+                  </div>
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-800'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                      ハードドロップ (即時着地)
+                    </span>
+                    <span
+                      className={`font-mono px-2 py-1 rounded font-bold ${
+                        isDark
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-200 text-slate-900'
+                      }`}
+                    >
+                      Space
+                    </span>
+                  </div>
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-800'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                      ホールド (キープ)
+                    </span>
+                    <span
+                      className={`font-mono px-2 py-1 rounded font-bold ${
+                        isDark
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-200 text-slate-900'
+                      }`}
+                    >
+                      C / Shift
+                    </span>
+                  </div>
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-800'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                      ポーズ / 再開
+                    </span>
+                    <span
+                      className={`font-mono px-2 py-1 rounded font-bold ${
+                        isDark
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-200 text-slate-900'
+                      }`}
+                    >
+                      P
+                    </span>
+                  </div>
+                  <div
+                    className={`p-3 rounded-xl border flex items-center justify-between ${
+                      isDark
+                        ? 'bg-slate-950/80 border-slate-800'
+                        : 'bg-slate-50 border-slate-200'
+                    }`}
+                  >
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                      リスタート
+                    </span>
+                    <span
+                      className={`font-mono px-2 py-1 rounded font-bold ${
+                        isDark
+                          ? 'bg-slate-800 text-white'
+                          : 'bg-slate-200 text-slate-900'
+                      }`}
+                    >
+                      R
+                    </span>
+                  </div>
+
+                  <div
+                    className={`p-2.5 rounded-xl border text-[11px] flex items-center gap-2 ${
+                      isDark
+                        ? 'bg-slate-950 border-slate-800 text-slate-400'
+                        : 'bg-indigo-50/70 border-indigo-100 text-indigo-800'
+                    }`}
+                  >
+                    <Smartphone className="w-4 h-4 text-indigo-500 shrink-0" />
+                    <span>スマホ時は画面下のタッチコントローラーで全操作可能です。</span>
+                  </div>
+                </div>
+              </>
+            )}
 
             <button
               onClick={() => setShowHelp(false)}
