@@ -117,7 +117,23 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) =
     setIsPaused(false);
     setIsGameOver(false);
     setIsTetrisClear(false);
+    sound.startTetrisBgm();
   }, []);
+
+  // BGM (コロベイニキ) の自動制御
+  useEffect(() => {
+    if (isPlaying && !isPaused && !isGameOver) {
+      sound.resumeTetrisBgm();
+    } else if (isPaused) {
+      sound.pauseTetrisBgm();
+    } else if (isGameOver || !isPlaying) {
+      sound.stopTetrisBgm();
+    }
+
+    return () => {
+      sound.stopTetrisBgm();
+    };
+  }, [isPlaying, isPaused, isGameOver]);
 
   // ピースの固定とライン消去の処理
   const lockPiece = useCallback(
