@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { GameCard } from './components/GameCard';
 import { TetrisGame } from './games/TetrisGame';
@@ -33,6 +33,16 @@ const GAMES: GameInfo[] = [
 
 export function App() {
   const [activeGame, setActiveGame] = useState<GameId | null>(null);
+
+  useEffect(() => {
+    if (activeGame === 'tetris') {
+      document.title = 'テトリス (Tetris Neon) | Games Hub';
+    } else if (activeGame === 'minesweeper') {
+      document.title = 'マインスイーパー (Minesweeper Cyber) | Games Hub';
+    } else {
+      document.title = 'Games Hub - Web Mini Games Collection';
+    }
+  }, [activeGame]);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 text-slate-100 antialiased selection:bg-indigo-500 selection:text-white">
