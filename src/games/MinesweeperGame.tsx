@@ -203,13 +203,27 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
 
   const remainingMines = Math.max(0, config.mines - flagsCount);
 
+  // 難易度に応じたセルサイズとテキストサイズ
+  const getCellSizeClass = () => {
+    switch (difficulty) {
+      case 'easy':
+        return 'w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 text-xl sm:text-2xl rounded-xl';
+      case 'medium':
+        return 'w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 text-base sm:text-lg rounded-lg';
+      case 'hard':
+        return 'w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 text-sm sm:text-base rounded-md';
+      default:
+        return 'w-8 h-8 sm:w-10 sm:h-10 text-base rounded-lg';
+    }
+  };
+
   return (
     <div className="w-full flex flex-col items-center">
       {/* 上部ナビゲーション */}
-      <div className="w-full max-w-2xl flex items-center justify-between mb-4">
+      <div className="w-full max-w-3xl flex items-center justify-between mb-4">
         <button
           onClick={onBackToHub}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition ${
+          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl border transition ${
             isDark
               ? 'text-slate-300 hover:text-white bg-slate-900 border-slate-800 hover:bg-slate-800'
               : 'text-slate-700 hover:text-slate-900 bg-white border-slate-200 hover:bg-slate-50 shadow-xs'
@@ -228,21 +242,21 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
         </div>
       </div>
 
-      <div className="w-full max-w-3xl flex flex-col items-center space-y-4">
+      <div className="w-full max-w-4xl flex flex-col items-center space-y-4">
         {/* 難易度セレクター ＆ ベストタイム */}
         <div
-          className={`w-full flex flex-wrap items-center justify-between gap-3 p-3 rounded-2xl border backdrop-blur-sm ${
+          className={`w-full flex flex-wrap items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl border backdrop-blur-sm ${
             isDark
               ? 'bg-slate-900/80 border-slate-800'
               : 'bg-white border-slate-200 shadow-xs'
           }`}
         >
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-2">
             {(['easy', 'medium', 'hard'] as DifficultyId[]).map((d) => (
               <button
                 key={d}
                 onClick={() => handleDifficultyChange(d)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition ${
                   difficulty === d
                     ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
                     : isDark
@@ -255,8 +269,8 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
             ))}
           </div>
 
-          <div className="flex items-center gap-1.5 text-xs text-amber-500 font-mono font-bold">
-            <Trophy className="w-3.5 h-3.5" />
+          <div className="flex items-center gap-2 text-xs sm:text-sm text-amber-500 font-mono font-bold">
+            <Trophy className="w-4 h-4" />
             <span className={isDark ? 'text-slate-400' : 'text-slate-500'}>
               BEST:
             </span>
@@ -268,15 +282,15 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
 
         {/* マインスイーパー本体コンテナ */}
         <div
-          className={`border-2 rounded-3xl p-4 sm:p-6 flex flex-col items-center w-full overflow-hidden transition-all duration-200 ${
+          className={`border-2 rounded-3xl p-5 sm:p-8 flex flex-col items-center w-full overflow-hidden transition-all duration-200 ${
             isDark
               ? 'bg-slate-950 border-indigo-500/40 shadow-[0_0_40px_rgba(99,102,241,0.15)]'
-              : 'bg-white border-indigo-200 shadow-xl'
+              : 'bg-white border-indigo-200 shadow-2xl'
           }`}
         >
-          {/* コントロールヘッダー */}
+          {/* コントロールヘッダー (サイズアップ) */}
           <div
-            className={`w-full max-w-md rounded-2xl p-3.5 mb-5 flex items-center justify-between border shadow-inner transition-colors ${
+            className={`w-full max-w-lg rounded-2xl p-4 mb-6 flex items-center justify-between border shadow-inner transition-colors ${
               isDark
                 ? 'bg-slate-900/90 border-slate-800'
                 : 'bg-slate-100 border-slate-200'
@@ -284,14 +298,14 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
           >
             {/* 残り地雷カウンター */}
             <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
+              className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border ${
                 isDark
                   ? 'bg-slate-950 border-slate-800 text-rose-400'
                   : 'bg-white border-slate-200 text-rose-600 shadow-xs'
               }`}
             >
-              <Bomb className="w-4 h-4 text-rose-500" />
-              <span className="font-mono font-black text-lg tracking-wider">
+              <Bomb className="w-5 h-5 text-rose-500" />
+              <span className="font-mono font-black text-xl sm:text-2xl tracking-wider">
                 {String(remainingMines).padStart(3, '0')}
               </span>
             </div>
@@ -299,7 +313,7 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
             {/* リセットボタン */}
             <button
               onClick={() => resetGame()}
-              className={`p-2.5 rounded-2xl border shadow-md active:scale-95 transition ${
+              className={`p-3 rounded-2xl border shadow-md active:scale-95 transition ${
                 isDark
                   ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-white'
                   : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-800 shadow-xs'
@@ -307,34 +321,34 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
               title="リセット"
             >
               {status === 'won' ? (
-                <Sparkles className="w-6 h-6 text-amber-500 animate-spin" />
+                <Sparkles className="w-7 h-7 text-amber-500 animate-spin" />
               ) : status === 'lost' ? (
-                <Frown className="w-6 h-6 text-rose-500" />
+                <Frown className="w-7 h-7 text-rose-500" />
               ) : (
-                <Smile className="w-6 h-6 text-indigo-500" />
+                <Smile className="w-7 h-7 text-indigo-500" />
               )}
             </button>
 
             {/* タイマー */}
             <div
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border ${
+              className={`flex items-center gap-2.5 px-4 py-2 rounded-xl border ${
                 isDark
                   ? 'bg-slate-950 border-slate-800 text-cyan-400'
                   : 'bg-white border-slate-200 text-indigo-600 shadow-xs'
               }`}
             >
-              <Timer className="w-4 h-4 text-indigo-500" />
-              <span className="font-mono font-black text-lg tracking-wider">
+              <Timer className="w-5 h-5 text-indigo-500" />
+              <span className="font-mono font-black text-xl sm:text-2xl tracking-wider">
                 {String(elapsedTime).padStart(3, '0')}
               </span>
             </div>
           </div>
 
           {/* モバイル向けモード切替ボタン */}
-          <div className="flex items-center gap-2 mb-4 sm:hidden">
+          <div className="flex items-center gap-3 mb-5 sm:hidden">
             <button
               onClick={() => setMobileMode('dig')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition ${
                 mobileMode === 'dig'
                   ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/25'
                   : isDark
@@ -342,13 +356,13 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
                   : 'bg-white border border-slate-200 text-slate-600 shadow-xs'
               }`}
             >
-              <Shovel className="w-3.5 h-3.5" />
+              <Shovel className="w-4 h-4" />
               掘るモード
             </button>
 
             <button
               onClick={() => setMobileMode('flag')}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold transition ${
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition ${
                 mobileMode === 'flag'
                   ? 'bg-rose-600 text-white shadow-lg shadow-rose-500/25'
                   : isDark
@@ -356,21 +370,21 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
                   : 'bg-white border border-slate-200 text-slate-600 shadow-xs'
               }`}
             >
-              <Flag className="w-3.5 h-3.5" />
+              <Flag className="w-4 h-4" />
               旗立てモード
             </button>
           </div>
 
-          {/* ボード */}
+          {/* ボード (セルサイズ拡張) */}
           <div
-            className={`max-w-full overflow-auto p-2 rounded-2xl border transition-colors ${
+            className={`max-w-full overflow-auto p-3 sm:p-4 rounded-2xl border transition-colors ${
               isDark
                 ? 'bg-slate-900/60 border-slate-800/80'
                 : 'bg-slate-100 border-slate-200'
             }`}
           >
             <div
-              className="grid gap-[2px] sm:gap-1 select-none"
+              className="grid gap-[3px] sm:gap-1.5 select-none"
               style={{
                 gridTemplateColumns: `repeat(${config.cols}, minmax(0, 1fr))`,
               }}
@@ -390,7 +404,7 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
                         : isDark
                         ? 'bg-rose-950/60 border border-rose-800/60'
                         : 'bg-rose-100 border border-rose-300';
-                      content = <Bomb className="w-4 h-4 text-rose-500 fill-rose-500/30" />;
+                      content = <Bomb className="w-5 h-5 sm:w-6 sm:h-6 text-rose-500 fill-rose-500/30" />;
                     } else {
                       cellStyle = isDark
                         ? 'bg-slate-950/90 border border-slate-900 cursor-default'
@@ -399,7 +413,7 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
                         const numColor = NUMBER_COLORS[cell.neighborMines];
                         content = (
                           <span
-                            className={`font-black font-mono text-sm sm:text-base ${numColor.text} ${
+                            className={`font-black font-mono ${numColor.text} ${
                               isDark ? numColor.glow : ''
                             }`}
                           >
@@ -412,7 +426,7 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
                     cellStyle = isDark
                       ? 'bg-slate-800 border border-amber-500/50 shadow-[0_0_8px_rgba(245,158,11,0.3)]'
                       : 'bg-amber-50 border border-amber-300 shadow-xs';
-                    content = <Flag className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />;
+                    content = <Flag className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 fill-amber-500" />;
                   }
 
                   return (
@@ -420,7 +434,7 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
                       key={`${rIdx}-${cIdx}`}
                       onClick={() => handleCellClick(rIdx, cIdx)}
                       onContextMenu={(e) => handleCellRightClick(rIdx, cIdx, e)}
-                      className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold transition-all duration-100 ${cellStyle}`}
+                      className={`${getCellSizeClass()} flex items-center justify-center font-bold transition-all duration-100 ${cellStyle}`}
                     >
                       {content}
                     </button>
@@ -433,18 +447,18 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
           {/* 勝敗オーバーレイ */}
           {status === 'won' && (
             <div
-              className={`mt-6 p-4 rounded-2xl text-center animate-in zoom-in-95 space-y-2 border ${
+              className={`mt-6 p-5 rounded-2xl text-center animate-in zoom-in-95 space-y-2 border w-full max-w-md ${
                 isDark
                   ? 'bg-emerald-500/10 border-emerald-500/30 text-slate-100'
                   : 'bg-emerald-50 border-emerald-200 text-slate-800'
               }`}
             >
-              <div className="flex items-center justify-center gap-2 text-emerald-600 font-bold text-lg">
-                <Sparkles className="w-5 h-5" />
+              <div className="flex items-center justify-center gap-2 text-emerald-600 font-bold text-xl">
+                <Sparkles className="w-6 h-6" />
                 MISSION COMPLETE!
               </div>
               <p
-                className={`text-xs ${
+                className={`text-sm ${
                   isDark ? 'text-slate-300' : 'text-slate-600'
                 }`}
               >
@@ -452,7 +466,7 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
               </p>
               <button
                 onClick={() => resetGame()}
-                className="mt-2 px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition shadow-md"
+                className="mt-3 px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-bold transition shadow-md"
               >
                 次のミッションへ挑む
               </button>
@@ -461,18 +475,18 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
 
           {status === 'lost' && (
             <div
-              className={`mt-6 p-4 rounded-2xl text-center animate-in zoom-in-95 space-y-2 border ${
+              className={`mt-6 p-5 rounded-2xl text-center animate-in zoom-in-95 space-y-2 border w-full max-w-md ${
                 isDark
                   ? 'bg-rose-500/10 border-rose-500/30 text-slate-100'
                   : 'bg-rose-50 border-rose-200 text-slate-800'
               }`}
             >
-              <div className="flex items-center justify-center gap-2 text-rose-600 font-bold text-lg">
-                <Bomb className="w-5 h-5" />
+              <div className="flex items-center justify-center gap-2 text-rose-600 font-bold text-xl">
+                <Bomb className="w-6 h-6" />
                 MISSION FAILED
               </div>
               <p
-                className={`text-xs ${
+                className={`text-sm ${
                   isDark ? 'text-slate-300' : 'text-slate-600'
                 }`}
               >
@@ -480,9 +494,9 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
               </p>
               <button
                 onClick={() => resetGame()}
-                className="mt-2 px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 mx-auto shadow-md"
+                className="mt-3 px-6 py-2.5 bg-rose-600 hover:bg-rose-500 text-white rounded-xl text-sm font-bold transition flex items-center gap-2 mx-auto shadow-md"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className="w-4 h-4" />
                 リトライ
               </button>
             </div>

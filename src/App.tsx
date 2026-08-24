@@ -76,7 +76,7 @@ export function App() {
         onToggleTheme={toggleTheme}
       />
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 py-8 flex flex-col items-center">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col items-center">
         {!activeGame ? (
           <div className="w-full space-y-12 animate-in fade-in duration-300">
             {/* ヒーローセクション */}

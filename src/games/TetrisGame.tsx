@@ -384,7 +384,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) =
           />
 
           <div
-            className={`flex-1 md:flex-none border rounded-2xl p-4 shadow-lg backdrop-blur-sm min-w-[110px] space-y-3 ${
+            className={`flex-1 md:flex-none border rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-sm min-w-[130px] sm:min-w-[160px] space-y-4 ${
               isDark
                 ? 'bg-slate-900/90 border-slate-800 text-white'
                 : 'bg-white border-slate-200 text-slate-900 shadow-sm'
@@ -392,32 +392,32 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) =
           >
             <div>
               <div
-                className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${
+                className={`text-[11px] sm:text-xs font-bold uppercase tracking-widest flex items-center gap-1 ${
                   isDark ? 'text-slate-400' : 'text-slate-500'
                 }`}
               >
-                <Zap className="w-3 h-3 text-amber-500" />
+                <Zap className="w-3.5 h-3.5 text-amber-500" />
                 SCORE
               </div>
-              <div className="text-xl sm:text-2xl font-mono font-black mt-0.5">
+              <div className="text-2xl sm:text-3xl font-mono font-black mt-1">
                 {score}
               </div>
             </div>
 
             <div
-              className={`border-t pt-2 ${
+              className={`border-t pt-3 ${
                 isDark ? 'border-slate-800' : 'border-slate-100'
               }`}
             >
               <div
-                className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${
+                className={`text-[11px] sm:text-xs font-bold uppercase tracking-widest flex items-center gap-1 ${
                   isDark ? 'text-slate-400' : 'text-slate-500'
                 }`}
               >
-                <Trophy className="w-3 h-3 text-amber-500" />
+                <Trophy className="w-3.5 h-3.5 text-amber-500" />
                 HIGH
               </div>
-              <div className="text-base sm:text-lg font-mono font-bold text-amber-500 mt-0.5">
+              <div className="text-lg sm:text-xl font-mono font-bold text-amber-500 mt-1">
                 {highScore}
               </div>
             </div>
@@ -452,7 +452,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) =
           />
 
           <div
-            className={`flex-1 md:flex-none border rounded-2xl p-4 shadow-lg backdrop-blur-sm min-w-[110px] space-y-3 ${
+            className={`flex-1 md:flex-none border rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-sm min-w-[130px] sm:min-w-[160px] space-y-4 ${
               isDark
                 ? 'bg-slate-900/90 border-slate-800 text-white'
                 : 'bg-white border-slate-200 text-slate-900 shadow-sm'
@@ -460,31 +460,31 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) =
           >
             <div>
               <div
-                className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${
+                className={`text-[11px] sm:text-xs font-bold uppercase tracking-widest flex items-center gap-1 ${
                   isDark ? 'text-slate-400' : 'text-slate-500'
                 }`}
               >
-                <Layers className="w-3 h-3 text-indigo-500" />
+                <Layers className="w-3.5 h-3.5 text-indigo-500" />
                 LINES
               </div>
-              <div className="text-xl sm:text-2xl font-mono font-black mt-0.5">
+              <div className="text-2xl sm:text-3xl font-mono font-black mt-1">
                 {lines}
               </div>
             </div>
 
             <div
-              className={`border-t pt-2 ${
+              className={`border-t pt-3 ${
                 isDark ? 'border-slate-800' : 'border-slate-100'
               }`}
             >
               <div
-                className={`text-[10px] font-bold uppercase tracking-widest ${
+                className={`text-[11px] sm:text-xs font-bold uppercase tracking-widest ${
                   isDark ? 'text-slate-400' : 'text-slate-500'
                 }`}
               >
                 LEVEL
               </div>
-              <div className="text-base sm:text-lg font-mono font-bold text-indigo-500 mt-0.5">
+              <div className="text-lg sm:text-xl font-mono font-bold text-indigo-500 mt-1">
                 {level}
               </div>
             </div>
