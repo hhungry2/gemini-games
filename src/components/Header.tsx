@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
-import { Gamepad2, Volume2, VolumeX, HelpCircle, X } from 'lucide-react';
+import { Gamepad2, Volume2, VolumeX, HelpCircle, X, Home } from 'lucide-react';
 import { sound } from '../utils/audio';
 
-export const Header: React.FC = () => {
+interface HeaderProps {
+  activeGame: string | null;
+  onGoHome: () => void;
+}
+
+export const Header: React.FC<HeaderProps> = ({ activeGame, onGoHome }) => {
   const [isMuted, setIsMuted] = useState(sound.getMuted());
   const [showHelp, setShowHelp] = useState(false);
 
@@ -16,23 +21,36 @@ export const Header: React.FC = () => {
     <>
       <header className="w-full border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md sticky top-0 z-40">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={onGoHome}
+          >
             <div className="p-2 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/20 text-white">
               <Gamepad2 className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-black text-xl tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-pink-300">
-                  TETRIS
+                  Games Hub
                 </span>
                 <span className="text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full bg-indigo-500/20 border border-indigo-500/30 text-indigo-300">
-                  Neon
+                  Play
                 </span>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
+            {activeGame && (
+              <button
+                onClick={onGoHome}
+                className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-300 hover:text-white bg-slate-900 hover:bg-slate-800 border border-slate-700 rounded-xl transition"
+              >
+                <Home className="w-4 h-4 text-indigo-400" />
+                <span className="hidden sm:inline">ゲーム一覧</span>
+              </button>
+            )}
+
             <button
               onClick={toggleSound}
               className={`p-2 rounded-xl border transition ${
@@ -71,7 +89,7 @@ export const Header: React.FC = () => {
 
             <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
               <Gamepad2 className="w-5 h-5 text-indigo-400" />
-              操作方法 (Controls)
+              テトリス操作方法 (Controls)
             </h3>
 
             <div className="space-y-3 text-xs">

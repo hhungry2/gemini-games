@@ -1,4 +1,4 @@
-export type GameId = 'detective' | 'wordchain' | 'adventure';
+export type GameId = 'tetris';
 
 export interface GameInfo {
   id: GameId;
@@ -8,10 +8,5 @@ export interface GameInfo {
   badge: string;
   iconName: string;
   color: string;
-}
-
-export interface ChatMessage {
-  role: 'user' | 'model' | 'system';
-  text: string;
-  timestamp: number;
+  tags: string[];
 }
