@@ -192,7 +192,11 @@ export function App() {
         onToggleFullscreen={toggleFullscreen}
       />
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col items-center">
+      <main
+        className={`flex-1 w-full flex flex-col items-center justify-center transition-all duration-300 ${
+          isFullscreen ? 'max-w-none px-2 sm:px-4 py-2' : 'max-w-6xl mx-auto px-4 py-8'
+        }`}
+      >
         {!activeGame ? (
           <div className="w-full space-y-12 animate-in fade-in duration-300">
             {/* ヒーローセクション */}
@@ -368,18 +372,21 @@ export function App() {
               <GeminiBrosGame
                 onBackToHub={() => setActiveGame(null)}
                 isDark={isDark}
+                isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'tetris' && (
               <TetrisGame
                 onBackToHub={() => setActiveGame(null)}
                 isDark={isDark}
+                isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'minesweeper' && (
               <MinesweeperGame
                 onBackToHub={() => setActiveGame(null)}
                 isDark={isDark}
+                isFullscreen={isFullscreen}
               />
             )}
           </div>

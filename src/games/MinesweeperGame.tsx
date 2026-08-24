@@ -30,9 +30,14 @@ import {
 interface MinesweeperGameProps {
   onBackToHub: () => void;
   isDark: boolean;
+  isFullscreen?: boolean;
 }
 
-export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, isDark }) => {
+export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({
+  onBackToHub,
+  isDark,
+  isFullscreen = false,
+}) => {
   const [difficulty, setDifficulty] = useState<DifficultyId>('easy');
   const config = DIFFICULTIES[difficulty];
 
@@ -220,7 +225,11 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
   return (
     <div className="w-full flex flex-col items-center">
       {/* 上部ナビゲーション */}
-      <div className="w-full max-w-3xl flex items-center justify-between mb-4">
+      <div
+        className={`w-full flex items-center justify-between mb-4 transition-all ${
+          isFullscreen ? 'max-w-5xl' : 'max-w-3xl'
+        }`}
+      >
         <button
           onClick={onBackToHub}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl border transition ${
@@ -242,7 +251,11 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({ onBackToHub, i
         </div>
       </div>
 
-      <div className="w-full max-w-4xl flex flex-col items-center space-y-4">
+      <div
+        className={`w-full flex flex-col items-center space-y-4 transition-all duration-300 ${
+          isFullscreen ? 'max-w-6xl scale-100 lg:scale-105 my-2' : 'max-w-4xl'
+        }`}
+      >
         {/* 難易度セレクター ＆ ベストタイム */}
         <div
           className={`w-full flex flex-wrap items-center justify-between gap-3 p-3.5 sm:p-4 rounded-2xl border backdrop-blur-sm ${

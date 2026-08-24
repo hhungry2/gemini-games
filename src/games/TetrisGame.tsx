@@ -27,9 +27,14 @@ const HIGH_SCORE_KEY = 'tetris_high_score_v1';
 interface TetrisGameProps {
   onBackToHub: () => void;
   isDark: boolean;
+  isFullscreen?: boolean;
 }
 
-export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) => {
+export const TetrisGame: React.FC<TetrisGameProps> = ({
+  onBackToHub,
+  isDark,
+  isFullscreen = false,
+}) => {
   // ボードとピースの状態
   const [board, setBoard] = useState<BoardMatrix>(createEmptyBoard);
   const [currentPiece, setCurrentPiece] = useState<Piece | null>(null);
@@ -367,7 +372,11 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) =
   return (
     <div className="w-full flex flex-col items-center">
       {/* 上部ナビゲーション */}
-      <div className="w-full max-w-2xl flex items-center justify-between mb-4">
+      <div
+        className={`w-full flex items-center justify-between mb-4 transition-all ${
+          isFullscreen ? 'max-w-4xl' : 'max-w-2xl'
+        }`}
+      >
         <button
           onClick={onBackToHub}
           className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition ${
@@ -389,7 +398,11 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) =
         </div>
       </div>
 
-      <div className="w-full flex flex-col md:flex-row items-center justify-center gap-6 lg:gap-8">
+      <div
+        className={`w-full flex flex-col md:flex-row items-center justify-center gap-6 lg:gap-8 transition-transform duration-300 ${
+          isFullscreen ? 'scale-105 sm:scale-110 lg:scale-120 my-4' : ''
+        }`}
+      >
         {/* 左サイドパネル: HOLD & STATS */}
         <div className="w-full md:w-auto flex md:flex-col justify-between md:justify-start gap-3 order-2 md:order-1">
           <PiecePreview

@@ -4,11 +4,16 @@ import { ArrowLeft, Volume2, VolumeX, Tv, Trophy } from 'lucide-react';
 interface GeminiBrosGameProps {
   onBackToHub: () => void;
   isDark: boolean;
+  isFullscreen?: boolean;
 }
 
 const HIGH_SCORE_KEY = 'gemini_bros_high_score';
 
-export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({ onBackToHub, isDark }) => {
+export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
+  onBackToHub,
+  isDark,
+  isFullscreen = false,
+}) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
@@ -2495,7 +2500,11 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({ onBackToHub, isD
   return (
     <div className="w-full flex flex-col items-center select-none">
       {/* ナビゲーションバー */}
-      <div className="w-full max-w-4xl flex items-center justify-between mb-4">
+      <div
+        className={`w-full flex items-center justify-between mb-3 transition-all ${
+          isFullscreen ? 'max-w-[min(98vw,calc((100vh-100px)*16/9))]' : 'max-w-4xl'
+        }`}
+      >
         <button
           onClick={onBackToHub}
           className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl border transition ${
@@ -2554,7 +2563,11 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({ onBackToHub, isD
       {/* ゲーム本体画面 */}
       <div
         ref={containerRef}
-        className={`relative w-full max-w-4xl aspect-video rounded-3xl overflow-hidden border-2 shadow-2xl transition-all ${
+        className={`relative aspect-video rounded-3xl overflow-hidden border-2 shadow-2xl transition-all ${
+          isFullscreen
+            ? 'w-full max-w-[min(98vw,calc((100vh-100px)*16/9))] max-h-[85vh] shadow-[0_0_80px_rgba(99,102,241,0.35)]'
+            : 'w-full max-w-4xl'
+        } ${
           isDark
             ? 'bg-black border-indigo-500/40 shadow-[0_0_50px_rgba(99,102,241,0.2)]'
             : 'bg-black border-indigo-200 shadow-2xl'
