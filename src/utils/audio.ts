@@ -28,7 +28,7 @@ class SoundEngine {
     return this.isMuted;
   }
 
-  // 移動音
+  // --- テトリス用効果音 ---
   public playMove() {
     if (this.isMuted) return;
     this.initCtx();
@@ -49,7 +49,6 @@ class SoundEngine {
     osc.stop(this.ctx.currentTime + 0.04);
   }
 
-  // 回転音
   public playRotate() {
     if (this.isMuted) return;
     this.initCtx();
@@ -70,7 +69,6 @@ class SoundEngine {
     osc.stop(this.ctx.currentTime + 0.05);
   }
 
-  // ハードドロップ音
   public playHardDrop() {
     if (this.isMuted) return;
     this.initCtx();
@@ -91,7 +89,6 @@ class SoundEngine {
     osc.stop(this.ctx.currentTime + 0.08);
   }
 
-  // ホールド音
   public playHold() {
     if (this.isMuted) return;
     this.initCtx();
@@ -112,7 +109,6 @@ class SoundEngine {
     osc.stop(this.ctx.currentTime + 0.08);
   }
 
-  // 通常ライン消去音
   public playClear(lines: number) {
     if (this.isMuted) return;
     this.initCtx();
@@ -120,8 +116,7 @@ class SoundEngine {
 
     const now = this.ctx.currentTime;
     if (lines === 4) {
-      // テトリス（4列消去）ファンファーレ
-      const freqs = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+      const freqs = [523.25, 659.25, 783.99, 1046.5];
       freqs.forEach((f, idx) => {
         if (!this.ctx) return;
         const osc = this.ctx.createOscillator();
@@ -138,7 +133,6 @@ class SoundEngine {
         osc.stop(now + idx * 0.06 + 0.2);
       });
     } else {
-      // 1〜3列消去
       const freqs = lines === 1 ? [440, 554] : lines === 2 ? [440, 554, 659] : [440, 554, 659, 880];
       freqs.forEach((f, idx) => {
         if (!this.ctx) return;
@@ -158,7 +152,6 @@ class SoundEngine {
     }
   }
 
-  // ゲームオーバー音
   public playGameOver() {
     if (this.isMuted) return;
     this.initCtx();
@@ -180,6 +173,121 @@ class SoundEngine {
       gain.connect(this.ctx.destination);
       osc.start(now + idx * 0.12);
       osc.stop(now + idx * 0.12 + 0.18);
+    });
+  }
+
+  // --- マインスイーパー用効果音 ---
+  // セル開封音
+  public playCellClick() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, this.ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(300, this.ctx.currentTime + 0.03);
+
+    gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.03);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.03);
+  }
+
+  // フラグ設置/解除音
+  public playFlag() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(800, this.ctx.currentTime);
+    osc.frequency.setValueAtTime(1200, this.ctx.currentTime + 0.03);
+
+    gain.gain.setValueAtTime(0.08, this.ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.06);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(this.ctx.currentTime + 0.06);
+  }
+
+  // 連鎖オープン音
+  public playCascade() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    [400, 600, 800].forEach((f, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(f, now + idx * 0.03);
+
+      gain.gain.setValueAtTime(0.06, now + idx * 0.03);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.03 + 0.05);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + idx * 0.03);
+      osc.stop(now + idx * 0.03 + 0.05);
+    });
+  }
+
+  // 地雷爆発音
+  public playExplosion() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    // ノイズと低音のミックスで重厚な爆発音
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(30, now + 0.35);
+
+    gain.gain.setValueAtTime(0.3, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(now + 0.35);
+  }
+
+  // ゲームクリアファンファーレ
+  public playWin() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const melody = [523.25, 659.25, 783.99, 1046.5, 1318.5]; // C5, E5, G5, C6, E6
+    melody.forEach((f, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(f, now + idx * 0.08);
+
+      gain.gain.setValueAtTime(0.15, now + idx * 0.08);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.08 + 0.25);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + idx * 0.08);
+      osc.stop(now + idx * 0.08 + 0.25);
     });
   }
 }

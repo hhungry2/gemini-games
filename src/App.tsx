@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Header } from './components/Header';
 import { GameCard } from './components/GameCard';
 import { TetrisGame } from './games/TetrisGame';
+import { MinesweeperGame } from './games/MinesweeperGame';
 import { GameInfo, GameId } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck } from 'lucide-react';
 
@@ -16,6 +17,17 @@ const GAMES: GameInfo[] = [
     iconName: 'tetris',
     color: 'from-indigo-500 via-purple-500 to-pink-500',
     tags: ['パズル', '定番', 'アクション', 'サウンド対応', 'スマホ操作OK'],
+  },
+  {
+    id: 'minesweeper',
+    title: 'マインスイーパー (Minesweeper Cyber)',
+    titleEn: 'Neon Cyber Minesweeper',
+    description:
+      'サイバーパンク調のクールなマインスイーパー！初手安全保証・連鎖オープン・Chording・初級〜上級・ベストタイム記録に対応。',
+    badge: '知略パズル',
+    iconName: 'minesweeper',
+    color: 'from-rose-500 via-amber-500 to-emerald-500',
+    tags: ['知略', '初手安全', '連鎖オープン', 'タイムアタック', 'スマホ操作OK'],
   },
 ];
 
@@ -72,8 +84,8 @@ export function App() {
                 <div className="flex items-start gap-3 p-3.5 bg-slate-900/70 rounded-2xl border border-slate-800">
                   <ShieldCheck className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
                   <div>
-                    <div className="text-xs font-bold text-white">ハイスコア保存</div>
-                    <div className="text-[11px] text-slate-400 mt-0.5">自己ベスト記録を自動保持</div>
+                    <div className="text-xs font-bold text-white">記録の自動保存</div>
+                    <div className="text-[11px] text-slate-400 mt-0.5">ベストタイム・ハイスコア保持</div>
                   </div>
                 </div>
               </div>
@@ -110,6 +122,9 @@ export function App() {
           <div className="w-full animate-in fade-in duration-300">
             {activeGame === 'tetris' && (
               <TetrisGame onBackToHub={() => setActiveGame(null)} />
+            )}
+            {activeGame === 'minesweeper' && (
+              <MinesweeperGame onBackToHub={() => setActiveGame(null)} />
             )}
           </div>
         )}
