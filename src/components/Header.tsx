@@ -6,8 +6,6 @@ import {
   HelpCircle,
   X,
   Home,
-  Bomb,
-  MousePointer,
   Smartphone,
   Sun,
   Moon,
@@ -29,21 +27,11 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [isMuted, setIsMuted] = useState(sound.getMuted());
   const [showHelp, setShowHelp] = useState(false);
-  const [helpTab, setHelpTab] = useState<'tetris' | 'minesweeper'>('tetris');
 
   const toggleSound = () => {
     const next = !isMuted;
     sound.setMuted(next);
     setIsMuted(next);
-  };
-
-  const handleOpenHelp = () => {
-    if (activeGame === 'minesweeper') {
-      setHelpTab('minesweeper');
-    } else {
-      setHelpTab('tetris');
-    }
-    setShowHelp(true);
   };
 
   return (
@@ -134,23 +122,25 @@ export const Header: React.FC<HeaderProps> = ({
               {!isMuted ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
             </button>
 
-            {/* ヘルプボタン */}
-            <button
-              onClick={handleOpenHelp}
-              className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition ${
-                isDark
-                  ? 'text-slate-300 bg-slate-900 hover:bg-slate-800 border-slate-700'
-                  : 'text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-200'
-              }`}
-            >
-              <HelpCircle className="w-4 h-4 text-indigo-500" />
-              <span className="hidden sm:inline">操作方法</span>
-            </button>
+            {/* テトリス操作方法ボタン (テトリスプレイ時のみ表示) */}
+            {activeGame === 'tetris' && (
+              <button
+                onClick={() => setShowHelp(true)}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition ${
+                  isDark
+                    ? 'text-slate-300 bg-slate-900 hover:bg-slate-800 border-slate-700'
+                    : 'text-slate-700 bg-slate-100 hover:bg-slate-200 border-slate-200'
+                }`}
+              >
+                <HelpCircle className="w-4 h-4 text-indigo-500" />
+                <span className="hidden sm:inline">操作方法</span>
+              </button>
+            )}
           </div>
         </div>
       </header>
 
-      {/* 操作方法モーダル */}
+      {/* テトリス操作方法モーダル */}
       {showHelp && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div
@@ -174,317 +164,162 @@ export const Header: React.FC<HeaderProps> = ({
 
             <h3 className="text-xl font-black mb-4 flex items-center gap-2">
               <Gamepad2 className="w-5 h-5 text-indigo-500" />
-              ゲーム操作ガイド
+              テトリス操作方法 (Controls)
             </h3>
 
-            {/* ゲーム切替タブ */}
-            <div
-              className={`flex rounded-xl p-1 border mb-4 ${
-                isDark
-                  ? 'bg-slate-950 border-slate-800'
-                  : 'bg-slate-100 border-slate-200'
-              }`}
-            >
-              <button
-                onClick={() => setHelpTab('tetris')}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-                  helpTab === 'tetris'
-                    ? 'bg-indigo-600 text-white shadow-md'
-                    : isDark
-                    ? 'text-slate-400 hover:text-white'
-                    : 'text-slate-500 hover:text-slate-900'
+            <div className="space-y-3 text-xs">
+              <div
+                className={`p-3 rounded-xl border flex items-center justify-between ${
+                  isDark
+                    ? 'bg-slate-950/80 border-slate-800'
+                    : 'bg-slate-50 border-slate-200'
                 }`}
               >
-                <Gamepad2 className="w-3.5 h-3.5" />
-                テトリス
-              </button>
+                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                  左右移動
+                </span>
+                <span
+                  className={`font-mono px-2 py-1 rounded font-bold ${
+                    isDark
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-slate-200 text-slate-900'
+                  }`}
+                >
+                  ← / →
+                </span>
+              </div>
+              <div
+                className={`p-3 rounded-xl border flex items-center justify-between ${
+                  isDark
+                    ? 'bg-slate-950/80 border-slate-800'
+                    : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                  回転
+                </span>
+                <span
+                  className={`font-mono px-2 py-1 rounded font-bold ${
+                    isDark
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-slate-200 text-slate-900'
+                  }`}
+                >
+                  ↑ / X
+                </span>
+              </div>
+              <div
+                className={`p-3 rounded-xl border flex items-center justify-between ${
+                  isDark
+                    ? 'bg-slate-950/80 border-slate-800'
+                    : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                  ソフトドロップ (早落とし)
+                </span>
+                <span
+                  className={`font-mono px-2 py-1 rounded font-bold ${
+                    isDark
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-slate-200 text-slate-900'
+                  }`}
+                >
+                  ↓
+                </span>
+              </div>
+              <div
+                className={`p-3 rounded-xl border flex items-center justify-between ${
+                  isDark
+                    ? 'bg-slate-950/80 border-slate-800'
+                    : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                  ハードドロップ (即時着地)
+                </span>
+                <span
+                  className={`font-mono px-2 py-1 rounded font-bold ${
+                    isDark
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-slate-200 text-slate-900'
+                  }`}
+                >
+                  Space
+                </span>
+              </div>
+              <div
+                className={`p-3 rounded-xl border flex items-center justify-between ${
+                  isDark
+                    ? 'bg-slate-950/80 border-slate-800'
+                    : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                  ホールド (キープ)
+                </span>
+                <span
+                  className={`font-mono px-2 py-1 rounded font-bold ${
+                    isDark
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-slate-200 text-slate-900'
+                  }`}
+                >
+                  C / Shift
+                </span>
+              </div>
+              <div
+                className={`p-3 rounded-xl border flex items-center justify-between ${
+                  isDark
+                    ? 'bg-slate-950/80 border-slate-800'
+                    : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                  ポーズ / 再開
+                </span>
+                <span
+                  className={`font-mono px-2 py-1 rounded font-bold ${
+                    isDark
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-slate-200 text-slate-900'
+                  }`}
+                >
+                  P
+                </span>
+              </div>
+              <div
+                className={`p-3 rounded-xl border flex items-center justify-between ${
+                  isDark
+                    ? 'bg-slate-950/80 border-slate-800'
+                    : 'bg-slate-50 border-slate-200'
+                }`}
+              >
+                <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
+                  リスタート
+                </span>
+                <span
+                  className={`font-mono px-2 py-1 rounded font-bold ${
+                    isDark
+                      ? 'bg-slate-800 text-white'
+                      : 'bg-slate-200 text-slate-900'
+                  }`}
+                >
+                  R
+                </span>
+              </div>
 
-              <button
-                onClick={() => setHelpTab('minesweeper')}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-                  helpTab === 'minesweeper'
-                    ? 'bg-rose-600 text-white shadow-md'
-                    : isDark
-                    ? 'text-slate-400 hover:text-white'
-                    : 'text-slate-500 hover:text-slate-900'
+              <div
+                className={`p-2.5 rounded-xl border text-[11px] flex items-center gap-2 ${
+                  isDark
+                    ? 'bg-slate-950 border-slate-800 text-slate-400'
+                    : 'bg-indigo-50/70 border-indigo-100 text-indigo-800'
                 }`}
               >
-                <Bomb className="w-3.5 h-3.5" />
-                マインスイーパー
-              </button>
+                <Smartphone className="w-4 h-4 text-indigo-500 shrink-0" />
+                <span>スマホ時は画面下のタッチコントローラーで全操作可能です。</span>
+              </div>
             </div>
-
-            {/* テトリス操作方法 */}
-            {helpTab === 'tetris' && (
-              <div className="space-y-3 animate-in fade-in duration-150 text-xs">
-                <div
-                  className={`p-3 rounded-xl border flex items-center justify-between ${
-                    isDark
-                      ? 'bg-slate-950/80 border-slate-800'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                    左右移動
-                  </span>
-                  <span
-                    className={`font-mono px-2 py-1 rounded font-bold ${
-                      isDark
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-200 text-slate-900'
-                    }`}
-                  >
-                    ← / →
-                  </span>
-                </div>
-                <div
-                  className={`p-3 rounded-xl border flex items-center justify-between ${
-                    isDark
-                      ? 'bg-slate-950/80 border-slate-800'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                    回転
-                  </span>
-                  <span
-                    className={`font-mono px-2 py-1 rounded font-bold ${
-                      isDark
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-200 text-slate-900'
-                    }`}
-                  >
-                    ↑ / X
-                  </span>
-                </div>
-                <div
-                  className={`p-3 rounded-xl border flex items-center justify-between ${
-                    isDark
-                      ? 'bg-slate-950/80 border-slate-800'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                    ソフトドロップ (早落とし)
-                  </span>
-                  <span
-                    className={`font-mono px-2 py-1 rounded font-bold ${
-                      isDark
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-200 text-slate-900'
-                    }`}
-                  >
-                    ↓
-                  </span>
-                </div>
-                <div
-                  className={`p-3 rounded-xl border flex items-center justify-between ${
-                    isDark
-                      ? 'bg-slate-950/80 border-slate-800'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                    ハードドロップ (即時着地)
-                  </span>
-                  <span
-                    className={`font-mono px-2 py-1 rounded font-bold ${
-                      isDark
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-200 text-slate-900'
-                    }`}
-                  >
-                    Space
-                  </span>
-                </div>
-                <div
-                  className={`p-3 rounded-xl border flex items-center justify-between ${
-                    isDark
-                      ? 'bg-slate-950/80 border-slate-800'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                    ホールド (キープ)
-                  </span>
-                  <span
-                    className={`font-mono px-2 py-1 rounded font-bold ${
-                      isDark
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-200 text-slate-900'
-                    }`}
-                  >
-                    C / Shift
-                  </span>
-                </div>
-                <div
-                  className={`p-3 rounded-xl border flex items-center justify-between ${
-                    isDark
-                      ? 'bg-slate-950/80 border-slate-800'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                    ポーズ / 再開
-                  </span>
-                  <span
-                    className={`font-mono px-2 py-1 rounded font-bold ${
-                      isDark
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-200 text-slate-900'
-                    }`}
-                  >
-                    P
-                  </span>
-                </div>
-                <div
-                  className={`p-3 rounded-xl border flex items-center justify-between ${
-                    isDark
-                      ? 'bg-slate-950/80 border-slate-800'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                    リスタート
-                  </span>
-                  <span
-                    className={`font-mono px-2 py-1 rounded font-bold ${
-                      isDark
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-200 text-slate-900'
-                    }`}
-                  >
-                    R
-                  </span>
-                </div>
-
-                <div
-                  className={`p-2.5 rounded-xl border text-[11px] flex items-center gap-2 ${
-                    isDark
-                      ? 'bg-slate-950 border-slate-800 text-slate-400'
-                      : 'bg-indigo-50/70 border-indigo-100 text-indigo-800'
-                  }`}
-                >
-                  <Smartphone className="w-4 h-4 text-indigo-500 shrink-0" />
-                  <span>スマホ時は画面下のタッチコントローラーで全操作可能です。</span>
-                </div>
-              </div>
-            )}
-
-            {/* マインスイーパー操作方法 */}
-            {helpTab === 'minesweeper' && (
-              <div className="space-y-3 animate-in fade-in duration-150 text-xs">
-                <div
-                  className={`p-3 rounded-xl border flex items-center justify-between ${
-                    isDark
-                      ? 'bg-slate-950/80 border-slate-800'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <div
-                    className={`flex items-center gap-1.5 font-medium ${
-                      isDark ? 'text-slate-300' : 'text-slate-700'
-                    }`}
-                  >
-                    <MousePointer className="w-3.5 h-3.5 text-cyan-500" />
-                    <span>マスを開く (掘る)</span>
-                  </div>
-                  <span
-                    className={`font-mono px-2 py-1 rounded font-bold ${
-                      isDark
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-200 text-slate-900'
-                    }`}
-                  >
-                    左クリック
-                  </span>
-                </div>
-
-                <div
-                  className={`p-3 rounded-xl border flex items-center justify-between ${
-                    isDark
-                      ? 'bg-slate-950/80 border-slate-800'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <div
-                    className={`flex items-center gap-1.5 font-medium ${
-                      isDark ? 'text-slate-300' : 'text-slate-700'
-                    }`}
-                  >
-                    <Bomb className="w-3.5 h-3.5 text-rose-500" />
-                    <span>旗（フラグ）を立てる / 解除</span>
-                  </div>
-                  <span
-                    className={`font-mono px-2 py-1 rounded font-bold ${
-                      isDark
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-200 text-slate-900'
-                    }`}
-                  >
-                    右クリック
-                  </span>
-                </div>
-
-                <div
-                  className={`p-3 rounded-xl border flex items-center justify-between ${
-                    isDark
-                      ? 'bg-slate-950/80 border-slate-800'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <div
-                    className={`flex items-center gap-1.5 font-medium ${
-                      isDark ? 'text-slate-300' : 'text-slate-700'
-                    }`}
-                  >
-                    <Gamepad2 className="w-3.5 h-3.5 text-amber-500" />
-                    <span>一括開封 (Chording)</span>
-                  </div>
-                  <span
-                    className={`font-mono px-2 py-1 rounded font-bold ${
-                      isDark
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-200 text-slate-900'
-                    }`}
-                  >
-                    数字マスをクリック
-                  </span>
-                </div>
-
-                <div
-                  className={`p-3 rounded-xl border flex items-center justify-between ${
-                    isDark
-                      ? 'bg-slate-950/80 border-slate-800'
-                      : 'bg-slate-50 border-slate-200'
-                  }`}
-                >
-                  <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>
-                    リセット / リトライ
-                  </span>
-                  <span
-                    className={`font-mono px-2 py-1 rounded font-bold ${
-                      isDark
-                        ? 'bg-slate-800 text-white'
-                        : 'bg-slate-200 text-slate-900'
-                    }`}
-                  >
-                    中央の顔ボタン
-                  </span>
-                </div>
-
-                <div
-                  className={`p-2.5 rounded-xl border text-[11px] flex items-center gap-2 ${
-                    isDark
-                      ? 'bg-slate-950 border-slate-800 text-slate-400'
-                      : 'bg-rose-50/70 border-rose-100 text-rose-800'
-                  }`}
-                >
-                  <Smartphone className="w-4 h-4 text-rose-500 shrink-0" />
-                  <span>スマホ時は「掘るモード」と「旗立てモード」を切り替えてタップします。</span>
-                </div>
-              </div>
-            )}
 
             <button
               onClick={() => setShowHelp(false)}
