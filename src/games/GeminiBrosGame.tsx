@@ -354,8 +354,15 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
       }
     };
 
+    const handleBlur = () => {
+      for (const k in keys) {
+        keys[k as keyof typeof keys] = false;
+      }
+    };
+
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
 
     // タッチハンドラーのセットアップ
     touchHandlersRef.current = {
@@ -1355,6 +1362,9 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
             this.loadWorld(this.currentWorld, false);
             this.player.x = this.subZoneReturnX || 60 * TILE;
             this.player.y = GROUND_Y - 34;
+            this.player.vx = 0;
+            this.player.vy = 0;
+            this.cameraX = clamp(this.player.x - W * 0.36, 0, this.worldWidth - W);
           } else if (p.targetPipe.warpTarget === 'warp_next') {
             this.nextWorld();
           }
@@ -1488,7 +1498,10 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
             continue;
           }
 
-          const isStomp = p.vy > 60 && p.previousY + p.h <= e.y + 14;
+          const isStomp =
+            (p.vy >= 0 || !p.grounded) &&
+            (p.previousY + p.h <= e.y + 22 || p.y + p.h - p.vy * dt <= e.y + 22);
+
           if (isStomp) {
             if (e.kind === 'turtle' && e.state === 'walking') {
               this.turnIntoShell(e);
@@ -1498,7 +1511,8 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
                 e.shellGrace = 0.25;
                 SFX.stomp();
               } else {
-                this.kickShell(e, p.facing);
+                const kickDir = p.x + p.w / 2 <= e.x + e.w / 2 ? 1 : -1;
+                this.kickShell(e, kickDir);
               }
             } else if (e.kind === 'paratroopa') {
               e.kind = 'turtle';
@@ -1508,10 +1522,11 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
             } else {
               this.defeatEnemy(e);
             }
-            p.vy = -440;
+            p.vy = keys.jump ? -620 : -440;
             p.grounded = false;
           } else if (e.state === 'shell' && Math.abs(e.vx) < 30) {
-            this.kickShell(e, p.x < e.x ? 1 : -1);
+            const kickDir = p.x + p.w / 2 <= e.x + e.w / 2 ? 1 : -1;
+            this.kickShell(e, kickDir);
           } else if ((e.shellGrace || 0) <= 0) {
             this.hurtPlayer();
           }
@@ -1598,7 +1613,11 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
       },
 
       updateMovingPlatforms(dt: number) {
+        const p = this.player;
         for (const plat of this.movingPlatforms) {
+          const prevX = plat.x;
+          const prevY = plat.y;
+
           if (plat.horizontal) {
             plat.x += plat.vx * plat.dir * dt;
             if (plat.x <= plat.minX) {
@@ -1619,6 +1638,21 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
               plat.y = plat.maxY;
               plat.dir = -1;
             }
+          }
+
+          const dx = plat.x - prevX;
+          const dy = plat.y - prevY;
+
+          // プレイヤーがプラットフォーム上に乗っている場合、移動量を反映
+          if (
+            !p.dead &&
+            p.grounded &&
+            p.x + p.w > plat.x - 2 &&
+            p.x < plat.x + plat.w + 2 &&
+            Math.abs(p.y + p.h - plat.y) < 8
+          ) {
+            p.x += dx;
+            p.y += dy;
           }
         }
       },
@@ -2490,6 +2524,7 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
       if (animId) cancelAnimationFrame(animId);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
       canvas.removeEventListener('pointerdown', handleCanvasClick);
       if (audioCtx && audioCtx.state !== 'closed') {
         audioCtx.close().catch(() => {});
