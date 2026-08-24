@@ -3,13 +3,26 @@ import { Header } from './components/Header';
 import { GameCard, RecordItem } from './components/GameCard';
 import { TetrisGame } from './games/TetrisGame';
 import { MinesweeperGame } from './games/MinesweeperGame';
+import { GeminiBrosGame } from './games/GeminiBrosGame';
 import { GameInfo, GameId } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck } from 'lucide-react';
 
 const THEME_KEY = 'games_hub_theme';
 const TETRIS_HIGH_SCORE_KEY = 'tetris_high_score_v1';
+const BROS_HIGH_SCORE_KEY = 'gemini_bros_high_score';
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'bros',
+    title: 'Gemini 3.7 Bros.',
+    titleEn: 'Super AI 2D Platformer Adventure',
+    description:
+      '4つのワールド・地下ボーナス・城・ボス戦を駆け巡る本格2D横スクロールアクション！思考ビーム・スター無敵・チップチューンBGM完備。',
+    badge: '本格アクション',
+    iconName: 'bros',
+    color: 'from-blue-600 via-indigo-600 to-purple-600',
+    tags: ['2Dアクション', '4ワールド', 'ボス戦', 'チップチューン', 'スマホ操作OK'],
+  },
   {
     id: 'tetris',
     title: 'テトリス (Tetris Neon)',
@@ -48,6 +61,7 @@ export function App() {
 
   // ハイスコア / ベストタイム状態
   const [tetrisHighScore, setTetrisHighScore] = useState<number>(0);
+  const [brosHighScore, setBrosHighScore] = useState<number>(0);
   const [minesweeperBests, setMinesweeperBests] = useState<{
     easy: number | null;
     medium: number | null;
@@ -63,6 +77,9 @@ export function App() {
     if (typeof window === 'undefined') return;
     const tScore = localStorage.getItem(TETRIS_HIGH_SCORE_KEY);
     if (tScore) setTetrisHighScore(parseInt(tScore, 10) || 0);
+
+    const bScore = localStorage.getItem(BROS_HIGH_SCORE_KEY);
+    if (bScore) setBrosHighScore(parseInt(bScore, 10) || 0);
 
     const mEasy = localStorage.getItem('minesweeper_best_easy');
     const mMed = localStorage.getItem('minesweeper_best_medium');
@@ -110,7 +127,9 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'tetris') {
+    if (activeGame === 'bros') {
+      document.title = 'Gemini 3.7 Bros. | Games Hub';
+    } else if (activeGame === 'tetris') {
       document.title = 'テトリス (Tetris Neon) | Games Hub';
     } else if (activeGame === 'minesweeper') {
       document.title = 'マインスイーパー (Minesweeper Cyber) | Games Hub';
@@ -121,6 +140,14 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'bros') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: brosHighScore > 0 ? `${brosHighScore.toLocaleString()} pts` : '--',
+        },
+      ];
+    }
     if (gameId === 'tetris') {
       return [
         {
@@ -322,7 +349,7 @@ export function App() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {GAMES.map((game) => (
                   <GameCard
                     key={game.id}
@@ -332,40 +359,17 @@ export function App() {
                     records={getGameRecords(game.id)}
                   />
                 ))}
-
-                {/* プレースホルダー */}
-                <div
-                  className={`border border-dashed rounded-3xl p-6 flex flex-col items-center justify-center text-center min-h-[220px] transition-colors ${
-                    isDark
-                      ? 'border-slate-800 bg-slate-900/30 text-slate-500'
-                      : 'border-slate-300 bg-slate-100/50 text-slate-400'
-                  }`}
-                >
-                  <Gamepad2
-                    className={`w-10 h-10 mb-2 animate-pulse ${
-                      isDark ? 'text-slate-700' : 'text-slate-400'
-                    }`}
-                  />
-                  <div
-                    className={`text-sm font-bold ${
-                      isDark ? 'text-slate-400' : 'text-slate-600'
-                    }`}
-                  >
-                    More Games Coming Soon...
-                  </div>
-                  <div
-                    className={`text-xs mt-1 ${
-                      isDark ? 'text-slate-500' : 'text-slate-500'
-                    }`}
-                  >
-                    新しいゲームを順次追加予定
-                  </div>
-                </div>
               </div>
             </div>
           </div>
         ) : (
           <div className="w-full animate-in fade-in duration-300">
+            {activeGame === 'bros' && (
+              <GeminiBrosGame
+                onBackToHub={() => setActiveGame(null)}
+                isDark={isDark}
+              />
+            )}
             {activeGame === 'tetris' && (
               <TetrisGame
                 onBackToHub={() => setActiveGame(null)}
