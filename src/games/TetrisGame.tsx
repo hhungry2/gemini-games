@@ -26,9 +26,10 @@ const HIGH_SCORE_KEY = 'tetris_high_score_v1';
 
 interface TetrisGameProps {
   onBackToHub: () => void;
+  isDark: boolean;
 }
 
-export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub }) => {
+export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) => {
   // ボードとピースの状態
   const [board, setBoard] = useState<BoardMatrix>(createEmptyBoard);
   const [currentPiece, setCurrentPiece] = useState<Piece | null>(null);
@@ -353,13 +354,21 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub }) => {
       <div className="w-full max-w-2xl flex items-center justify-between mb-4">
         <button
           onClick={onBackToHub}
-          className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-slate-900 border border-slate-800 rounded-xl hover:bg-slate-800 transition"
+          className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition ${
+            isDark
+              ? 'text-slate-300 hover:text-white bg-slate-900 border-slate-800 hover:bg-slate-800'
+              : 'text-slate-700 hover:text-slate-900 bg-white border-slate-200 hover:bg-slate-50 shadow-xs'
+          }`}
         >
-          <ArrowLeft className="w-4 h-4 text-indigo-400" />
+          <ArrowLeft className="w-4 h-4 text-indigo-500" />
           ゲーム一覧に戻る
         </button>
 
-        <div className="text-xs font-bold text-slate-400 tracking-wider">
+        <div
+          className={`text-xs font-bold tracking-wider ${
+            isDark ? 'text-slate-400' : 'text-slate-500'
+          }`}
+        >
           TETRIS NEON
         </div>
       </div>
@@ -369,23 +378,41 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub }) => {
         <div className="w-full md:w-auto flex md:flex-col justify-between md:justify-start gap-3 order-2 md:order-1">
           <PiecePreview type={holdPiece} label="HOLD" canHold={canHold} />
 
-          <div className="flex-1 md:flex-none bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-lg backdrop-blur-sm min-w-[110px] space-y-3">
+          <div
+            className={`flex-1 md:flex-none border rounded-2xl p-4 shadow-lg backdrop-blur-sm min-w-[110px] space-y-3 ${
+              isDark
+                ? 'bg-slate-900/90 border-slate-800 text-white'
+                : 'bg-white border-slate-200 text-slate-900 shadow-sm'
+            }`}
+          >
             <div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                <Zap className="w-3 h-3 text-amber-400" />
+              <div
+                className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${
+                  isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}
+              >
+                <Zap className="w-3 h-3 text-amber-500" />
                 SCORE
               </div>
-              <div className="text-xl sm:text-2xl font-mono font-black text-white mt-0.5">
+              <div className="text-xl sm:text-2xl font-mono font-black mt-0.5">
                 {score}
               </div>
             </div>
 
-            <div className="border-t border-slate-800 pt-2">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                <Trophy className="w-3 h-3 text-amber-400" />
+            <div
+              className={`border-t pt-2 ${
+                isDark ? 'border-slate-800' : 'border-slate-100'
+              }`}
+            >
+              <div
+                className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${
+                  isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}
+              >
+                <Trophy className="w-3 h-3 text-amber-500" />
                 HIGH
               </div>
-              <div className="text-base sm:text-lg font-mono font-bold text-amber-400 mt-0.5">
+              <div className="text-base sm:text-lg font-mono font-bold text-amber-500 mt-0.5">
                 {highScore}
               </div>
             </div>
@@ -414,22 +441,40 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub }) => {
         <div className="w-full md:w-auto flex md:flex-col justify-between md:justify-start gap-3 order-3">
           <PiecePreview type={nextPieces[0] || null} label="NEXT" />
 
-          <div className="flex-1 md:flex-none bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-lg backdrop-blur-sm min-w-[110px] space-y-3">
+          <div
+            className={`flex-1 md:flex-none border rounded-2xl p-4 shadow-lg backdrop-blur-sm min-w-[110px] space-y-3 ${
+              isDark
+                ? 'bg-slate-900/90 border-slate-800 text-white'
+                : 'bg-white border-slate-200 text-slate-900 shadow-sm'
+            }`}
+          >
             <div>
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                <Layers className="w-3 h-3 text-indigo-400" />
+              <div
+                className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 ${
+                  isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}
+              >
+                <Layers className="w-3 h-3 text-indigo-500" />
                 LINES
               </div>
-              <div className="text-xl sm:text-2xl font-mono font-black text-white mt-0.5">
+              <div className="text-xl sm:text-2xl font-mono font-black mt-0.5">
                 {lines}
               </div>
             </div>
 
-            <div className="border-t border-slate-800 pt-2">
-              <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+            <div
+              className={`border-t pt-2 ${
+                isDark ? 'border-slate-800' : 'border-slate-100'
+              }`}
+            >
+              <div
+                className={`text-[10px] font-bold uppercase tracking-widest ${
+                  isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}
+              >
                 LEVEL
               </div>
-              <div className="text-base sm:text-lg font-mono font-bold text-indigo-400 mt-0.5">
+              <div className="text-base sm:text-lg font-mono font-bold text-indigo-500 mt-0.5">
                 {level}
               </div>
             </div>
