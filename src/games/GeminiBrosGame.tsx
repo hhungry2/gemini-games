@@ -921,7 +921,7 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
       buildWorld4() {
         this.worldWidth = 190 * TILE;
         for (let c = 0; c < 190; c++) {
-          if (c < 120 || c > 180 || (c >= 140 && c <= 165)) {
+          if (c < 120 || c >= 163 || (c >= 141 && c <= 165)) {
             this.addTile(c, 13, 'stone');
             this.addTile(c, 14, 'stone');
           }
@@ -941,6 +941,53 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
         this.addTile(75, 4, 'question', 'power');
         this.addRow(95, 115, 9, 'stone');
         this.addTile(100, 5, 'question', 'star');
+
+        // マグマ地帯 (列 120 〜 列 141) を渡るための複数の上下リフト
+        this.movingPlatforms.push({
+          x: 122 * TILE,
+          y: 9 * TILE,
+          w: 3 * TILE,
+          h: 18,
+          minY: 5.5 * TILE,
+          maxY: 11 * TILE,
+          vy: 65,
+          dir: 1,
+        });
+
+        this.movingPlatforms.push({
+          x: 128 * TILE,
+          y: 6.5 * TILE,
+          w: 3 * TILE,
+          h: 18,
+          minY: 5 * TILE,
+          maxY: 11 * TILE,
+          vy: 75,
+          dir: -1,
+        });
+
+        this.movingPlatforms.push({
+          x: 134 * TILE,
+          y: 8.5 * TILE,
+          w: 3 * TILE,
+          h: 18,
+          minY: 5.5 * TILE,
+          maxY: 11 * TILE,
+          vy: 70,
+          dir: 1,
+        });
+
+        // マグマ地帯の空中コイン
+        [123, 129, 135].forEach((c) => {
+          this.pickups.push({
+            x: c * TILE + 9,
+            y: 4 * TILE,
+            w: 18,
+            h: 24,
+            type: 'coin',
+            collected: false,
+            phase: c * 0.5,
+          });
+        });
 
         const bridgeStart = 145;
         const bridgeEnd = 162;
