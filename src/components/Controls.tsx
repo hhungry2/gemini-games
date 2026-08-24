@@ -16,6 +16,7 @@ interface ControlsProps {
   onRotate: () => void;
   onHold: () => void;
   disabled?: boolean;
+  isDark?: boolean;
 }
 
 export const MobileControls: React.FC<ControlsProps> = ({
@@ -26,6 +27,7 @@ export const MobileControls: React.FC<ControlsProps> = ({
   onRotate,
   onHold,
   disabled = false,
+  isDark = true,
 }) => {
   return (
     <div className="w-full max-w-md mx-auto pt-4 flex flex-col gap-3 select-none touch-manipulation">
@@ -34,10 +36,14 @@ export const MobileControls: React.FC<ControlsProps> = ({
         <button
           onClick={onHold}
           disabled={disabled}
-          className="flex-1 max-w-[90px] py-3 bg-slate-800 active:bg-slate-700 border border-slate-700 rounded-2xl flex flex-col items-center justify-center text-slate-200 active:scale-95 transition shadow-md disabled:opacity-40"
+          className={`flex-1 max-w-[90px] py-3 rounded-2xl flex flex-col items-center justify-center active:scale-95 transition shadow-md disabled:opacity-40 border ${
+            isDark
+              ? 'bg-slate-800 active:bg-slate-700 border-slate-700 text-slate-200'
+              : 'bg-white active:bg-slate-100 border-slate-200 text-slate-700 shadow-sm'
+          }`}
           aria-label="ホールド"
         >
-          <RefreshCw className="w-5 h-5 text-indigo-400 mb-1" />
+          <RefreshCw className="w-5 h-5 text-indigo-500 mb-1" />
           <span className="text-[10px] font-bold tracking-wider">HOLD</span>
         </button>
 
@@ -67,7 +73,11 @@ export const MobileControls: React.FC<ControlsProps> = ({
         <button
           onClick={onMoveLeft}
           disabled={disabled}
-          className="flex-1 max-w-[100px] py-3.5 bg-slate-900 active:bg-slate-800 border border-slate-700/80 rounded-2xl flex items-center justify-center text-white active:scale-95 transition shadow-md disabled:opacity-40"
+          className={`flex-1 max-w-[100px] py-3.5 rounded-2xl flex items-center justify-center active:scale-95 transition shadow-md disabled:opacity-40 border ${
+            isDark
+              ? 'bg-slate-900 active:bg-slate-800 border-slate-700/80 text-white'
+              : 'bg-white active:bg-slate-100 border-slate-200 text-slate-800 shadow-sm'
+          }`}
           aria-label="左移動"
         >
           <ArrowLeft className="w-6 h-6" />
@@ -76,16 +86,24 @@ export const MobileControls: React.FC<ControlsProps> = ({
         <button
           onClick={onSoftDrop}
           disabled={disabled}
-          className="flex-1 max-w-[100px] py-3.5 bg-slate-900 active:bg-slate-800 border border-slate-700/80 rounded-2xl flex items-center justify-center text-white active:scale-95 transition shadow-md disabled:opacity-40"
+          className={`flex-1 max-w-[100px] py-3.5 rounded-2xl flex items-center justify-center active:scale-95 transition shadow-md disabled:opacity-40 border ${
+            isDark
+              ? 'bg-slate-900 active:bg-slate-800 border-slate-700/80 text-white'
+              : 'bg-white active:bg-slate-100 border-slate-200 text-slate-800 shadow-sm'
+          }`}
           aria-label="ソフトドロップ"
         >
-          <ArrowDown className="w-6 h-6 text-indigo-400" />
+          <ArrowDown className="w-6 h-6 text-indigo-500" />
         </button>
 
         <button
           onClick={onMoveRight}
           disabled={disabled}
-          className="flex-1 max-w-[100px] py-3.5 bg-slate-900 active:bg-slate-800 border border-slate-700/80 rounded-2xl flex items-center justify-center text-white active:scale-95 transition shadow-md disabled:opacity-40"
+          className={`flex-1 max-w-[100px] py-3.5 rounded-2xl flex items-center justify-center active:scale-95 transition shadow-md disabled:opacity-40 border ${
+            isDark
+              ? 'bg-slate-900 active:bg-slate-800 border-slate-700/80 text-white'
+              : 'bg-white active:bg-slate-100 border-slate-200 text-slate-800 shadow-sm'
+          }`}
           aria-label="右移動"
         >
           <ArrowRight className="w-6 h-6" />

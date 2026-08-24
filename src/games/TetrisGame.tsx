@@ -376,7 +376,12 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) =
       <div className="w-full flex flex-col md:flex-row items-center justify-center gap-6 lg:gap-8">
         {/* 左サイドパネル: HOLD & STATS */}
         <div className="w-full md:w-auto flex md:flex-col justify-between md:justify-start gap-3 order-2 md:order-1">
-          <PiecePreview type={holdPiece} label="HOLD" canHold={canHold} />
+          <PiecePreview
+            type={holdPiece}
+            label="HOLD"
+            canHold={canHold}
+            isDark={isDark}
+          />
 
           <div
             className={`flex-1 md:flex-none border rounded-2xl p-4 shadow-lg backdrop-blur-sm min-w-[110px] space-y-3 ${
@@ -431,6 +436,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) =
             score={score}
             highScore={highScore}
             isTetrisClear={isTetrisClear}
+            isDark={isDark}
             onStart={startGame}
             onRestart={startGame}
             onResume={() => setIsPaused(false)}
@@ -439,7 +445,11 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) =
 
         {/* 右サイドパネル: NEXT & LEVEL/LINES */}
         <div className="w-full md:w-auto flex md:flex-col justify-between md:justify-start gap-3 order-3">
-          <PiecePreview type={nextPieces[0] || null} label="NEXT" />
+          <PiecePreview
+            type={nextPieces[0] || null}
+            label="NEXT"
+            isDark={isDark}
+          />
 
           <div
             className={`flex-1 md:flex-none border rounded-2xl p-4 shadow-lg backdrop-blur-sm min-w-[110px] space-y-3 ${
@@ -492,6 +502,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({ onBackToHub, isDark }) =
           onRotate={rotate}
           onHold={hold}
           disabled={!isPlaying || isPaused || isGameOver}
+          isDark={isDark}
         />
       </div>
     </div>

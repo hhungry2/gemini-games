@@ -18,6 +18,7 @@ interface TetrisBoardProps {
   score: number;
   highScore: number;
   isTetrisClear: boolean;
+  isDark?: boolean;
   onStart: () => void;
   onRestart: () => void;
   onResume: () => void;
@@ -33,13 +34,12 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
   score,
   highScore,
   isTetrisClear,
+  isDark = true,
   onStart,
   onRestart,
   onResume,
 }) => {
-  // 表示用グリッドの合成（固定ブロック + ゴースト + 現在のピース）
   const renderGrid = () => {
-    // ディープコピー
     const display: {
       type: string | null;
       isCurrent?: boolean;
@@ -52,7 +52,7 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
       }))
     );
 
-    // 1. ゴーストの描画 (半透明)
+    // 1. ゴースト
     if (currentPiece && ghostY !== null && ghostY !== currentPiece.y) {
       for (let r = 0; r < currentPiece.shape.length; r++) {
         for (let c = 0; c < currentPiece.shape[r].length; c++) {
@@ -72,7 +72,7 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
       }
     }
 
-    // 2. 現在操作中のピース描画
+    // 2. 現在のピース
     if (currentPiece) {
       for (let r = 0; r < currentPiece.shape.length; r++) {
         for (let c = 0; c < currentPiece.shape[r].length; c++) {
@@ -96,7 +96,13 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
   const grid = renderGrid();
 
   return (
-    <div className="relative bg-slate-950/90 border-2 border-indigo-500/40 rounded-3xl p-3 sm:p-4 shadow-[0_0_40px_rgba(99,102,241,0.15)] backdrop-blur-md">
+    <div
+      className={`relative border-2 rounded-3xl p-3 sm:p-4 transition-all duration-200 ${
+        isDark
+          ? 'bg-slate-950/90 border-indigo-500/40 shadow-[0_0_40px_rgba(99,102,241,0.15)]'
+          : 'bg-white border-indigo-200 shadow-xl'
+      }`}
+    >
       {/* TETRIS 4列消去の祝賀バナー */}
       {isTetrisClear && (
         <div className="absolute top-1/3 left-0 right-0 z-30 flex justify-center pointer-events-none animate-bounce">
@@ -107,15 +113,26 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
       )}
 
       {/* 20x10 グリッド */}
-      <div className="grid grid-cols-10 gap-[1.5px] sm:gap-1 bg-slate-900/90 p-2 rounded-2xl border border-slate-800">
+      <div
+        className={`grid grid-cols-10 gap-[1.5px] sm:gap-1 p-2 rounded-2xl border transition-colors ${
+          isDark
+            ? 'bg-slate-900/90 border-slate-800'
+            : 'bg-slate-100 border-slate-200'
+        }`}
+      >
         {grid.map((row, rIdx) =>
           row.map((cell, cIdx) => {
-            let cellStyle = 'bg-slate-950/60 border border-slate-900';
+            let cellStyle = isDark
+              ? 'bg-slate-950/60 border border-slate-900'
+              : 'bg-white/90 border border-slate-200/80';
+
             if (cell.type) {
               const color = TETROMINO_COLORS[cell.type as keyof typeof TETROMINO_COLORS];
               if (color) {
                 if (cell.isGhost) {
-                  cellStyle = `border ${color.ghost}`;
+                  cellStyle = isDark
+                    ? `border ${color.ghost}`
+                    : `border-2 border-dashed border-indigo-300 bg-indigo-50/50`;
                 } else {
                   cellStyle = `${color.main} ${color.glow} border ${color.border}`;
                 }
@@ -134,11 +151,25 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
 
       {/* スタート画面オーバーレイ */}
       {!isPlaying && !isGameOver && (
-        <div className="absolute inset-0 z-20 bg-slate-950/85 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
-          <h2 className="text-3xl sm:text-4xl font-black tracking-tight text-white mb-2 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400">
+        <div
+          className={`absolute inset-0 z-20 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in ${
+            isDark ? 'bg-slate-950/85 text-white' : 'bg-white/90 text-slate-900'
+          }`}
+        >
+          <h2
+            className={`text-3xl sm:text-4xl font-black tracking-tight mb-2 ${
+              isDark
+                ? 'bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 via-purple-300 to-pink-400'
+                : 'bg-clip-text text-transparent bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600'
+            }`}
+          >
             TETRIS
           </h2>
-          <p className="text-xs text-slate-400 max-w-[200px] mb-6">
+          <p
+            className={`text-xs max-w-[200px] mb-6 ${
+              isDark ? 'text-slate-400' : 'text-slate-500'
+            }`}
+          >
             矢印キーまたはタッチ操作でブロックを揃えて消去しよう！
           </p>
 
@@ -154,9 +185,15 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
 
       {/* ポーズ画面オーバーレイ */}
       {isPaused && !isGameOver && (
-        <div className="absolute inset-0 z-20 bg-slate-950/80 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in">
-          <h3 className="text-2xl font-black text-white mb-2 tracking-wider">PAUSED</h3>
-          <p className="text-xs text-slate-400 mb-6">一時停止中</p>
+        <div
+          className={`absolute inset-0 z-20 backdrop-blur-sm rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-in fade-in ${
+            isDark ? 'bg-slate-950/80 text-white' : 'bg-white/90 text-slate-900'
+          }`}
+        >
+          <h3 className="text-2xl font-black mb-2 tracking-wider">PAUSED</h3>
+          <p className={`text-xs mb-6 ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+            一時停止中
+          </p>
 
           <button
             onClick={onResume}
@@ -170,21 +207,37 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
 
       {/* ゲームオーバー画面オーバーレイ */}
       {isGameOver && (
-        <div className="absolute inset-0 z-20 bg-slate-950/90 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-in zoom-in-95 duration-200">
-          <div className="text-rose-400 text-xs font-bold tracking-widest uppercase mb-1">
+        <div
+          className={`absolute inset-0 z-20 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center p-6 text-center animate-in zoom-in-95 duration-200 ${
+            isDark ? 'bg-slate-950/90 text-white' : 'bg-white/95 text-slate-900'
+          }`}
+        >
+          <div className="text-rose-500 text-xs font-bold tracking-widest uppercase mb-1">
             Result
           </div>
-          <h3 className="text-3xl font-black text-white mb-4">GAME OVER</h3>
+          <h3 className="text-3xl font-black mb-4">GAME OVER</h3>
 
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 w-full max-w-[220px] mb-6 space-y-2">
+          <div
+            className={`border rounded-2xl p-4 w-full max-w-[220px] mb-6 space-y-2 ${
+              isDark
+                ? 'bg-slate-900 border-slate-800'
+                : 'bg-slate-50 border-slate-200'
+            }`}
+          >
             <div>
-              <div className="text-[11px] text-slate-400">最終スコア</div>
-              <div className="text-2xl font-mono font-black text-white">{score}</div>
+              <div
+                className={`text-[11px] ${
+                  isDark ? 'text-slate-400' : 'text-slate-500'
+                }`}
+              >
+                最終スコア
+              </div>
+              <div className="text-2xl font-mono font-black mt-0.5">{score}</div>
             </div>
 
             {score >= highScore && score > 0 && (
-              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-300 text-[10px] font-bold">
-                <Trophy className="w-3 h-3 text-amber-400" />
+              <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/40 text-amber-600 text-[10px] font-bold">
+                <Trophy className="w-3 h-3 text-amber-500" />
                 NEW HIGH SCORE!
               </div>
             )}
