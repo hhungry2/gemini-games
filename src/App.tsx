@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { Header } from './components/Header';
-import { GameCard } from './components/GameCard';
+import { GameCard, RecordItem } from './components/GameCard';
 import { TetrisGame } from './games/TetrisGame';
 import { MinesweeperGame } from './games/MinesweeperGame';
 import { GameInfo, GameId } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck } from 'lucide-react';
 
 const THEME_KEY = 'games_hub_theme';
+const TETRIS_HIGH_SCORE_KEY = 'tetris_high_score_v1';
 
 const GAMES: GameInfo[] = [
   {
@@ -40,8 +41,65 @@ export function App() {
       const saved = localStorage.getItem(THEME_KEY);
       if (saved) return saved === 'dark';
     }
-    return true; // デフォルトはダーク
+    return true;
   });
+
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  // ハイスコア / ベストタイム状態
+  const [tetrisHighScore, setTetrisHighScore] = useState<number>(0);
+  const [minesweeperBests, setMinesweeperBests] = useState<{
+    easy: number | null;
+    medium: number | null;
+    hard: number | null;
+  }>({
+    easy: null,
+    medium: null,
+    hard: null,
+  });
+
+  // レコードの読み込み
+  const loadRecords = () => {
+    if (typeof window === 'undefined') return;
+    const tScore = localStorage.getItem(TETRIS_HIGH_SCORE_KEY);
+    if (tScore) setTetrisHighScore(parseInt(tScore, 10) || 0);
+
+    const mEasy = localStorage.getItem('minesweeper_best_easy');
+    const mMed = localStorage.getItem('minesweeper_best_medium');
+    const mHard = localStorage.getItem('minesweeper_best_hard');
+
+    setMinesweeperBests({
+      easy: mEasy ? parseInt(mEasy, 10) : null,
+      medium: mMed ? parseInt(mMed, 10) : null,
+      hard: mHard ? parseInt(mHard, 10) : null,
+    });
+  };
+
+  useEffect(() => {
+    loadRecords();
+  }, [activeGame]);
+
+  // フルスクリーン状態の監視
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+  };
 
   const toggleTheme = () => {
     setIsDark((prev) => {
@@ -61,6 +119,35 @@ export function App() {
     }
   }, [activeGame]);
 
+  // ゲームごとのレコード一覧
+  const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'tetris') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: tetrisHighScore > 0 ? `${tetrisHighScore.toLocaleString()} pts` : '--',
+        },
+      ];
+    }
+    if (gameId === 'minesweeper') {
+      return [
+        {
+          label: '初級',
+          value: minesweeperBests.easy !== null ? `${minesweeperBests.easy}s` : '--',
+        },
+        {
+          label: '中級',
+          value: minesweeperBests.medium !== null ? `${minesweeperBests.medium}s` : '--',
+        },
+        {
+          label: '上級',
+          value: minesweeperBests.hard !== null ? `${minesweeperBests.hard}s` : '--',
+        },
+      ];
+    }
+    return [];
+  };
+
   return (
     <div
       className={`min-h-screen flex flex-col antialiased transition-colors duration-200 ${
@@ -74,6 +161,8 @@ export function App() {
         onGoHome={() => setActiveGame(null)}
         isDark={isDark}
         onToggleTheme={toggleTheme}
+        isFullscreen={isFullscreen}
+        onToggleFullscreen={toggleFullscreen}
       />
 
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-8 flex flex-col items-center">
@@ -240,6 +329,7 @@ export function App() {
                     game={game}
                     onSelect={(id) => setActiveGame(id)}
                     isDark={isDark}
+                    records={getGameRecords(game.id)}
                   />
                 ))}
 

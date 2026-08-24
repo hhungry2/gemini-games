@@ -9,6 +9,8 @@ import {
   Smartphone,
   Sun,
   Moon,
+  Maximize,
+  Minimize,
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 
@@ -17,6 +19,8 @@ interface HeaderProps {
   onGoHome: () => void;
   isDark: boolean;
   onToggleTheme: () => void;
+  isFullscreen: boolean;
+  onToggleFullscreen: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +28,8 @@ export const Header: React.FC<HeaderProps> = ({
   onGoHome,
   isDark,
   onToggleTheme,
+  isFullscreen,
+  onToggleFullscreen,
 }) => {
   const [isMuted, setIsMuted] = useState(sound.getMuted());
   const [showHelp, setShowHelp] = useState(false);
@@ -43,7 +49,7 @@ export const Header: React.FC<HeaderProps> = ({
             : 'border-slate-200 bg-white/80 text-slate-800 shadow-xs'
         }`}
       >
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <div
             className="flex items-center gap-3 cursor-pointer"
             onClick={onGoHome}
@@ -75,7 +81,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-2.5">
             {activeGame && (
               <button
                 onClick={onGoHome}
@@ -90,6 +96,24 @@ export const Header: React.FC<HeaderProps> = ({
               </button>
             )}
 
+            {/* フルスクリーン切り替えボタン */}
+            <button
+              onClick={onToggleFullscreen}
+              className={`p-2 rounded-xl border transition ${
+                isDark
+                  ? 'bg-slate-900 border-slate-700 text-indigo-400 hover:text-indigo-300 hover:bg-slate-800'
+                  : 'bg-slate-100 border-slate-200 text-indigo-600 hover:bg-slate-200'
+              }`}
+              title={isFullscreen ? 'フルスクリーンを解除' : 'フルスクリーン表示'}
+              aria-label="フルスクリーン切替"
+            >
+              {isFullscreen ? (
+                <Minimize className="w-4 h-4 sm:w-5 sm:h-5" />
+              ) : (
+                <Maximize className="w-4 h-4 sm:w-5 sm:h-5" />
+              )}
+            </button>
+
             {/* ダーク/ライトモード切り替えボタン */}
             <button
               onClick={onToggleTheme}
@@ -101,7 +125,11 @@ export const Header: React.FC<HeaderProps> = ({
               title={isDark ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
               aria-label="テーマ切替"
             >
-              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+              {isDark ? (
+                <Sun className="w-4 h-4 sm:w-5 sm:h-5" />
+              ) : (
+                <Moon className="w-4 h-4 sm:w-5 sm:h-5" />
+              )}
             </button>
 
             {/* サウンドON/OFF */}
@@ -119,7 +147,11 @@ export const Header: React.FC<HeaderProps> = ({
               title={isMuted ? 'サウンドをONにする' : 'サウンドをミュートにする'}
               aria-label="サウンド切替"
             >
-              {!isMuted ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+              {!isMuted ? (
+                <Volume2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              ) : (
+                <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" />
+              )}
             </button>
 
             {/* テトリス操作方法ボタン (テトリスプレイ時のみ表示) */}

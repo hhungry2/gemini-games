@@ -1,14 +1,25 @@
 import React from 'react';
 import { GameInfo, GameId } from '../types';
-import { LayoutGrid, ArrowRight, Sparkles } from 'lucide-react';
+import { LayoutGrid, ArrowRight, Sparkles, Trophy } from 'lucide-react';
+
+export interface RecordItem {
+  label: string;
+  value: string;
+}
 
 interface GameCardProps {
   game: GameInfo;
   onSelect: (id: GameId) => void;
   isDark: boolean;
+  records?: RecordItem[];
 }
 
-export const GameCard: React.FC<GameCardProps> = ({ game, onSelect, isDark }) => {
+export const GameCard: React.FC<GameCardProps> = ({
+  game,
+  onSelect,
+  isDark,
+  records = [],
+}) => {
   return (
     <div
       onClick={() => onSelect(game.id)}
@@ -69,6 +80,41 @@ export const GameCard: React.FC<GameCardProps> = ({ game, onSelect, isDark }) =>
         >
           {game.description}
         </p>
+
+        {/* ハイスコア・ベスト記録表示領域 */}
+        {records && records.length > 0 && (
+          <div
+            className={`mt-4 p-3 rounded-2xl border flex flex-wrap items-center justify-between gap-2 transition-colors ${
+              isDark
+                ? 'bg-slate-950/70 border-slate-800'
+                : 'bg-slate-50 border-slate-200/90'
+            }`}
+          >
+            <div className="flex items-center gap-1.5 text-xs font-bold text-amber-500">
+              <Trophy className="w-3.5 h-3.5" />
+              <span>RECORD</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 text-xs font-mono font-bold">
+              {records.map((r, idx) => (
+                <div key={idx} className="flex items-center gap-1">
+                  {r.label && (
+                    <span
+                      className={`text-[10px] font-sans font-medium px-1.5 py-0.5 rounded ${
+                        isDark
+                          ? 'bg-slate-800 text-slate-400'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}
+                    >
+                      {r.label}
+                    </span>
+                  )}
+                  <span className="text-amber-500">{r.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-1.5 mt-4">
           {game.tags.map((tag, idx) => (
