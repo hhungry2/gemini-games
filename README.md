@@ -38,6 +38,17 @@ npm run dev
 
 ---
 
+## 🌐 GitHub Pages へのデプロイ
+
+本リポジトリには GitHub Actions による自動デプロイ設定が含まれています。
+
+1. GitHub 上でリポジトリを作成し、コードを push します。
+2. GitHub リポジトリの **Settings** > **Pages** を開きます。
+3. **Build and deployment** の **Source** を **`GitHub Actions`** に変更します。
+4. `main` ブランチに push されるたびに、自動的にビルド＆公開されます。
+
+---
+
 ## 🛠️ 技術スタック
 
 - **Frontend**: React 19, TypeScript, Vite
