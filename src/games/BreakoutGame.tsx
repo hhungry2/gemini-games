@@ -774,7 +774,7 @@ export const BreakoutGame: React.FC<BreakoutGameProps> = ({
     <div className="w-full flex flex-col items-center select-none">
       <div
         className={`w-full flex items-center justify-between mb-3 transition-all ${
-          isFullscreen ? 'max-w-4xl' : 'max-w-2xl'
+          isFullscreen ? 'w-[min(96vw,calc((100vh-110px)*600/750))]' : 'w-full max-w-[480px]'
         }`}
       >
         <button

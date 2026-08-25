@@ -396,7 +396,7 @@ export const PongGame: React.FC<PongGameProps> = ({
       {/* 上部ヘッダーナビゲーション */}
       <div
         className={`w-full flex items-center justify-between mb-3 transition-all ${
-          isFullscreen ? 'max-w-4xl' : 'max-w-2xl'
+          isFullscreen ? 'w-[min(96vw,calc((100vh-110px)*800/500))]' : 'w-full max-w-[620px]'
         }`}
       >
         <button

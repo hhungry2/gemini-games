@@ -519,7 +519,7 @@ export const Game2048: React.FC<Game2048Props> = ({
       {/* 上部ヘッダーナビゲーション */}
       <div
         className={`w-full flex items-center justify-between mb-3 transition-all ${
-          isFullscreen ? 'max-w-4xl' : 'max-w-md'
+          isFullscreen ? 'w-[min(94vw,calc(100vh-140px))] max-w-[560px]' : 'w-full max-w-[460px]'
         }`}
       >
         <button
@@ -555,7 +555,7 @@ export const Game2048: React.FC<Game2048Props> = ({
       {/* スコア・ベスト・最大タイル表示 */}
       <div
         className={`w-full flex items-center justify-between mb-3 transition-all ${
-          isFullscreen ? 'max-w-xl' : 'max-w-md'
+          isFullscreen ? 'w-[min(94vw,calc(100vh-140px))] max-w-[560px]' : 'w-full max-w-[460px]'
         }`}
       >
         <div>
@@ -612,7 +612,7 @@ export const Game2048: React.FC<Game2048Props> = ({
       {/* パワーアップスキルバー */}
       <div
         className={`w-full flex items-center justify-between gap-2 mb-3 transition-all ${
-          isFullscreen ? 'max-w-xl' : 'max-w-md'
+          isFullscreen ? 'w-[min(94vw,calc(100vh-140px))] max-w-[560px]' : 'w-full max-w-[460px]'
         }`}
       >
         <div className="flex items-center gap-1.5 text-xs font-bold">
@@ -700,8 +700,8 @@ export const Game2048: React.FC<Game2048Props> = ({
           isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-slate-300 border-slate-300/80 shadow-md'
         } ${
           isFullscreen
-            ? 'w-[min(92vw,calc(100vh-180px))] max-w-[560px] aspect-square my-auto'
-            : 'w-full max-w-[420px] aspect-square'
+            ? 'w-[min(94vw,calc(100vh-140px))] max-w-[560px] aspect-square my-auto'
+            : 'w-full max-w-[460px] aspect-square'
         }`}
       >
         <div
@@ -715,15 +715,15 @@ export const Game2048: React.FC<Game2048Props> = ({
             row.map((val, cIdx) => (
               <div
                 key={`${rIdx}-${cIdx}`}
-                className={`w-full h-full rounded-2xl flex items-center justify-center font-mono transition-transform duration-100 ${getTileStyle(
+                className={`w-full h-full aspect-square rounded-2xl flex items-center justify-center font-mono select-none transition-all duration-100 ${getTileStyle(
                   val
                 )} ${
                   val > 0
                     ? gridSize === 5
-                      ? 'text-lg sm:text-2xl font-bold'
+                      ? 'text-base sm:text-xl font-bold'
                       : gridSize === 3
                       ? 'text-3xl sm:text-5xl font-black'
-                      : 'text-2xl sm:text-4xl font-bold'
+                      : 'text-2xl sm:text-4xl font-black'
                     : ''
                 }`}
               >

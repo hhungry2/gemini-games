@@ -712,7 +712,7 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
       {/* 上部ヘッダーナビゲーション */}
       <div
         className={`w-full flex items-center justify-between mb-3 transition-all ${
-          isFullscreen ? 'max-w-4xl' : 'max-w-md'
+          isFullscreen ? 'w-[min(94vw,calc(100vh-120px))]' : 'w-full max-w-[460px]'
         }`}
       >
         <button
