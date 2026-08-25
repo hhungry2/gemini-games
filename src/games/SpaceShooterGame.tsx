@@ -2204,19 +2204,21 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
       ref={containerRef}
       className={`relative w-full mx-auto flex flex-col items-center select-none transition-all duration-300 ${
         isFullscreen
-          ? 'h-[calc(100vh-4.5rem)] max-w-none justify-between'
+          ? 'h-full max-w-none justify-center py-1'
           : 'max-w-4xl'
       }`}
     >
       {/* 上部コントロールバー */}
       <div
-        className={`w-full flex items-center justify-between gap-2 mb-2 px-2 transition-all ${
-          isFullscreen ? 'max-w-[min(98vw,calc((100vh-5.5rem)*540/800))]' : 'max-w-[540px]'
+        className={`w-full flex items-center justify-between gap-2 mb-2 px-1 transition-all ${
+          isFullscreen
+            ? 'w-[min(96vw,calc((100vh-6.5rem)*540/800))] max-w-none'
+            : 'max-w-[540px]'
         }`}
       >
         <button
           onClick={onBackToHub}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer ${
             isDark
               ? 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800'
               : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 shadow-xs'
@@ -2230,7 +2232,7 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
           {/* 操作モード切り替え */}
           <button
             onClick={() => setControlMode(controlMode === 'keyboard' ? 'mouse' : 'keyboard')}
-            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-xl border transition ${
+            className={`hidden sm:flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer ${
               controlMode === 'mouse'
                 ? 'bg-indigo-600 text-white border-indigo-500 shadow-xs'
                 : isDark
@@ -2250,7 +2252,7 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
               setAutoFire(next);
               gameRef.current.autoFire = next;
             }}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-xl border transition ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer ${
               autoFire
                 ? 'bg-indigo-500/20 border-indigo-500/40 text-indigo-400 font-bold'
                 : isDark
@@ -2265,7 +2267,7 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
           {/* サウンド切り替え */}
           <button
             onClick={toggleSound}
-            className={`p-2 rounded-xl border transition ${
+            className={`p-2 rounded-xl border transition cursor-pointer ${
               isDark
                 ? !isSoundMuted
                   ? 'bg-slate-900 border-slate-700 text-indigo-400'
@@ -2285,7 +2287,7 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
       <div
         className={`relative flex flex-col items-center transition-all ${
           isFullscreen
-            ? 'w-full max-w-[min(98vw,calc((100vh-7.5rem)*540/800))] flex-1 justify-center'
+            ? 'w-[min(96vw,calc((100vh-6.5rem)*540/800))] max-w-none my-auto'
             : 'w-full max-w-[540px]'
         }`}
       >
@@ -2348,10 +2350,10 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
 
         {/* Canvas 表示部 */}
         <div
-          className={`relative overflow-hidden rounded-b-2xl border border-slate-800 shadow-2xl bg-black w-full transition-all ${
+          className={`relative overflow-hidden rounded-b-2xl border border-slate-800 shadow-2xl bg-black w-full aspect-[27/40] transition-all ${
             isFullscreen
-              ? 'max-h-[calc(100vh-10.5rem)] aspect-[27/40] shadow-[0_0_80px_rgba(56,189,248,0.25)] flex items-center justify-center'
-              : 'aspect-[27/40]'
+              ? 'shadow-[0_0_80px_rgba(56,189,248,0.25)]'
+              : ''
           }`}
         >
           <canvas
