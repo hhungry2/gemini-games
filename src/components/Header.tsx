@@ -289,7 +289,7 @@ export const Header: React.FC<HeaderProps> = ({
               <>
                 <h3 className="text-xl font-black mb-4 flex items-center gap-2">
                   <Gamepad2 className="w-5 h-5 text-indigo-500" />
-                  ブロック崩し操作方法
+                  ブロック崩し操作方法 ＆ アイテム
                 </h3>
                 <div className="space-y-2.5 text-xs">
                   <div className={`p-2.5 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
@@ -299,6 +299,14 @@ export const Header: React.FC<HeaderProps> = ({
                   <div className={`p-2.5 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                     <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>ボール発射 / レーザー</span>
                     <span className={`font-mono px-2 py-0.5 rounded font-bold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-900'}`}>Space / クリック / タップ</span>
+                  </div>
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>アイテム効果</span>
+                    <span className={`font-mono px-2 py-0.5 rounded font-bold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-900'}`}>🔥貫通球 / 🧲キャッチ / ⚡レーザー / 🛡️バリア / 3x分裂</span>
+                  </div>
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>ステージ</span>
+                    <span className={`font-mono px-2 py-0.5 rounded font-bold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-900'}`}>全5ステージ (Stage 5 ボスコア戦)</span>
                   </div>
                   <div className={`p-2.5 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                     <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>ポーズ / 再開</span>
