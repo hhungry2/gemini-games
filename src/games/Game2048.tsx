@@ -428,7 +428,7 @@ export const Game2048: React.FC<Game2048Props> = ({
 
       setTimeout(() => {
         setIsMoving(false);
-      }, 100);
+      }, 200);
     },
     [tiles, score, moves, isGameOver, isMoving, hasWon, keepPlaying, gridSize, updateHighScore]
   );
@@ -566,17 +566,17 @@ export const Game2048: React.FC<Game2048Props> = ({
         }
         @keyframes tile-pop {
           0% { transform: scale(0.85); }
-          50% { transform: scale(1.15); }
+          50% { transform: scale(1.18); }
           100% { transform: scale(1); }
         }
         .tile-animate-new {
-          animation: tile-appear 160ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+          animation: tile-appear 220ms cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
         }
         .tile-animate-merged {
-          animation: tile-pop 180ms ease-in-out forwards;
+          animation: tile-pop 240ms cubic-bezier(0.25, 1, 0.5, 1) forwards;
         }
         .tile-smooth-slide {
-          transition: left 120ms cubic-bezier(0.25, 1, 0.5, 1), top 120ms cubic-bezier(0.25, 1, 0.5, 1);
+          transition: left 220ms cubic-bezier(0.2, 0.9, 0.3, 1), top 220ms cubic-bezier(0.2, 0.9, 0.3, 1);
         }
       `}</style>
 
