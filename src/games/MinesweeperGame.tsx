@@ -210,6 +210,18 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({
 
   // 難易度に応じたセルサイズとテキストサイズ
   const getCellSizeClass = () => {
+    if (isFullscreen) {
+      switch (difficulty) {
+        case 'easy':
+          return 'w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 text-2xl sm:text-3xl rounded-xl';
+        case 'medium':
+          return 'w-9 h-9 sm:w-11 sm:h-11 md:w-13 md:h-13 text-lg sm:text-xl rounded-lg';
+        case 'hard':
+          return 'w-8 h-8 sm:w-9 sm:h-9 md:w-11 md:h-11 text-base sm:text-lg rounded-md';
+        default:
+          return 'w-10 h-10 sm:w-12 sm:h-12 text-lg rounded-lg';
+      }
+    }
     switch (difficulty) {
       case 'easy':
         return 'w-10 h-10 sm:w-12 sm:h-12 md:w-14 md:h-14 text-xl sm:text-2xl rounded-xl';
@@ -253,7 +265,7 @@ export const MinesweeperGame: React.FC<MinesweeperGameProps> = ({
 
       <div
         className={`w-full flex flex-col items-center space-y-4 transition-all duration-300 ${
-          isFullscreen ? 'max-w-6xl scale-100 lg:scale-105 my-2' : 'max-w-4xl'
+          isFullscreen ? 'max-w-6xl my-2' : 'max-w-4xl'
         }`}
       >
         {/* 難易度セレクター ＆ ベストタイム */}

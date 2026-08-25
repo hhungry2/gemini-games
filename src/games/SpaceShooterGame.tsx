@@ -1140,6 +1140,27 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
                 createExplosion(enemy.x, enemy.y, enemy.type === 'cruiser' ? 2.2 : 1.2);
                 dropItem(enemy.x, enemy.y, enemy.type === 'cruiser' ? 0.9 : 0.4);
 
+                // 撃破時に周囲の敵弾を消滅（弾消し効果）
+                const cancelRadius = enemy.type === 'cruiser' ? 140 : 65;
+                for (let ebIdx = g.enemyBullets.length - 1; ebIdx >= 0; ebIdx--) {
+                  const eb = g.enemyBullets[ebIdx];
+                  if (Math.hypot(eb.x - enemy.x, eb.y - enemy.y) < cancelRadius) {
+                    g.enemyBullets.splice(ebIdx, 1);
+                    // 弾消し小パーティクル
+                    g.particles.push({
+                      x: eb.x,
+                      y: eb.y,
+                      vx: (Math.random() - 0.5) * 2,
+                      vy: (Math.random() - 0.5) * 2,
+                      life: 8,
+                      maxLife: 8,
+                      color: '#38bdf8',
+                      size: 2,
+                      alpha: 0.8,
+                    });
+                  }
+                }
+
                 g.floatingTexts.push({
                   x: enemy.x,
                   y: enemy.y,
@@ -1197,6 +1218,8 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
                     dropItem(px, py, 1.0);
                     g.score += 2500;
                     setScore(g.score);
+                    // ボスパーツ破壊時に敵弾全消去
+                    g.enemyBullets = [];
                     g.floatingTexts.push({
                       x: px,
                       y: py,
@@ -1277,6 +1300,7 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
           }
         }
 
+        // --- 敵のスポーン & ウェーブ進行 ---
         if (!g.boss) {
           g.enemySpawnTimer++;
 
@@ -1284,30 +1308,32 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
           if (g.stageTimer > bossSpawnThreshold && g.enemies.length === 0) {
             spawnBoss(g.stage);
           } else {
-            const spawnRate = g.difficulty === 'EASY' ? 85 : g.difficulty === 'NORMAL' ? 65 : 45;
-            if (g.enemySpawnTimer > spawnRate) {
+            const spawnRate = g.difficulty === 'EASY' ? 130 : g.difficulty === 'NORMAL' ? 95 : 70;
+            // 画面内の敵が多すぎる場合はスポーン抑制 (最大5体)
+            if (g.enemySpawnTimer > spawnRate && g.enemies.length < 5) {
               g.enemySpawnTimer = 0;
               g.waveIndex++;
 
               const randType = Math.random();
-              const spawnX = 40 + Math.random() * 460;
+              const spawnX = 50 + Math.random() * 440;
 
               if (randType < 0.45) {
-                for (let k = 0; k < 3; k++) {
+                // Scout (2機編隊)
+                for (let k = 0; k < 2; k++) {
                   g.enemies.push({
                     id: g.nextEnemyId++,
                     type: 'scout',
-                    x: spawnX + (k - 1) * 35,
-                    y: -30 - k * 30,
+                    x: spawnX + (k === 0 ? -25 : 25),
+                    y: -30 - k * 35,
                     vx: 0,
-                    vy: 3.2,
+                    vy: 2.8,
                     width: 28,
                     height: 28,
-                    hp: 40 + g.stage * 15,
-                    maxHp: 40 + g.stage * 15,
+                    hp: 35 + g.stage * 10,
+                    maxHp: 35 + g.stage * 10,
                     scoreValue: 200,
-                    shootTimer: 30 + k * 15,
-                    shootInterval: 70,
+                    shootTimer: 60 + k * 30,
+                    shootInterval: 140,
                     patternStep: 0,
                     hitFlash: 0,
                     color: '#38bdf8',
@@ -1317,20 +1343,21 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
                   });
                 }
               } else if (randType < 0.75) {
+                // Fighter
                 g.enemies.push({
                   id: g.nextEnemyId++,
                   type: 'fighter',
                   x: spawnX,
                   y: -40,
-                  vx: (Math.random() - 0.5) * 3,
-                  vy: 2.2,
+                  vx: (Math.random() - 0.5) * 2.2,
+                  vy: 1.8,
                   width: 38,
                   height: 38,
-                  hp: 120 + g.stage * 40,
-                  maxHp: 120 + g.stage * 40,
+                  hp: 100 + g.stage * 30,
+                  maxHp: 100 + g.stage * 30,
                   scoreValue: 500,
-                  shootTimer: 40,
-                  shootInterval: 60,
+                  shootTimer: 50,
+                  shootInterval: 130,
                   patternStep: 0,
                   hitFlash: 0,
                   color: '#ec4899',
@@ -1338,17 +1365,18 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
                   behaviorTimer: 0,
                 });
               } else if (randType < 0.9) {
+                // Spinner
                 g.enemies.push({
                   id: g.nextEnemyId++,
                   type: 'spinner',
                   x: spawnX,
                   y: -35,
-                  vx: (Math.random() - 0.5) * 2,
-                  vy: 3.8,
+                  vx: (Math.random() - 0.5) * 1.8,
+                  vy: 3.2,
                   width: 32,
                   height: 32,
-                  hp: 70 + g.stage * 25,
-                  maxHp: 70 + g.stage * 25,
+                  hp: 60 + g.stage * 20,
+                  maxHp: 60 + g.stage * 20,
                   scoreValue: 350,
                   shootTimer: 999,
                   shootInterval: 999,
@@ -1359,20 +1387,21 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
                   behaviorTimer: 0,
                 });
               } else {
+                // Heavy Cruiser
                 g.enemies.push({
                   id: g.nextEnemyId++,
                   type: 'cruiser',
                   x: spawnX,
                   y: -60,
                   vx: 0,
-                  vy: 1.1,
+                  vy: 0.9,
                   width: 64,
                   height: 56,
-                  hp: 450 + g.stage * 150,
-                  maxHp: 450 + g.stage * 150,
+                  hp: 380 + g.stage * 120,
+                  maxHp: 380 + g.stage * 120,
                   scoreValue: 1200,
-                  shootTimer: 50,
-                  shootInterval: 80,
+                  shootTimer: 70,
+                  shootInterval: 170,
                   patternStep: 0,
                   hitFlash: 0,
                   color: '#a855f7',
@@ -1384,6 +1413,7 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
           }
         }
 
+        // --- 敵の挙動 & 攻撃処理 ---
         for (let i = g.enemies.length - 1; i >= 0; i--) {
           const e = g.enemies[i];
           e.behaviorTimer++;
@@ -1415,44 +1445,62 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
             continue;
           }
 
+          // 敵の射撃 (間隔延長 & 弾速緩和)
           e.shootTimer--;
-          if (e.shootTimer <= 0 && e.y > 20 && e.y < 650) {
+          if (e.shootTimer <= 0 && e.y > 20 && e.y < 600) {
             e.shootTimer = e.shootInterval;
 
             const angleToPlayer = Math.atan2(g.player.y - e.y, g.player.x - e.x);
-            const bulletSpeed = g.difficulty === 'EASY' ? 3.5 : g.difficulty === 'NORMAL' ? 4.8 : 6.0;
+            const bulletSpeed = g.difficulty === 'EASY' ? 2.3 : g.difficulty === 'NORMAL' ? 3.2 : 4.2;
 
             if (e.type === 'scout') {
-              g.enemyBullets.push({
-                x: e.x,
-                y: e.y + e.height * 0.4,
-                vx: Math.cos(angleToPlayer) * bulletSpeed,
-                vy: Math.sin(angleToPlayer) * bulletSpeed,
-                radius: 4,
-                color: '#f87171',
-                glowColor: '#ef4444',
-              });
-            } else if (e.type === 'fighter') {
-              [-0.25, 0, 0.25].forEach((offset) => {
+              // 単発狙い撃ち
+              if (Math.random() < 0.65) {
                 g.enemyBullets.push({
                   x: e.x,
                   y: e.y + e.height * 0.4,
-                  vx: Math.cos(angleToPlayer + offset) * bulletSpeed,
-                  vy: Math.sin(angleToPlayer + offset) * bulletSpeed,
-                  radius: 4.5,
+                  vx: Math.cos(angleToPlayer) * bulletSpeed,
+                  vy: Math.sin(angleToPlayer) * bulletSpeed,
+                  radius: 3.5,
+                  color: '#f87171',
+                  glowColor: '#ef4444',
+                });
+              }
+            } else if (e.type === 'fighter') {
+              // 単発 または 2WAY
+              if (g.difficulty === 'HARD') {
+                [-0.15, 0.15].forEach((offset) => {
+                  g.enemyBullets.push({
+                    x: e.x,
+                    y: e.y + e.height * 0.4,
+                    vx: Math.cos(angleToPlayer + offset) * bulletSpeed,
+                    vy: Math.sin(angleToPlayer + offset) * bulletSpeed,
+                    radius: 4,
+                    color: '#fb7185',
+                    glowColor: '#f43f5e',
+                  });
+                });
+              } else {
+                g.enemyBullets.push({
+                  x: e.x,
+                  y: e.y + e.height * 0.4,
+                  vx: Math.cos(angleToPlayer) * bulletSpeed,
+                  vy: Math.sin(angleToPlayer) * bulletSpeed,
+                  radius: 4,
                   color: '#fb7185',
                   glowColor: '#f43f5e',
                 });
-              });
+              }
             } else if (e.type === 'cruiser') {
-              for (let k = 0; k < 8; k++) {
-                const ringAngle = (k / 8) * Math.PI * 2 + e.behaviorTimer * 0.1;
+              // 4方向クロスリング
+              for (let k = 0; k < 4; k++) {
+                const ringAngle = (k / 4) * Math.PI * 2 + e.behaviorTimer * 0.05;
                 g.enemyBullets.push({
                   x: e.x,
                   y: e.y + 10,
                   vx: Math.cos(ringAngle) * (bulletSpeed * 0.85),
                   vy: Math.sin(ringAngle) * (bulletSpeed * 0.85),
-                  radius: 5,
+                  radius: 4.5,
                   color: '#c084fc',
                   glowColor: '#a855f7',
                 });
@@ -1461,59 +1509,64 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
           }
         }
 
+        // --- ボス挙動 & 弾幕 ---
         if (g.boss && g.boss.hp > 0 && g.warningTimer === 0) {
           const boss = g.boss;
           if (boss.hitFlash > 0) boss.hitFlash--;
 
-          boss.x += (boss.targetX - boss.x) * 0.04;
-          boss.y += (boss.targetY - boss.y) * 0.04;
+          boss.x += (boss.targetX - boss.x) * 0.035;
+          boss.y += (boss.targetY - boss.y) * 0.035;
 
-          boss.patternAngle += 0.03;
-          boss.targetX = 270 + Math.sin(boss.patternAngle) * 160;
+          boss.patternAngle += 0.02;
+          boss.targetX = 270 + Math.sin(boss.patternAngle) * 140;
 
           boss.shootTimer++;
           boss.specialTimer++;
 
-          const bulletSpeed = g.difficulty === 'EASY' ? 3.8 : g.difficulty === 'NORMAL' ? 5.2 : 6.5;
+          const bulletSpeed = g.difficulty === 'EASY' ? 2.5 : g.difficulty === 'NORMAL' ? 3.4 : 4.4;
 
-          if (boss.shootTimer % (g.difficulty === 'HARD' ? 18 : 28) === 0) {
-            const angleOffset = boss.patternAngle * 3;
-            for (let k = 0; k < (boss.stage >= 2 ? 6 : 4); k++) {
-              const a = angleOffset + (k / (boss.stage >= 2 ? 6 : 4)) * Math.PI * 2;
+          // 通常弾幕 (頻度を大幅に緩和)
+          if (boss.shootTimer % (g.difficulty === 'HARD' ? 38 : 52) === 0) {
+            const count = boss.stage >= 2 ? 4 : 3;
+            const angleOffset = boss.patternAngle * 2;
+            for (let k = 0; k < count; k++) {
+              const a = angleOffset + (k / count) * Math.PI * 2;
               g.enemyBullets.push({
                 x: boss.x,
                 y: boss.y + 20,
                 vx: Math.cos(a) * bulletSpeed,
                 vy: Math.sin(a) * bulletSpeed,
-                radius: 5,
+                radius: 4.5,
                 color: '#f43f5e',
                 glowColor: '#e11d48',
               });
             }
           }
 
-          if (boss.specialTimer > 120) {
+          // 特殊攻撃 (3連射)
+          if (boss.specialTimer > 180) {
             boss.specialTimer = 0;
             const targetAngle = Math.atan2(g.player.y - boss.y, g.player.x - boss.x);
 
-            for (let b = 0; b < 5; b++) {
+            for (let b = 0; b < 3; b++) {
               setTimeout(() => {
                 if (g.state === 'PLAYING' && g.boss) {
                   g.enemyBullets.push({
                     x: boss.x,
                     y: boss.y + 30,
-                    vx: Math.cos(targetAngle) * (bulletSpeed * 1.3),
-                    vy: Math.sin(targetAngle) * (bulletSpeed * 1.3),
-                    radius: 6,
+                    vx: Math.cos(targetAngle) * (bulletSpeed * 1.15),
+                    vy: Math.sin(targetAngle) * (bulletSpeed * 1.15),
+                    radius: 5,
                     color: '#fbbf24',
                     glowColor: '#f59e0b',
                   });
                 }
-              }, b * 90);
+              }, b * 120);
             }
           }
         }
 
+        // --- 敵弾の更新 & 自機との当たり判定 ---
         for (let i = g.enemyBullets.length - 1; i >= 0; i--) {
           const eb = g.enemyBullets[i];
           eb.x += eb.vx;
@@ -1531,7 +1584,7 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
               g.screenShake = 15;
               g.screenFlash = 0.5;
 
-              const shieldDamage = g.difficulty === 'HARD' ? 45 : 35;
+              const shieldDamage = g.difficulty === 'HARD' ? 40 : 30;
               g.shield -= shieldDamage;
               playSoundEffect('shield_loss');
 
@@ -1555,7 +1608,7 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
                   setPowerLevel(g.powerLevel);
                 }
               } else {
-                g.player.invulnerableTimer = 45;
+                g.player.invulnerableTimer = 70; // 被弾後の無敵時間を1.2秒に延長
               }
 
               setShield(Math.max(0, g.shield));
@@ -2149,12 +2202,18 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full max-w-4xl mx-auto flex flex-col items-center select-none ${
-        isFullscreen ? 'h-[calc(100vh-5rem)]' : ''
+      className={`relative w-full mx-auto flex flex-col items-center select-none transition-all duration-300 ${
+        isFullscreen
+          ? 'h-[calc(100vh-4.5rem)] max-w-none justify-between'
+          : 'max-w-4xl'
       }`}
     >
       {/* 上部コントロールバー */}
-      <div className="w-full flex items-center justify-between gap-2 mb-3 px-2">
+      <div
+        className={`w-full flex items-center justify-between gap-2 mb-2 px-2 transition-all ${
+          isFullscreen ? 'max-w-[min(98vw,calc((100vh-5.5rem)*540/800))]' : 'max-w-[540px]'
+        }`}
+      >
         <button
           onClick={onBackToHub}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition ${
@@ -2223,17 +2282,23 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
       </div>
 
       {/* メインゲームエリア & HUD */}
-      <div className="relative flex flex-col items-center">
+      <div
+        className={`relative flex flex-col items-center transition-all ${
+          isFullscreen
+            ? 'w-full max-w-[min(98vw,calc((100vh-7.5rem)*540/800))] flex-1 justify-center'
+            : 'w-full max-w-[540px]'
+        }`}
+      >
         {/* サイバーHUD (上部ステータスバー) */}
         <div
-          className={`w-full max-w-[540px] px-4 py-2.5 rounded-t-2xl border-t border-x flex items-center justify-between gap-2 text-xs font-mono backdrop-blur-md ${
+          className={`w-full px-4 py-2 rounded-t-2xl border-t border-x flex items-center justify-between gap-2 text-xs font-mono backdrop-blur-md transition-all ${
             isDark ? 'bg-slate-900/90 border-slate-800 text-slate-100' : 'bg-slate-900 text-white border-slate-700'
           }`}
         >
           {/* スコア & ハイスコア */}
           <div className="flex flex-col">
             <span className="text-[10px] text-slate-400 font-sans">SCORE</span>
-            <span className="text-base font-black text-amber-400 tracking-wider">
+            <span className="text-base sm:text-lg font-black text-amber-400 tracking-wider">
               {score.toLocaleString()}
             </span>
           </div>
@@ -2242,7 +2307,7 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
             <span className="text-[10px] text-slate-400 font-sans flex items-center gap-1">
               <Trophy className="w-3 h-3 text-amber-500" /> HIGH
             </span>
-            <span className="text-xs font-bold text-slate-300">
+            <span className="text-xs sm:text-sm font-bold text-slate-300">
               {Math.max(score, highScore).toLocaleString()}
             </span>
           </div>
@@ -2255,7 +2320,7 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
                 <Shield className="w-3 h-3 text-emerald-400" />
                 <span>{shield}%</span>
               </div>
-              <div className="w-20 h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700 mt-0.5">
+              <div className="w-20 sm:w-24 h-2 bg-slate-800 rounded-full overflow-hidden border border-slate-700 mt-0.5">
                 <div
                   className={`h-full transition-all duration-200 ${
                     shield > 50 ? 'bg-emerald-500' : shield > 25 ? 'bg-amber-500' : 'bg-rose-500'
@@ -2268,26 +2333,32 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
             {/* 残機アイコン */}
             <div className="flex items-center gap-1 text-indigo-400">
               {Array.from({ length: Math.max(0, lives) }).map((_, i) => (
-                <Crosshair key={i} className="w-3.5 h-3.5 text-indigo-400 fill-indigo-400" />
+                <Crosshair key={i} className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-400 fill-indigo-400" />
               ))}
             </div>
 
             {/* ボムストック */}
             <div className="flex items-center gap-0.5 text-rose-400">
               {Array.from({ length: Math.max(0, bombs) }).map((_, i) => (
-                <Bomb key={i} className="w-3.5 h-3.5 text-rose-500 fill-rose-500" />
+                <Bomb key={i} className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-rose-500 fill-rose-500" />
               ))}
             </div>
           </div>
         </div>
 
         {/* Canvas 表示部 */}
-        <div className="relative overflow-hidden rounded-b-2xl border border-slate-800 shadow-2xl bg-black">
+        <div
+          className={`relative overflow-hidden rounded-b-2xl border border-slate-800 shadow-2xl bg-black w-full transition-all ${
+            isFullscreen
+              ? 'max-h-[calc(100vh-10.5rem)] aspect-[27/40] shadow-[0_0_80px_rgba(56,189,248,0.25)] flex items-center justify-center'
+              : 'aspect-[27/40]'
+          }`}
+        >
           <canvas
             ref={canvasRef}
             width={540}
             height={800}
-            className="w-full max-w-[540px] max-h-[75vh] h-auto object-contain cursor-crosshair block"
+            className="w-full h-full object-contain cursor-crosshair block"
             onMouseMove={(e) => {
               if (controlMode === 'mouse') {
                 const coords = getCanvasCoords(e.clientX, e.clientY);

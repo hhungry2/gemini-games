@@ -1,4 +1,12 @@
-export type GameId = 'tetris' | 'minesweeper' | 'bros' | 'shooter';
+export type GameId =
+  | 'tetris'
+  | 'minesweeper'
+  | 'bros'
+  | 'shooter'
+  | 'breakout'
+  | 'game2048'
+  | 'doteater'
+  | 'pong';
 
 export interface GameInfo {
   id: GameId;

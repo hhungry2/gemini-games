@@ -395,7 +395,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
 
       <div
         className={`w-full flex flex-col md:flex-row items-center justify-center gap-6 lg:gap-8 transition-transform duration-300 relative z-10 ${
-          isFullscreen ? 'scale-100 sm:scale-105 lg:scale-110 my-2' : ''
+          isFullscreen ? 'scale-105 sm:scale-115 lg:scale-125 xl:scale-135 my-4 sm:my-6' : ''
         }`}
       >
         {/* 左サイドパネル: HOLD & STATS */}

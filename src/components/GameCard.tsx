@@ -1,6 +1,19 @@
 import React from 'react';
 import { GameInfo, GameId } from '../types';
-import { LayoutGrid, ArrowRight, Sparkles, Trophy, Crosshair, Gamepad2, Layers, Bomb } from 'lucide-react';
+import {
+  LayoutGrid,
+  ArrowRight,
+  Sparkles,
+  Trophy,
+  Crosshair,
+  Gamepad2,
+  Layers,
+  Bomb,
+  Grid2X2,
+  CircleDot,
+  TableProperties,
+  SquareDashedKanban,
+} from 'lucide-react';
 
 export interface RecordItem {
   label: string;
@@ -30,6 +43,14 @@ export const GameCard: React.FC<GameCardProps> = ({
         return <Layers className="w-6 h-6 text-white" />;
       case 'minesweeper':
         return <Bomb className="w-6 h-6 text-white" />;
+      case 'breakout':
+        return <SquareDashedKanban className="w-6 h-6 text-white" />;
+      case 'game2048':
+        return <Grid2X2 className="w-6 h-6 text-white" />;
+      case 'doteater':
+        return <CircleDot className="w-6 h-6 text-white" />;
+      case 'pong':
+        return <TableProperties className="w-6 h-6 text-white" />;
       default:
         return <LayoutGrid className="w-6 h-6 text-white" />;
     }

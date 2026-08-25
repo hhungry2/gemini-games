@@ -5,6 +5,10 @@ import { TetrisGame } from './games/TetrisGame';
 import { MinesweeperGame } from './games/MinesweeperGame';
 import { GeminiBrosGame } from './games/GeminiBrosGame';
 import { SpaceShooterGame } from './games/SpaceShooterGame';
+import { BreakoutGame } from './games/BreakoutGame';
+import { Game2048 } from './games/Game2048';
+import { DotEaterGame } from './games/DotEaterGame';
+import { PongGame } from './games/PongGame';
 import { GameInfo, GameId } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck } from 'lucide-react';
 
@@ -12,15 +16,63 @@ const THEME_KEY = 'games_hub_theme';
 const TETRIS_HIGH_SCORE_KEY = 'tetris_high_score_v1';
 const BROS_HIGH_SCORE_KEY = 'gemini_bros_high_score';
 const SHOOTER_HIGH_SCORE_KEY = 'star_striker_high_score';
+const BREAKOUT_HIGH_SCORE_KEY = 'breakout_high_score';
+const GAME2048_HIGH_SCORE_KEY = '2048_high_score';
+const DOTEATER_HIGH_SCORE_KEY = 'doteater_high_score';
+const PONG_RALLY_KEY = 'pong_rally_best';
 
 const GAMES: GameInfo[] = [
   {
+    id: 'breakout',
+    title: 'ブロック崩し (Breakout)',
+    titleEn: 'Classic Block Breaker',
+    description:
+      'パドルでボールを打ち返してブロックを破壊！マルチボール・レーザー・拡大・バリアなど多彩なアイテムと複数ステージを搭載。',
+    badge: '定番アクション',
+    iconName: 'breakout',
+    color: 'from-amber-500 via-orange-500 to-rose-500',
+    tags: ['アクション', 'アイテム', 'マルチボール', 'レーザー', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'game2048',
+    title: '2048 (Classic 2048)',
+    titleEn: 'Number Sliding Puzzle',
+    description:
+      '同じ数字のタイルを合体させて「2048」を目指す名作スライドラジックパズル！1手戻す(Undo)機能、スムーズなアニメーション完備。',
+    badge: '人気パズル',
+    iconName: 'game2048',
+    color: 'from-yellow-500 via-amber-500 to-orange-600',
+    tags: ['パズル', '思考', 'Undo機能', 'スワイプ操作', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'doteater',
+    title: 'ドットイーター (Dot Eater)',
+    titleEn: 'Maze Chase Action',
+    description:
+      '迷路を駆け巡りドットを全回収！個性豊かな4色のゴーストをパワードットで撃退し、フルーツボーナスを獲得しよう！',
+    badge: '名作アーケード',
+    iconName: 'doteater',
+    color: 'from-yellow-400 via-emerald-500 to-teal-600',
+    tags: ['迷路', 'アーケード', 'ゴーストAI', 'パワーアップ', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'pong',
+    title: 'ポン (Pong)',
+    titleEn: 'Classic Table Tennis Battle',
+    description:
+      '元祖対戦アクション！VS CPU(難易度3段階)での1人プレイ、1台での2人対戦(2P)、壁打ちラリーチャレンジに対応。',
+    badge: '対戦スポーツ',
+    iconName: 'pong',
+    color: 'from-sky-500 via-blue-600 to-indigo-600',
+    tags: ['対戦', '2P対戦', 'VS CPU', 'ラリー', 'スマホ・PC両対応'],
+  },
+  {
     id: 'shooter',
     title: 'Star Striker (スター・ストライカー)',
-    titleEn: 'Cyber Space Vertical Shooter',
+    titleEn: 'Space Vertical Shooter',
     description:
-      '宇宙空間を舞台にした超爽快な本格縦スクロールシューティング！パワーアップ・追尾ミサイル・支援ビット機・巨大ボス戦・ハイパーボム完備。',
-    badge: '新作STG',
+      '宇宙空間を舞台にした本格縦スクロールシューティング！パワーアップ・追尾ミサイル・支援ビット機・巨大ボス戦・ハイパーボム完備。',
+    badge: '本格STG',
     iconName: 'shooter',
     color: 'from-cyan-500 via-indigo-600 to-rose-500',
     tags: ['縦シュー', '弾幕', '3ステージ', '巨大ボス', 'スマホ・PC両対応'],
@@ -28,31 +80,31 @@ const GAMES: GameInfo[] = [
   {
     id: 'bros',
     title: 'Gemini 3.7 Bros.',
-    titleEn: 'Super AI 2D Platformer Adventure',
+    titleEn: 'Super 2D Platformer Adventure',
     description:
       '4つのワールド・地下ボーナス・城・ボス戦を駆け巡る本格2D横スクロールアクション！思考ビーム・スター無敵・チップチューンBGM完備。',
-    badge: '本格アクション',
+    badge: '2Dアクション',
     iconName: 'bros',
     color: 'from-blue-600 via-indigo-600 to-purple-600',
     tags: ['2Dアクション', '4ワールド', 'ボス戦', 'チップチューン', 'スマホ操作OK'],
   },
   {
     id: 'tetris',
-    title: 'テトリス (Tetris Neon)',
+    title: 'テトリス (Tetris)',
     titleEn: 'Classic Block Puzzle Game',
     description:
-      'ネオングローが輝く本格テトリス！HOLD・NEXT・ゴースト表示・壁蹴り回転・Web Audioシンセ効果音・スマホタッチ操作に完全対応。',
-    badge: '人気パズル',
+      '本格テトリス！HOLD・NEXT・ゴースト表示・壁蹴り回転・Web Audioシンセ効果音・スマホタッチ操作に完全対応。',
+    badge: '定番パズル',
     iconName: 'tetris',
     color: 'from-indigo-500 via-purple-500 to-pink-500',
     tags: ['パズル', '定番', 'アクション', 'サウンド対応', 'スマホ操作OK'],
   },
   {
     id: 'minesweeper',
-    title: 'マインスイーパー (Minesweeper Cyber)',
-    titleEn: 'Neon Cyber Minesweeper',
+    title: 'マインスイーパー (Minesweeper)',
+    titleEn: 'Classic Logic Minesweeper',
     description:
-      'サイバーパンク調のクールなマインスイーパー！初手安全保証・連鎖オープン・Chording・初級〜上級・ベストタイム記録に対応。',
+      '洗練されたマインスイーパー！初手安全保証・連鎖オープン・Chording・初級〜上級・ベストタイム記録に対応。',
     badge: '知略パズル',
     iconName: 'minesweeper',
     color: 'from-rose-500 via-amber-500 to-emerald-500',
@@ -76,6 +128,10 @@ export function App() {
   const [shooterHighScore, setShooterHighScore] = useState<number>(0);
   const [tetrisHighScore, setTetrisHighScore] = useState<number>(0);
   const [brosHighScore, setBrosHighScore] = useState<number>(0);
+  const [breakoutHighScore, setBreakoutHighScore] = useState<number>(0);
+  const [game2048HighScore, setGame2048HighScore] = useState<number>(0);
+  const [doteaterHighScore, setDoteaterHighScore] = useState<number>(0);
+  const [pongRallyBest, setPongRallyBest] = useState<number>(0);
   const [minesweeperBests, setMinesweeperBests] = useState<{
     easy: number | null;
     medium: number | null;
@@ -97,6 +153,18 @@ export function App() {
 
     const bScore = localStorage.getItem(BROS_HIGH_SCORE_KEY);
     if (bScore) setBrosHighScore(parseInt(bScore, 10) || 0);
+
+    const boScore = localStorage.getItem(BREAKOUT_HIGH_SCORE_KEY);
+    if (boScore) setBreakoutHighScore(parseInt(boScore, 10) || 0);
+
+    const gScore = localStorage.getItem(GAME2048_HIGH_SCORE_KEY);
+    if (gScore) setGame2048HighScore(parseInt(gScore, 10) || 0);
+
+    const deScore = localStorage.getItem(DOTEATER_HIGH_SCORE_KEY);
+    if (deScore) setDoteaterHighScore(parseInt(deScore, 10) || 0);
+
+    const pBest = localStorage.getItem(PONG_RALLY_KEY);
+    if (pBest) setPongRallyBest(parseInt(pBest, 10) || 0);
 
     const mEasy = localStorage.getItem('minesweeper_best_easy');
     const mMed = localStorage.getItem('minesweeper_best_medium');
@@ -144,14 +212,22 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'shooter') {
+    if (activeGame === 'breakout') {
+      document.title = 'ブロック崩し (Breakout) | Games Hub';
+    } else if (activeGame === 'game2048') {
+      document.title = '2048 | Games Hub';
+    } else if (activeGame === 'doteater') {
+      document.title = 'ドットイーター (Dot Eater) | Games Hub';
+    } else if (activeGame === 'pong') {
+      document.title = 'ポン (Pong) | Games Hub';
+    } else if (activeGame === 'shooter') {
       document.title = 'Star Striker (スター・ストライカー) | Games Hub';
     } else if (activeGame === 'bros') {
       document.title = 'Gemini 3.7 Bros. | Games Hub';
     } else if (activeGame === 'tetris') {
-      document.title = 'テトリス (Tetris Neon) | Games Hub';
+      document.title = 'テトリス (Tetris) | Games Hub';
     } else if (activeGame === 'minesweeper') {
-      document.title = 'マインスイーパー (Minesweeper Cyber) | Games Hub';
+      document.title = 'マインスイーパー (Minesweeper) | Games Hub';
     } else {
       document.title = 'Games Hub - Web Mini Games Collection';
     }
@@ -159,6 +235,38 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'breakout') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: breakoutHighScore > 0 ? `${breakoutHighScore.toLocaleString()} pts` : '--',
+        },
+      ];
+    }
+    if (gameId === 'game2048') {
+      return [
+        {
+          label: 'BEST SCORE',
+          value: game2048HighScore > 0 ? `${game2048HighScore.toLocaleString()} pts` : '--',
+        },
+      ];
+    }
+    if (gameId === 'doteater') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: doteaterHighScore > 0 ? `${doteaterHighScore.toLocaleString()} pts` : '--',
+        },
+      ];
+    }
+    if (gameId === 'pong') {
+      return [
+        {
+          label: 'RALLY BEST',
+          value: pongRallyBest > 0 ? `${pongRallyBest} 回` : '--',
+        },
+      ];
+    }
     if (gameId === 'shooter') {
       return [
         {
@@ -220,8 +328,12 @@ export function App() {
       />
 
       <main
-        className={`flex-1 w-full flex flex-col items-center transition-all duration-300 ${
-          isFullscreen ? 'max-w-none px-2 sm:px-4 py-2' : 'max-w-6xl mx-auto px-4 py-4 sm:py-6'
+        className={`flex-1 w-full flex flex-col items-center justify-center transition-all duration-300 ${
+          isFullscreen
+            ? activeGame
+              ? 'max-w-none p-1 sm:p-2'
+              : 'max-w-none px-2 sm:px-4 py-2'
+            : 'max-w-6xl mx-auto px-4 py-4 sm:py-6'
         }`}
       >
         {!activeGame ? (
@@ -368,7 +480,7 @@ export function App() {
                       isDark ? 'text-white' : 'text-slate-900'
                     }`}
                   >
-                    ゲーム一覧
+                    ゲーム一覧 (全8タイトル)
                   </h2>
                   <p
                     className={`text-xs mt-1 ${
@@ -394,7 +506,35 @@ export function App() {
             </div>
           </div>
         ) : (
-          <div className="w-full animate-in fade-in duration-300">
+          <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'breakout' && (
+              <BreakoutGame
+                onBackToHub={() => setActiveGame(null)}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'game2048' && (
+              <Game2048
+                onBackToHub={() => setActiveGame(null)}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'doteater' && (
+              <DotEaterGame
+                onBackToHub={() => setActiveGame(null)}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'pong' && (
+              <PongGame
+                onBackToHub={() => setActiveGame(null)}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'shooter' && (
               <SpaceShooterGame
                 onBackToHub={() => setActiveGame(null)}
@@ -427,15 +567,17 @@ export function App() {
         )}
       </main>
 
-      <footer
-        className={`py-6 border-t text-center text-xs transition-colors ${
-          isDark
-            ? 'border-slate-800/60 text-slate-500'
-            : 'border-slate-200 text-slate-500 bg-white/50'
-        }`}
-      >
-        <p>Games Hub &copy; 2026 - Instant Play in Browser</p>
-      </footer>
+      {(!isFullscreen || !activeGame) && (
+        <footer
+          className={`py-6 border-t text-center text-xs transition-colors ${
+            isDark
+              ? 'border-slate-800/60 text-slate-500'
+              : 'border-slate-200 text-slate-500 bg-white/50'
+          }`}
+        >
+          <p>Games Hub &copy; 2026 - Instant Play in Browser</p>
+        </footer>
+      )}
     </div>
   );
 }
