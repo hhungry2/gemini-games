@@ -1,9 +1,18 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { sound } from '../utils/audio';
-import { ArrowLeft, RotateCcw, Undo2, Trophy, Zap, Award } from 'lucide-react';
+import {
+  ArrowLeft,
+  RotateCcw,
+  Undo2,
+  Trophy,
+  Zap,
+  Award,
+  Bomb,
+  Shuffle,
+  TrendingUp,
+} from 'lucide-react';
 
 const HIGH_SCORE_KEY = '2048_high_score';
-const GRID_SIZE = 4;
 
 interface Game2048Props {
   onBackToHub: () => void;
@@ -12,44 +21,65 @@ interface Game2048Props {
 }
 
 type Board = number[][];
+type GridMode = 3 | 4 | 5;
+
+interface FloatingText {
+  id: number;
+  text: string;
+  x: number;
+  y: number;
+}
 
 export const Game2048: React.FC<Game2048Props> = ({
   onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
-  const [board, setBoard] = useState<Board>(() => getInitialBoard());
+  const [gridSize, setGridSize] = useState<GridMode>(4);
+  const [board, setBoard] = useState<Board>(() => getInitialBoard(4));
   const [score, setScore] = useState<number>(0);
   const [highScore, setHighScore] = useState<number>(0);
-  const [history, setHistory] = useState<{ board: Board; score: number } | null>(null);
+  const [moves, setMoves] = useState<number>(0);
+  const [history, setHistory] = useState<{ board: Board; score: number; moves: number }[]>([]);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [hasWon, setHasWon] = useState<boolean>(false);
   const [keepPlaying, setKeepPlaying] = useState<boolean>(false);
+  const [floatingTexts, setFloatingTexts] = useState<FloatingText[]>([]);
+
+  // パワーアップアイテムのストック
+  const [bombStock, setBombStock] = useState<number>(3);
+  const [shuffleStock, setShuffleStock] = useState<number>(2);
+  const [doubleStock, setDoubleStock] = useState<number>(2);
 
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // ハイスコア読み込み
   useEffect(() => {
-    const saved = localStorage.getItem(HIGH_SCORE_KEY);
+    const saved = localStorage.getItem(`${HIGH_SCORE_KEY}_${gridSize}`);
     if (saved) {
       setHighScore(parseInt(saved, 10) || 0);
+    } else {
+      setHighScore(0);
     }
-  }, []);
+  }, [gridSize]);
 
-  const updateHighScore = useCallback((newScore: number) => {
-    setHighScore((prev) => {
-      if (newScore > prev) {
-        localStorage.setItem(HIGH_SCORE_KEY, newScore.toString());
-        return newScore;
-      }
-      return prev;
-    });
-  }, []);
+  const updateHighScore = useCallback(
+    (newScore: number) => {
+      setHighScore((prev) => {
+        if (newScore > prev) {
+          localStorage.setItem(`${HIGH_SCORE_KEY}_${gridSize}`, newScore.toString());
+          return newScore;
+        }
+        return prev;
+      });
+    },
+    [gridSize]
+  );
 
   function getEmptyCells(b: Board): [number, number][] {
     const empty: [number, number][] = [];
-    for (let r = 0; r < GRID_SIZE; r++) {
-      for (let c = 0; c < GRID_SIZE; c++) {
+    for (let r = 0; r < b.length; r++) {
+      for (let c = 0; c < b[r].length; c++) {
         if (b[r][c] === 0) empty.push([r, c]);
       }
     }
@@ -65,47 +95,204 @@ export const Game2048: React.FC<Game2048Props> = ({
     return newBoard;
   }
 
-  function getInitialBoard(): Board {
-    let b = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+  function getInitialBoard(size: number): Board {
+    let b = Array(size)
+      .fill(null)
+      .map(() => Array(size).fill(0));
     b = addRandomTile(b);
     b = addRandomTile(b);
     return b;
   }
 
-  const restartGame = useCallback(() => {
-    const b = getInitialBoard();
+  const restartGame = useCallback((size = gridSize) => {
+    const b = getInitialBoard(size);
     setBoard(b);
     setScore(0);
-    setHistory(null);
+    setMoves(0);
+    setHistory([]);
     setIsGameOver(false);
     setHasWon(false);
     setKeepPlaying(false);
-  }, []);
+    setBombStock(3);
+    setShuffleStock(2);
+    setDoubleStock(2);
+    setFloatingTexts([]);
+  }, [gridSize]);
 
+  // モード（サイズ）変更
+  const handleSizeChange = (newSize: GridMode) => {
+    if (newSize === gridSize) return;
+    setGridSize(newSize);
+    restartGame(newSize);
+  };
+
+  // 1手戻す (Undo)
   const undo = () => {
-    if (!history || isGameOver) return;
-    setBoard(history.board);
-    setScore(history.score);
-    setHistory(null);
+    if (history.length === 0 || isGameOver) return;
+    const last = history[history.length - 1];
+    setBoard(last.board);
+    setScore(last.score);
+    setMoves(last.moves);
+    setHistory((prev) => prev.slice(0, prev.length - 1));
     sound.playTileMove();
   };
 
-  // 移動・合体ロジック
+  // 浮遊テキスト追加
+  const addFloatingText = (text: string) => {
+    const id = Date.now() + Math.random();
+    setFloatingTexts((prev) => [...prev, { id, text, x: 50 + (Math.random() * 20 - 10), y: 40 }]);
+    setTimeout(() => {
+      setFloatingTexts((prev) => prev.filter((item) => item.id !== id));
+    }, 1000);
+  };
+
+  // --- パワーアップスキル 1: ボム (最小のタイルを1つ消去) ---
+  const useBombSkill = () => {
+    if (bombStock <= 0 || isGameOver) return;
+    // 最小の値（0以外）を探す
+    let minVal = Infinity;
+    for (let r = 0; r < gridSize; r++) {
+      for (let c = 0; c < gridSize; c++) {
+        const v = board[r][c];
+        if (v > 0 && v < minVal) minVal = v;
+      }
+    }
+
+    if (minVal === Infinity) return;
+
+    // 最小値のタイルをランダムに1つ選んで0にする
+    const targets: [number, number][] = [];
+    for (let r = 0; r < gridSize; r++) {
+      for (let c = 0; c < gridSize; c++) {
+        if (board[r][c] === minVal) targets.push([r, c]);
+      }
+    }
+
+    const [tr, tc] = targets[Math.floor(Math.random() * targets.length)];
+    const newBoard = board.map((row) => [...row]);
+    newBoard[tr][tc] = 0;
+
+    setHistory((prev) => [...prev, { board: board.map((r) => [...r]), score, moves }]);
+    setBoard(newBoard);
+    setBombStock((prev) => prev - 1);
+    sound.playExplosion();
+    addFloatingText(`💣 -${minVal}`);
+  };
+
+  // --- パワーアップスキル 2: シャッフル (全タイルの位置を再配置) ---
+  const useShuffleSkill = () => {
+    if (shuffleStock <= 0 || isGameOver) return;
+    const values: number[] = [];
+    for (let r = 0; r < gridSize; r++) {
+      for (let c = 0; c < gridSize; c++) {
+        if (board[r][c] > 0) values.push(board[r][c]);
+      }
+    }
+
+    if (values.length <= 1) return;
+
+    // シャッフル
+    for (let i = values.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [values[i], values[j]] = [values[j], values[i]];
+    }
+
+    // ランダムな位置に再配置
+    const coords: [number, number][] = [];
+    for (let r = 0; r < gridSize; r++) {
+      for (let c = 0; c < gridSize; c++) {
+        coords.push([r, c]);
+      }
+    }
+    for (let i = coords.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [coords[i], coords[j]] = [coords[j], coords[i]];
+    }
+
+    const newBoard = Array(gridSize)
+      .fill(null)
+      .map(() => Array(gridSize).fill(0));
+    for (let i = 0; i < values.length; i++) {
+      const [r, c] = coords[i];
+      newBoard[r][c] = values[i];
+    }
+
+    setHistory((prev) => [...prev, { board: board.map((r) => [...r]), score, moves }]);
+    setBoard(newBoard);
+    setShuffleStock((prev) => prev - 1);
+    sound.playPowerup();
+    addFloatingText('🔄 SHUFFLE!');
+  };
+
+  // --- パワーアップスキル 3: ダブルアップ (最小のタイルを2倍に昇格) ---
+  const useDoubleSkill = () => {
+    if (doubleStock <= 0 || isGameOver) return;
+    let minVal = Infinity;
+    for (let r = 0; r < gridSize; r++) {
+      for (let c = 0; c < gridSize; c++) {
+        const v = board[r][c];
+        if (v > 0 && v < minVal) minVal = v;
+      }
+    }
+
+    if (minVal === Infinity) return;
+
+    const targets: [number, number][] = [];
+    for (let r = 0; r < gridSize; r++) {
+      for (let c = 0; c < gridSize; c++) {
+        if (board[r][c] === minVal) targets.push([r, c]);
+      }
+    }
+
+    const [tr, tc] = targets[Math.floor(Math.random() * targets.length)];
+    const newBoard = board.map((row) => [...row]);
+    newBoard[tr][tc] = minVal * 2;
+
+    const addedScore = minVal * 2;
+    const nextScore = score + addedScore;
+
+    setHistory((prev) => [...prev, { board: board.map((r) => [...r]), score, moves }]);
+    setBoard(newBoard);
+    setScore(nextScore);
+    updateHighScore(nextScore);
+    setDoubleStock((prev) => prev - 1);
+    sound.playTileMerge(minVal * 2);
+    addFloatingText(`⚡ x2 (+${addedScore})`);
+  };
+
+  // 反時計回り90度回転
+  function rotateCounterClockwise(matrix: Board): Board {
+    const size = matrix.length;
+    const res: Board = Array(size)
+      .fill(null)
+      .map(() => Array(size).fill(0));
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        res[size - 1 - c][r] = matrix[r][c];
+      }
+    }
+    return res;
+  }
+
+  // 移動・合体ロジック (バグ完全修正)
   const move = useCallback(
     (direction: 'up' | 'down' | 'left' | 'right') => {
       if (isGameOver) return;
       if (hasWon && !keepPlaying) return;
 
-      let rotatedBoard = board.map((row) => [...row]);
+      // 反時計回りで全方向を「左移動」に正規化：
+      // - LEFT: 0回
+      // - UP: 1回 (上が左になる)
+      // - RIGHT: 2回 (右が左になる)
+      // - DOWN: 3回 (下が左になる)
       let rotations = 0;
-
-      if (direction === 'up') rotations = 3;
+      if (direction === 'up') rotations = 1;
       else if (direction === 'right') rotations = 2;
-      else if (direction === 'down') rotations = 1;
+      else if (direction === 'down') rotations = 3;
 
-      // 時計回りに回転させて全て左移動に正規化
+      let rotatedBoard = board.map((row) => [...row]);
       for (let i = 0; i < rotations; i++) {
-        rotatedBoard = rotateLeft(rotatedBoard);
+        rotatedBoard = rotateCounterClockwise(rotatedBoard);
       }
 
       let moved = false;
@@ -113,7 +300,7 @@ export const Game2048: React.FC<Game2048Props> = ({
       let maxMergedVal = 0;
       const newBoard: Board = [];
 
-      for (let r = 0; r < GRID_SIZE; r++) {
+      for (let r = 0; r < gridSize; r++) {
         const row = rotatedBoard[r].filter((v) => v !== 0);
         const mergedRow: number[] = [];
 
@@ -127,14 +314,14 @@ export const Game2048: React.FC<Game2048Props> = ({
               setHasWon(true);
               sound.playWin();
             }
-            c++; // 次のタイルをスキップ
+            c++; // 次のタイルを消費
             moved = true;
           } else {
             mergedRow.push(row[c]);
           }
         }
 
-        while (mergedRow.length < GRID_SIZE) {
+        while (mergedRow.length < gridSize) {
           mergedRow.push(0);
         }
 
@@ -146,22 +333,33 @@ export const Game2048: React.FC<Game2048Props> = ({
 
       if (!moved) return;
 
-      // 元の向きに逆回転
+      // 元の向きに復元（合計4回転にするため (4 - rotations) % 4 回回転）
       let finalBoard = newBoard;
-      for (let i = 0; i < (4 - rotations) % 4; i++) {
-        finalBoard = rotateLeft(finalBoard);
+      const restoreRotations = (4 - rotations) % 4;
+      for (let i = 0; i < restoreRotations; i++) {
+        finalBoard = rotateCounterClockwise(finalBoard);
       }
 
-      // 履歴保存
-      setHistory({ board: board.map((r) => [...r]), score });
+      // 履歴保存 (最大10手)
+      setHistory((prev) => {
+        const updated = [...prev, { board: board.map((r) => [...r]), score, moves }];
+        return updated.slice(-10);
+      });
 
       // 新しいタイルを追加
       const boardWithNew = addRandomTile(finalBoard);
       setBoard(boardWithNew);
 
+      const nextMoves = moves + 1;
+      setMoves(nextMoves);
+
       const updatedScore = score + addedScore;
       setScore(updatedScore);
       updateHighScore(updatedScore);
+
+      if (addedScore > 0) {
+        addFloatingText(`+${addedScore}`);
+      }
 
       if (maxMergedVal > 0) {
         sound.playTileMerge(maxMergedVal);
@@ -175,28 +373,17 @@ export const Game2048: React.FC<Game2048Props> = ({
         sound.playGameOver();
       }
     },
-    [board, score, isGameOver, hasWon, keepPlaying, updateHighScore]
+    [board, score, moves, isGameOver, hasWon, keepPlaying, gridSize, updateHighScore]
   );
-
-  function rotateLeft(matrix: Board): Board {
-    const rows = matrix.length;
-    const cols = matrix[0].length;
-    const res: Board = Array(cols).fill(null).map(() => Array(rows).fill(0));
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        res[cols - 1 - c][r] = matrix[r][c];
-      }
-    }
-    return res;
-  }
 
   function checkGameOver(b: Board): boolean {
     if (getEmptyCells(b).length > 0) return false;
-    for (let r = 0; r < GRID_SIZE; r++) {
-      for (let c = 0; c < GRID_SIZE; c++) {
+    const size = b.length;
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
         const val = b[r][c];
-        if (r < GRID_SIZE - 1 && b[r + 1][c] === val) return false;
-        if (c < GRID_SIZE - 1 && b[r][c + 1] === val) return false;
+        if (r < size - 1 && b[r + 1][c] === val) return false;
+        if (c < size - 1 && b[r][c + 1] === val) return false;
       }
     }
     return true;
@@ -258,7 +445,7 @@ export const Game2048: React.FC<Game2048Props> = ({
     const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
     touchStartRef.current = null;
 
-    const minSwipe = 30;
+    const minSwipe = 25;
     if (Math.abs(deltaX) > Math.abs(deltaY)) {
       if (Math.abs(deltaX) > minSwipe) {
         if (deltaX > 0) move('right');
@@ -272,6 +459,17 @@ export const Game2048: React.FC<Game2048Props> = ({
     }
   };
 
+  // 盤面上の最大タイル値
+  const getMaxTile = (): number => {
+    let max = 0;
+    for (let r = 0; r < gridSize; r++) {
+      for (let c = 0; c < gridSize; c++) {
+        if (board[r][c] > max) max = board[r][c];
+      }
+    }
+    return max;
+  };
+
   // タイルのスタイル
   const getTileStyle = (val: number) => {
     switch (val) {
@@ -280,31 +478,37 @@ export const Game2048: React.FC<Game2048Props> = ({
       case 4:
         return 'bg-[#ede0c8] text-[#776e65]';
       case 8:
-        return 'bg-[#f2b179] text-[#f9f6f2]';
+        return 'bg-[#f2b179] text-[#f9f6f2] font-bold';
       case 16:
-        return 'bg-[#f59563] text-[#f9f6f2]';
+        return 'bg-[#f59563] text-[#f9f6f2] font-bold';
       case 32:
-        return 'bg-[#f67c5f] text-[#f9f6f2]';
+        return 'bg-[#f67c5f] text-[#f9f6f2] font-black';
       case 64:
-        return 'bg-[#f65e3b] text-[#f9f6f2]';
+        return 'bg-[#f65e3b] text-[#f9f6f2] font-black';
       case 128:
-        return 'bg-[#edcf72] text-[#f9f6f2] text-2xl sm:text-3xl';
+        return 'bg-[#edcf72] text-[#f9f6f2] text-xl sm:text-2xl font-black shadow-sm';
       case 256:
-        return 'bg-[#edcc61] text-[#f9f6f2] text-2xl sm:text-3xl';
+        return 'bg-[#edcc61] text-[#f9f6f2] text-xl sm:text-2xl font-black shadow-sm';
       case 512:
-        return 'bg-[#edc850] text-[#f9f6f2] text-2xl sm:text-3xl';
+        return 'bg-[#edc850] text-[#f9f6f2] text-xl sm:text-2xl font-black shadow-sm';
       case 1024:
-        return 'bg-[#edc53f] text-[#f9f6f2] text-xl sm:text-2xl';
+        return 'bg-[#edc53f] text-[#f9f6f2] text-lg sm:text-xl font-black shadow-md';
       case 2048:
-        return 'bg-[#edc22e] text-[#f9f6f2] text-xl sm:text-2xl font-black shadow-md';
+        return 'bg-[#edc22e] text-[#f9f6f2] text-lg sm:text-xl font-black shadow-lg border-2 border-amber-300';
+      case 4096:
+        return 'bg-[#3b82f6] text-white text-base sm:text-lg font-black shadow-lg border-2 border-sky-300';
+      case 8192:
+        return 'bg-[#8b5cf6] text-white text-base sm:text-lg font-black shadow-lg border-2 border-purple-300';
       default:
-        return val > 2048
-          ? 'bg-[#3c3a32] text-[#f9f6f2] text-lg sm:text-xl font-black'
+        return val > 8192
+          ? 'bg-[#10b981] text-white text-sm sm:text-base font-black shadow-lg border-2 border-emerald-300'
           : isDark
           ? 'bg-slate-800/80 text-transparent'
           : 'bg-slate-200/80 text-transparent';
     }
   };
+
+  const maxTileVal = getMaxTile();
 
   return (
     <div
@@ -330,12 +534,141 @@ export const Game2048: React.FC<Game2048Props> = ({
           ゲーム一覧に戻る
         </button>
 
-        <div className="flex items-center gap-2">
+        {/* グリッドサイズ切替 (3x3 / 4x4 / 5x5) */}
+        <div className="flex items-center gap-1 bg-slate-800/60 p-1 rounded-xl border border-slate-700/60 text-xs font-bold">
+          {([3, 4, 5] as GridMode[]).map((sz) => (
+            <button
+              key={sz}
+              onClick={() => handleSizeChange(sz)}
+              className={`px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                gridSize === sz
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              {sz}x{sz}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* スコア・ベスト・最大タイル表示 */}
+      <div
+        className={`w-full flex items-center justify-between mb-3 transition-all ${
+          isFullscreen ? 'max-w-xl' : 'max-w-md'
+        }`}
+      >
+        <div>
+          <div className="flex items-center gap-2">
+            <h1 className="text-3xl sm:text-4xl font-black tracking-tight">2048</h1>
+            {maxTileVal >= 128 && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-xs font-bold font-mono">
+                MAX: {maxTileVal}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            手数: <span className="font-mono font-bold">{moves}</span>
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <div
+            className={`relative px-3.5 py-1.5 rounded-2xl border text-center min-w-[70px] ${
+              isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+            }`}
+          >
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-center gap-1">
+              <Zap className="w-3 h-3 text-amber-500" />
+              SCORE
+            </div>
+            <div className="text-base sm:text-lg font-mono font-black mt-0.5">{score}</div>
+
+            {/* 浮遊スコアエフェクト */}
+            {floatingTexts.map((f) => (
+              <div
+                key={f.id}
+                className="absolute -top-3 left-1/2 -translate-x-1/2 text-xs font-black text-amber-400 animate-out fade-out slide-out-to-top-3 duration-1000 pointer-events-none"
+              >
+                {f.text}
+              </div>
+            ))}
+          </div>
+
+          <div
+            className={`px-3.5 py-1.5 rounded-2xl border text-center min-w-[70px] ${
+              isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900 shadow-xs'
+            }`}
+          >
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-center gap-1">
+              <Trophy className="w-3 h-3 text-amber-500" />
+              BEST
+            </div>
+            <div className="text-base sm:text-lg font-mono font-bold text-amber-500 mt-0.5">{highScore}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* パワーアップスキルバー */}
+      <div
+        className={`w-full flex items-center justify-between gap-2 mb-3 transition-all ${
+          isFullscreen ? 'max-w-xl' : 'max-w-md'
+        }`}
+      >
+        <div className="flex items-center gap-1.5 text-xs font-bold">
+          <span className="text-[11px] text-slate-400 font-sans hidden sm:inline">SKILLS:</span>
+          {/* ボムスキル */}
+          <button
+            onClick={useBombSkill}
+            disabled={bombStock <= 0 || isGameOver}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+              bombStock > 0
+                ? 'bg-rose-500/15 border-rose-500/40 text-rose-400 hover:bg-rose-500/25 active:scale-95'
+                : 'opacity-40 cursor-not-allowed bg-slate-900 border-slate-800 text-slate-500'
+            }`}
+            title="最小タイルを1つ爆破消去"
+          >
+            <Bomb className="w-3.5 h-3.5 text-rose-500" />
+            <span>ボム ({bombStock})</span>
+          </button>
+
+          {/* シャッフルスキル */}
+          <button
+            onClick={useShuffleSkill}
+            disabled={shuffleStock <= 0 || isGameOver}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+              shuffleStock > 0
+                ? 'bg-indigo-500/15 border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/25 active:scale-95'
+                : 'opacity-40 cursor-not-allowed bg-slate-900 border-slate-800 text-slate-500'
+            }`}
+            title="盤面タイルをシャッフル"
+          >
+            <Shuffle className="w-3.5 h-3.5 text-indigo-400" />
+            <span>シャッフル ({shuffleStock})</span>
+          </button>
+
+          {/* 2倍化スキル */}
+          <button
+            onClick={useDoubleSkill}
+            disabled={doubleStock <= 0 || isGameOver}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition cursor-pointer ${
+              doubleStock > 0
+                ? 'bg-amber-500/15 border-amber-500/40 text-amber-400 hover:bg-amber-500/25 active:scale-95'
+                : 'opacity-40 cursor-not-allowed bg-slate-900 border-slate-800 text-slate-500'
+            }`}
+            title="最小タイルを2倍に昇格"
+          >
+            <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+            <span>2倍化 ({doubleStock})</span>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1.5">
           <button
             onClick={undo}
-            disabled={!history || isGameOver}
-            className={`flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer ${
-              !history || isGameOver
+            disabled={history.length === 0 || isGameOver}
+            className={`flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer ${
+              history.length === 0 || isGameOver
                 ? 'opacity-40 cursor-not-allowed border-transparent text-slate-500'
                 : isDark
                 ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200'
@@ -344,11 +677,11 @@ export const Game2048: React.FC<Game2048Props> = ({
             title="1手戻す"
           >
             <Undo2 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">戻す</span>
+            <span className="text-[11px]">Undo ({history.length})</span>
           </button>
 
           <button
-            onClick={restartGame}
+            onClick={() => restartGame()}
             className={`p-1.5 text-xs font-bold rounded-xl border transition cursor-pointer ${
               isDark
                 ? 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200'
@@ -356,50 +689,12 @@ export const Game2048: React.FC<Game2048Props> = ({
             }`}
             title="リスタート"
           >
-            <RotateCcw className="w-4 h-4" />
+            <RotateCcw className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* スコア・ベスト表示 */}
-      <div
-        className={`w-full flex items-center justify-between mb-4 transition-all ${
-          isFullscreen ? 'max-w-xl' : 'max-w-md'
-        }`}
-      >
-        <div>
-          <h1 className="text-3xl sm:text-4xl font-black tracking-tight">2048</h1>
-          <p className="text-xs text-slate-500 font-medium mt-0.5">タイルを合体させて2048を目指そう</p>
-        </div>
-
-        <div className="flex gap-2.5">
-          <div
-            className={`px-4 py-2 rounded-2xl border text-center min-w-[75px] ${
-              isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-            }`}
-          >
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-center gap-1">
-              <Zap className="w-3 h-3 text-amber-500" />
-              SCORE
-            </div>
-            <div className="text-lg sm:text-xl font-mono font-black mt-0.5">{score}</div>
-          </div>
-
-          <div
-            className={`px-4 py-2 rounded-2xl border text-center min-w-[75px] ${
-              isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900 shadow-xs'
-            }`}
-          >
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center justify-center gap-1">
-              <Trophy className="w-3 h-3 text-amber-500" />
-              BEST
-            </div>
-            <div className="text-lg sm:text-xl font-mono font-bold text-amber-500 mt-0.5">{highScore}</div>
-          </div>
-        </div>
-      </div>
-
-      {/* 2048 ボード (フルスクリーン時は大きく拡大) */}
+      {/* 2048 ボード (フルスクリーン時は最大化) */}
       <div
         className={`relative rounded-3xl p-3 sm:p-4 border shadow-xl transition-all duration-300 ${
           isDark ? 'bg-slate-900/90 border-slate-800' : 'bg-slate-300 border-slate-300/80 shadow-md'
@@ -409,14 +704,28 @@ export const Game2048: React.FC<Game2048Props> = ({
             : 'w-full max-w-[420px] aspect-square'
         }`}
       >
-        <div className="w-full h-full grid grid-cols-4 gap-2.5 sm:gap-3.5">
+        <div
+          className="w-full h-full grid gap-2 sm:gap-3"
+          style={{
+            gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+            gridTemplateRows: `repeat(${gridSize}, minmax(0, 1fr))`,
+          }}
+        >
           {board.map((row, rIdx) =>
             row.map((val, cIdx) => (
               <div
                 key={`${rIdx}-${cIdx}`}
-                className={`w-full h-full rounded-2xl flex items-center justify-center font-mono font-bold text-3xl sm:text-4xl transition-all duration-100 ${getTileStyle(
+                className={`w-full h-full rounded-2xl flex items-center justify-center font-mono transition-transform duration-100 ${getTileStyle(
                   val
-                )}`}
+                )} ${
+                  val > 0
+                    ? gridSize === 5
+                      ? 'text-lg sm:text-2xl font-bold'
+                      : gridSize === 3
+                      ? 'text-3xl sm:text-5xl font-black'
+                      : 'text-2xl sm:text-4xl font-bold'
+                    : ''
+                }`}
               >
                 {val > 0 ? val : ''}
               </div>
@@ -431,7 +740,7 @@ export const Game2048: React.FC<Game2048Props> = ({
               <Award className="w-12 h-12 text-white" />
             </div>
             <h2 className="text-4xl font-black">2048 達成！</h2>
-            <p className="text-sm font-medium">おめでとうございます！さらに先を目指しますか？</p>
+            <p className="text-sm font-medium">おめでとうございます！さらに4096を目指しますか？</p>
             <div className="flex gap-3 mt-2">
               <button
                 onClick={() => setKeepPlaying(true)}
@@ -440,7 +749,7 @@ export const Game2048: React.FC<Game2048Props> = ({
                 プレイを続ける
               </button>
               <button
-                onClick={restartGame}
+                onClick={() => restartGame()}
                 className="px-5 py-2.5 bg-amber-700/60 hover:bg-amber-700 text-white font-bold rounded-xl border border-white/30 transition cursor-pointer"
               >
                 やり直す
@@ -456,14 +765,29 @@ export const Game2048: React.FC<Game2048Props> = ({
             <div className="text-xs text-slate-300 font-mono space-y-1">
               <div>SCORE: <span className="text-lg font-bold text-white">{score}</span></div>
               <div>BEST: <span className="font-bold text-amber-400">{highScore}</span></div>
+              <div>MOVES: <span className="font-bold text-indigo-400">{moves}</span></div>
             </div>
-            <button
-              onClick={restartGame}
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer mt-2"
-            >
-              <RotateCcw className="w-4 h-4" />
-              もう一度挑戦
-            </button>
+            <div className="flex gap-2.5 mt-2">
+              {history.length > 0 && (
+                <button
+                  onClick={() => {
+                    setIsGameOver(false);
+                    undo();
+                  }}
+                  className="px-4 py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-1.5 cursor-pointer text-xs"
+                >
+                  <Undo2 className="w-3.5 h-3.5" />
+                  1手戻してやり直す
+                </button>
+              )}
+              <button
+                onClick={() => restartGame()}
+                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer text-xs"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                リスタート
+              </button>
+            </div>
           </div>
         )}
       </div>

@@ -312,7 +312,7 @@ export const Header: React.FC<HeaderProps> = ({
               <>
                 <h3 className="text-xl font-black mb-4 flex items-center gap-2">
                   <Gamepad2 className="w-5 h-5 text-indigo-500" />
-                  2048 操作方法
+                  2048 操作方法 ＆ スキル
                 </h3>
                 <div className="space-y-2.5 text-xs">
                   <div className={`p-2.5 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
@@ -321,11 +321,23 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                   <div className={`p-2.5 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
                     <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>1手戻す (Undo)</span>
-                    <span className={`font-mono px-2 py-0.5 rounded font-bold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-900'}`}>Ctrl+Z / 戻すボタン</span>
+                    <span className={`font-mono px-2 py-0.5 rounded font-bold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-900'}`}>Ctrl+Z / 戻すボタン (最大10手)</span>
                   </div>
                   <div className={`p-2.5 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
-                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>リスタート</span>
-                    <span className={`font-mono px-2 py-0.5 rounded font-bold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-900'}`}>R / リセットボタン</span>
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>💣 ボムスキル</span>
+                    <span className={`font-mono px-2 py-0.5 rounded font-bold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-900'}`}>最小タイルを1つ爆破消去</span>
+                  </div>
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>🔄 シャッフルスキル</span>
+                    <span className={`font-mono px-2 py-0.5 rounded font-bold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-900'}`}>盤面タイルをランダム再配置</span>
+                  </div>
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>⚡ 2倍化スキル</span>
+                    <span className={`font-mono px-2 py-0.5 rounded font-bold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-900'}`}>最小タイルを2倍に昇格</span>
+                  </div>
+                  <div className={`p-2.5 rounded-xl border flex items-center justify-between ${isDark ? 'bg-slate-950/80 border-slate-800' : 'bg-slate-50 border-slate-200'}`}>
+                    <span className={isDark ? 'text-slate-300' : 'text-slate-600'}>サイズ切替</span>
+                    <span className={`font-mono px-2 py-0.5 rounded font-bold ${isDark ? 'bg-slate-800 text-white' : 'bg-slate-200 text-slate-900'}`}>3x3 / 4x4 / 5x5</span>
                   </div>
                 </div>
               </>
