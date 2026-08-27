@@ -980,6 +980,182 @@ class SoundEngine {
     osc.start();
     osc.stop(now + 0.08);
   }
+
+  public playPaperDash() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(300, now);
+    osc.frequency.exponentialRampToValueAtTime(750, now + 0.08);
+    gain.gain.setValueAtTime(0.09, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(now + 0.08);
+  }
+
+  public playPaperFreeze() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    [1046.5, 1318.5, 1567.98, 2093.0].forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.04);
+      gain.gain.setValueAtTime(0.1, now + idx * 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.04 + 0.15);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + idx * 0.04);
+      osc.stop(now + idx * 0.04 + 0.15);
+    });
+  }
+
+  public playPaperGhost() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.linearRampToValueAtTime(900, now + 0.12);
+    osc.frequency.linearRampToValueAtTime(700, now + 0.25);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(now + 0.25);
+  }
+
+  public playPaperStreak(level: number) {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const notes = level >= 3 ? [523.25, 659.25, 783.99, 1046.5, 1318.5] : [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+      gain.gain.setValueAtTime(0.14, now + idx * 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.15);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + idx * 0.05);
+      osc.stop(now + idx * 0.05 + 0.15);
+    });
+  }
+
+  public playPaperBounty() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    [440, 554.37, 659.25, 880, 1108.73, 1318.5, 1760].forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.04);
+      gain.gain.setValueAtTime(0.15, now + idx * 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.04 + 0.2);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + idx * 0.04);
+      osc.stop(now + idx * 0.04 + 0.2);
+    });
+  }
+
+  // --- Paper.io BGM シーケンサー ---
+  private isPaperBgmRunning: boolean = false;
+  private paperBgmTimer: number | null = null;
+  private paperBgmStep: number = 0;
+
+  public startPaperBgm() {
+    this.initCtx();
+    if (!this.ctx || this.isPaperBgmRunning) return;
+    this.isPaperBgmRunning = true;
+    this.paperBgmStep = 0;
+
+    if (this.paperBgmTimer) {
+      clearInterval(this.paperBgmTimer);
+    }
+
+    const stepMs = 120; // 16分音符
+    this.paperBgmTimer = window.setInterval(() => {
+      if (this.isMuted || !this.ctx) return;
+
+      const leadNotes = [
+        329.63, 0, 392.0, 0, 440.0, 0, 493.88, 523.25,
+        0, 493.88, 0, 440.0, 392.0, 0, 329.63, 0,
+        293.66, 0, 329.63, 0, 392.0, 0, 440.0, 0,
+        392.0, 0, 329.63, 0, 293.66, 0, 261.63, 0
+      ];
+
+      const bassNotes = [
+        110.0, 0, 110.0, 0, 130.81, 0, 130.81, 0,
+        146.83, 0, 146.83, 0, 164.81, 0, 164.81, 0
+      ];
+
+      const now = this.ctx.currentTime;
+      const leadFreq = leadNotes[this.paperBgmStep % leadNotes.length];
+      const bassFreq = bassNotes[this.paperBgmStep % bassNotes.length];
+
+      if (leadFreq > 0) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(leadFreq, now);
+        gain.gain.setValueAtTime(0.045, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.1);
+      }
+
+      if (bassFreq > 0 && this.paperBgmStep % 2 === 0) {
+        const bOsc = this.ctx.createOscillator();
+        const bGain = this.ctx.createGain();
+        bOsc.type = 'sine';
+        bOsc.frequency.setValueAtTime(bassFreq, now);
+        bGain.gain.setValueAtTime(0.06, now);
+        bGain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        bOsc.connect(bGain);
+        bGain.connect(this.ctx.destination);
+        bOsc.start(now);
+        bOsc.stop(now + 0.18);
+      }
+
+      this.paperBgmStep++;
+    }, stepMs);
+  }
+
+  public stopPaperBgm() {
+    this.isPaperBgmRunning = false;
+    if (this.paperBgmTimer) {
+      clearInterval(this.paperBgmTimer);
+      this.paperBgmTimer = null;
+    }
+  }
 }
 
 export const sound = new SoundEngine();
