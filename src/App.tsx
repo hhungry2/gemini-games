@@ -9,6 +9,7 @@ import { BreakoutGame } from './games/BreakoutGame';
 import { Game2048 } from './games/Game2048';
 import { DotEaterGame } from './games/DotEaterGame';
 import { PongGame } from './games/PongGame';
+import { PaperIoGame } from './games/PaperIoGame';
 import { GameInfo, GameId } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck } from 'lucide-react';
 
@@ -20,8 +21,22 @@ const BREAKOUT_HIGH_SCORE_KEY = 'breakout_high_score';
 const GAME2048_HIGH_SCORE_KEY = '2048_high_score';
 const DOTEATER_HIGH_SCORE_KEY = 'doteater_high_score';
 const PONG_RALLY_KEY = 'pong_rally_best';
+const PAPERIO_HIGH_SCORE_KEY = 'paperio_high_score';
+const PAPERIO_MAX_PERCENT_KEY = 'paperio_max_percent';
+const PAPERIO_HIGH_KILLS_KEY = 'paperio_high_kills';
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'paperio',
+    title: 'ペーパー.io (Paper.io)',
+    titleEn: 'Territory Conquest Action',
+    description:
+      '自分の領地を広げてマップを制覇せよ！領地外で敵の軌跡（トレイル）を切って撃破し、パワーアップアイテムを駆使して完全制覇を目指す陣取りアクション。',
+    badge: '人気陣取り',
+    iconName: 'paperio',
+    color: 'from-emerald-500 via-teal-500 to-cyan-600',
+    tags: ['陣取り', '対戦アクション', 'Bot対戦', 'パワーアップ', 'スマホ・PC両対応'],
+  },
   {
     id: 'breakout',
     title: 'ブロック崩し (Breakout)',
@@ -132,6 +147,9 @@ export function App() {
   const [game2048HighScore, setGame2048HighScore] = useState<number>(0);
   const [doteaterHighScore, setDoteaterHighScore] = useState<number>(0);
   const [pongRallyBest, setPongRallyBest] = useState<number>(0);
+  const [paperioHighScore, setPaperioHighScore] = useState<number>(0);
+  const [paperioMaxPercent, setPaperioMaxPercent] = useState<number>(0);
+  const [paperioHighKills, setPaperioHighKills] = useState<number>(0);
   const [minesweeperBests, setMinesweeperBests] = useState<{
     easy: number | null;
     medium: number | null;
@@ -165,6 +183,15 @@ export function App() {
 
     const pBest = localStorage.getItem(PONG_RALLY_KEY);
     if (pBest) setPongRallyBest(parseInt(pBest, 10) || 0);
+
+    const pScore = localStorage.getItem(PAPERIO_HIGH_SCORE_KEY);
+    if (pScore) setPaperioHighScore(parseInt(pScore, 10) || 0);
+
+    const pPct = localStorage.getItem(PAPERIO_MAX_PERCENT_KEY);
+    if (pPct) setPaperioMaxPercent(parseFloat(pPct) || 0);
+
+    const pKills = localStorage.getItem(PAPERIO_HIGH_KILLS_KEY);
+    if (pKills) setPaperioHighKills(parseInt(pKills, 10) || 0);
 
     const mEasy = localStorage.getItem('minesweeper_best_easy');
     const mMed = localStorage.getItem('minesweeper_best_medium');
@@ -212,7 +239,9 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'breakout') {
+    if (activeGame === 'paperio') {
+      document.title = 'ペーパー.io (Paper.io) | Games Hub';
+    } else if (activeGame === 'breakout') {
       document.title = 'ブロック崩し (Breakout) | Games Hub';
     } else if (activeGame === 'game2048') {
       document.title = '2048 | Games Hub';
@@ -235,6 +264,22 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'paperio') {
+      return [
+        {
+          label: 'MAX PERCENT',
+          value: paperioMaxPercent > 0 ? `${paperioMaxPercent.toFixed(1)}%` : '--',
+        },
+        {
+          label: 'HIGH SCORE',
+          value: paperioHighScore > 0 ? `${paperioHighScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: 'MAX KILLS',
+          value: paperioHighKills > 0 ? `${paperioHighKills} 撃破` : '--',
+        },
+      ];
+    }
     if (gameId === 'breakout') {
       return [
         {
@@ -480,7 +525,7 @@ export function App() {
                       isDark ? 'text-white' : 'text-slate-900'
                     }`}
                   >
-                    ゲーム一覧 (全8タイトル)
+                    ゲーム一覧 (全9タイトル)
                   </h2>
                   <p
                     className={`text-xs mt-1 ${
@@ -507,6 +552,13 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'paperio' && (
+              <PaperIoGame
+                onBackToHub={() => setActiveGame(null)}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'breakout' && (
               <BreakoutGame
                 onBackToHub={() => setActiveGame(null)}

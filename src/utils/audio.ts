@@ -118,6 +118,11 @@ class SoundEngine {
     return this.isMuted;
   }
 
+  public toggleMute(): boolean {
+    this.isMuted = !this.isMuted;
+    return this.isMuted;
+  }
+
   // --- テトリス BGM (コロベイニキ) シーケンサー ---
   public startTetrisBgm() {
     this.initCtx();
@@ -847,6 +852,133 @@ class SoundEngine {
       osc.start(now + idx * 0.06);
       osc.stop(now + idx * 0.06 + 0.15);
     });
+  }
+
+  // --- Paper.io 用効果音 ---
+  public playPaperCapture(tileCount: number = 10) {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    // タイル数に応じて音の段数・音階をリッチに変化
+    const baseFreq = 440;
+    const steps = Math.min(5, Math.max(2, Math.floor(tileCount / 15) + 2));
+    const chord = [0, 4, 7, 11, 14]; // メジャーセブンスコードアルペジオ
+
+    for (let i = 0; i < steps; i++) {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const semitone = chord[i % chord.length] + Math.floor(i / chord.length) * 12;
+      const freq = baseFreq * Math.pow(2, semitone / 12);
+
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + i * 0.035);
+      gain.gain.setValueAtTime(0.09, now + i * 0.035);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.035 + 0.1);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + i * 0.035);
+      osc.stop(now + i * 0.035 + 0.1);
+    }
+  }
+
+  public playPaperKill() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    // 重厚なインパクト音 + 上昇ファンファーレ
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.exponentialRampToValueAtTime(600, now + 0.15);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(now + 0.25);
+
+    // キラキラ高音
+    [659.25, 880, 1174.66, 1760].forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const o = this.ctx.createOscillator();
+      const g = this.ctx.createGain();
+      o.type = 'sine';
+      o.frequency.setValueAtTime(freq, now + 0.08 + idx * 0.04);
+      g.gain.setValueAtTime(0.1, now + 0.08 + idx * 0.04);
+      g.gain.exponentialRampToValueAtTime(0.001, now + 0.08 + idx * 0.04 + 0.12);
+      o.connect(g);
+      g.connect(this.ctx.destination);
+      o.start(now + 0.08 + idx * 0.04);
+      o.stop(now + 0.08 + idx * 0.04 + 0.12);
+    });
+  }
+
+  public playPaperDie() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(420, now);
+    osc.frequency.exponentialRampToValueAtTime(80, now + 0.35);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(now + 0.35);
+  }
+
+  public playPaperItem() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    [587.33, 880, 1174.66].forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+      gain.gain.setValueAtTime(0.12, now + idx * 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.1);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + idx * 0.05);
+      osc.stop(now + idx * 0.05 + 0.1);
+    });
+  }
+
+  public playPaperAlert() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(880, now);
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start();
+    osc.stop(now + 0.08);
   }
 }
 

@@ -13,6 +13,7 @@ import {
   CircleDot,
   TableProperties,
   SquareDashedKanban,
+  Crown,
 } from 'lucide-react';
 
 export interface RecordItem {
@@ -51,6 +52,8 @@ export const GameCard: React.FC<GameCardProps> = ({
         return <CircleDot className="w-6 h-6 text-white" />;
       case 'pong':
         return <TableProperties className="w-6 h-6 text-white" />;
+      case 'paperio':
+        return <Crown className="w-6 h-6 text-white" />;
       default:
         return <LayoutGrid className="w-6 h-6 text-white" />;
     }
