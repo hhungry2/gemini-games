@@ -42,6 +42,8 @@ interface Character {
   isPlayer: boolean;
   x: number;
   y: number;
+  lastGridX: number;
+  lastGridY: number;
   dir: Direction;
   nextDir: Direction;
   speed: number;
@@ -348,6 +350,8 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       isPlayer: true,
       x: (pStartX + 0.5) * CELL_SIZE,
       y: (pStartY + 0.5) * CELL_SIZE,
+      lastGridX: pStartX,
+      lastGridY: pStartY,
       dir: 'UP',
       nextDir: 'UP',
       speed: 3.2,
@@ -396,6 +400,8 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
         isPlayer: false,
         x: (bX + 0.5) * CELL_SIZE,
         y: (bY + 0.5) * CELL_SIZE,
+        lastGridX: bX,
+        lastGridY: bY,
         dir: ['UP', 'DOWN', 'LEFT', 'RIGHT'][Math.floor(Math.random() * 4)] as Direction,
         nextDir: 'UP',
         speed: baseBotSpeed,
@@ -608,6 +614,8 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     spawnInitialTerritory(bot.id, bX, bY);
     bot.x = (bX + 0.5) * CELL_SIZE;
     bot.y = (bY + 0.5) * CELL_SIZE;
+    bot.lastGridX = bX;
+    bot.lastGridY = bY;
     bot.dir = ['UP', 'DOWN', 'LEFT', 'RIGHT'][Math.floor(Math.random() * 4)] as Direction;
     bot.nextDir = bot.dir;
     bot.isAlive = true;
@@ -683,8 +691,9 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
       if (nx <= 1 || nx >= MAP_GRID - 2 || ny <= 1 || ny >= MAP_GRID - 2) return false;
 
-      const tOwner = s.trailGrid[ny * MAP_GRID + nx];
-      if (tOwner === bot.id) return false;
+      // 自分の過去のトレイル（自滅）を避ける
+      const isMyOldTrail = bot.trail.some((p, idx) => idx < bot.trail.length - 2 && p.x === nx && p.y === ny);
+      if (isMyOldTrail) return false;
 
       return true;
     });
@@ -811,14 +820,24 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           char.x += vx;
           char.y += vy;
 
-          if (
-            char.x < CELL_SIZE / 2 ||
-            char.x > WORLD_SIZE - CELL_SIZE / 2 ||
-            char.y < CELL_SIZE / 2 ||
-            char.y > WORLD_SIZE - CELL_SIZE / 2
-          ) {
-            killCharacter(char, null);
-            continue;
+          // 外壁（マップ境界）衝突処理: 死なないように境界内にクランプ
+          const minPos = CELL_SIZE * 0.6;
+          const maxPos = WORLD_SIZE - CELL_SIZE * 0.6;
+
+          if (char.x < minPos) {
+            char.x = minPos;
+            if (char.dir === 'LEFT') char.nextDir = ['UP', 'DOWN'][Math.floor(Math.random() * 2)] as Direction;
+          } else if (char.x > maxPos) {
+            char.x = maxPos;
+            if (char.dir === 'RIGHT') char.nextDir = ['UP', 'DOWN'][Math.floor(Math.random() * 2)] as Direction;
+          }
+
+          if (char.y < minPos) {
+            char.y = minPos;
+            if (char.dir === 'UP') char.nextDir = ['LEFT', 'RIGHT'][Math.floor(Math.random() * 2)] as Direction;
+          } else if (char.y > maxPos) {
+            char.y = maxPos;
+            if (char.dir === 'DOWN') char.nextDir = ['LEFT', 'RIGHT'][Math.floor(Math.random() * 2)] as Direction;
           }
 
           const gx = Math.floor(char.x / CELL_SIZE);
@@ -872,15 +891,22 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             }
           }
 
-          // トレイル衝突判定
+          // トレイル衝突判定 (新しいセルに入った時、または衝突チェック)
           const hitTrailOwnerId = s.trailGrid[cellIdx];
           if (hitTrailOwnerId > 0) {
             const hitChar = s.characters.find((c) => c.id === hitTrailOwnerId);
             if (hitChar && hitChar.isAlive) {
               if (hitChar.id === char.id) {
-                killCharacter(char, null);
-                continue;
+                // 自分のトレイル：直近の3セル以外（過去に描いた古いトレイル）にぶつかった場合のみ自滅！
+                const isHittingOldSelfTrail = char.trail.some(
+                  (p, idx) => idx < char.trail.length - 3 && p.x === gx && p.y === gy
+                );
+                if (isHittingOldSelfTrail) {
+                  killCharacter(char, null);
+                  continue;
+                }
               } else {
+                // 敵のトレイルを切って撃破！
                 if (hitChar.hasShield) {
                   hitChar.hasShield = false;
                   createParticles(hitChar.x, hitChar.y, '#38bdf8', 25, 5);
@@ -892,6 +918,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             }
           }
 
+          // 領地・トレイル更新
           if (!isOwnTerritory) {
             const lastTrail = char.trail[char.trail.length - 1];
             if (!lastTrail || lastTrail.x !== gx || lastTrail.y !== gy) {
@@ -899,10 +926,14 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
               s.trailGrid[cellIdx] = char.id;
             }
           } else {
+            // 領地内に戻った場合：キャプチャ実行！
             if (char.trail.length > 0) {
               captureTerritory(char);
             }
           }
+
+          char.lastGridX = gx;
+          char.lastGridY = gy;
         }
 
         const counts = new Uint32Array(s.characters.length + 2);
@@ -1668,7 +1699,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             <div className="text-rose-500 font-black text-3xl sm:text-4xl mb-2 tracking-wide">
               ELIMINATED
             </div>
-            <p className="text-xs text-slate-400 mb-6">トレイルを切断されたか外壁に衝突しました</p>
+            <p className="text-xs text-slate-400 mb-6">トレイルを切断されました</p>
 
             <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 grid grid-cols-3 gap-4 mb-6 min-w-[280px]">
               <div>
