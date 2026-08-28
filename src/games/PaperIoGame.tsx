@@ -11,6 +11,10 @@ import {
   VolumeX,
   Zap,
   Sparkles,
+  Heart,
+  Award,
+  Flame,
+  ShieldAlert,
 } from 'lucide-react';
 
 const HIGH_SCORE_KEY = 'paperio_high_score';
@@ -51,8 +55,10 @@ interface Character {
   nextDir: Direction;
   speed: number;
   baseSpeed: number;
-  stamina: number; // 0〜100
+  stamina: number;
   isBoosting: boolean;
+  lives: number; // 残機 (初期値3)
+  invincibleTimer: number; // リスポーン無敵点滅タイマー
   color: {
     main: string;
     trail: string;
@@ -68,9 +74,9 @@ interface Character {
   score: number;
   respawnTimer: number;
   hasShield: boolean;
-  ghostTimer: number; // ゴースト無敵タイマー
-  freezeTimer: number; // 氷結タイマー
-  magnetTimer: number; // マグネットタイマー
+  ghostTimer: number;
+  freezeTimer: number;
+  magnetTimer: number;
   speedBoostTimer: number;
   aiState?: 'EXPAND' | 'RETURN' | 'ATTACK';
   targetPos?: Position;
@@ -97,6 +103,27 @@ interface Particle {
   alpha: number;
   maxLife: number;
   life: number;
+}
+
+interface Shockwave {
+  id: number;
+  x: number;
+  y: number;
+  radius: number;
+  maxRadius: number;
+  color: string;
+  alpha: number;
+}
+
+interface Confetti {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  color: string;
+  size: number;
+  rotation: number;
+  rotSpeed: number;
 }
 
 interface KillFeedItem {
@@ -265,10 +292,13 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
   // スコア・統計情報
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
+  const [isNewRecord, setIsNewRecord] = useState(false);
   const [kills, setKills] = useState(0);
   const [highKills, setHighKills] = useState(0);
   const [territoryPercent, setTerritoryPercent] = useState(0);
   const [maxPercent, setMaxPercent] = useState(0);
+  const [playerLives, setPlayerLives] = useState(3);
+  const [maxStreak, setMaxStreak] = useState(0);
   const [aliveCount, setAliveCount] = useState(0);
   const [stamina, setStamina] = useState(100);
   const [streakBanner, setStreakBanner] = useState<string | null>(null);
@@ -285,12 +315,15 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     characters: [] as Character[],
     items: [] as Item[],
     particles: [] as Particle[],
+    shockwaves: [] as Shockwave[],
+    confetti: [] as Confetti[],
     floatingTexts: [] as FloatingText[],
     killFeedList: [] as KillFeedItem[],
     camera: { x: WORLD_SIZE / 2, y: WORLD_SIZE / 2 },
     nextItemId: 1,
     nextTextId: 1,
     nextKillId: 1,
+    nextWaveId: 1,
     itemSpawnTimer: 0,
     screenShake: 0,
     lastTime: performance.now(),
@@ -299,6 +332,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     // キルストリーク管理
     lastKillTime: 0,
     currentStreak: 0,
+    highestStreak: 0,
     // バトルロイヤル用デンジャーゾーン
     zoneRadius: MAP_GRID / 2,
     zoneCenter: { x: MAP_GRID / 2, y: MAP_GRID / 2 },
@@ -319,10 +353,14 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
   // ハイスコア更新
   const updateRecords = useCallback((finalScore: number, finalKills: number, finalPercent: number) => {
+    let isRecord = false;
     setHighScore((prev) => {
-      const next = Math.max(prev, finalScore);
-      localStorage.setItem(HIGH_SCORE_KEY, next.toString());
-      return next;
+      if (finalScore > prev) {
+        isRecord = true;
+        localStorage.setItem(HIGH_SCORE_KEY, finalScore.toString());
+        return finalScore;
+      }
+      return prev;
     });
     setHighKills((prev) => {
       const next = Math.max(prev, finalKills);
@@ -334,6 +372,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       localStorage.setItem(MAX_PERCENT_KEY, next.toFixed(1));
       return next;
     });
+    setIsNewRecord(isRecord);
   }, []);
 
   // 浮遊テキスト追加
@@ -348,6 +387,38 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       opacity: 1.0,
       scale: 1.3,
     });
+  };
+
+  // 衝撃波（ショックウェーブ）発生
+  const createShockwave = (x: number, y: number, color: string, maxRadius = 120) => {
+    const s = stateRef.current;
+    s.shockwaves.push({
+      id: s.nextWaveId++,
+      x,
+      y,
+      radius: 5,
+      maxRadius,
+      color,
+      alpha: 1.0,
+    });
+  };
+
+  // 紙吹雪（Confetti）発生
+  const spawnConfetti = (count = 60) => {
+    const s = stateRef.current;
+    const colors = ['#f43f5e', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#fbbf24'];
+    for (let i = 0; i < count; i++) {
+      s.confetti.push({
+        x: Math.random() * (canvasRef.current?.width || 800),
+        y: -10 - Math.random() * 50,
+        vx: (Math.random() - 0.5) * 4,
+        vy: Math.random() * 3 + 2,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: Math.random() * 8 + 4,
+        rotation: Math.random() * 360,
+        rotSpeed: (Math.random() - 0.5) * 10,
+      });
+    }
   };
 
   // パーティクル発生
@@ -391,19 +462,19 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     s.grid.fill(0);
     s.trailGrid.fill(0);
     s.particles = [];
+    s.shockwaves = [];
+    s.confetti = [];
     s.floatingTexts = [];
-    s.items = [];
     s.killFeedList = [];
     s.isGameActive = true;
     s.screenShake = 0;
     s.currentStreak = 0;
+    s.highestStreak = 0;
     s.lastKillTime = 0;
     s.zoneRadius = MAP_GRID / 2;
     s.zoneTimer = 0;
 
     const chars: Character[] = [];
-
-    // スピードラッシュ時は基本速度1.5倍
     const speedMult = gameMode === 'rush' ? 1.45 : 1.0;
 
     // プレイヤー作成
@@ -426,6 +497,8 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       baseSpeed: 3.2 * speedMult,
       stamina: 100,
       isBoosting: false,
+      lives: 3, // ライフ3
+      invincibleTimer: 0,
       color: playerSkin,
       trail: [],
       isAlive: true,
@@ -481,6 +554,8 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
         baseSpeed: baseBotSpeed,
         stamina: 100,
         isBoosting: false,
+        lives: 1,
+        invincibleTimer: 0,
         color: bConfig,
         trail: [],
         isAlive: true,
@@ -505,9 +580,12 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     setScore(0);
     setKills(0);
     setTerritoryPercent(0.3);
+    setPlayerLives(3);
+    setMaxStreak(0);
     setAliveCount(chars.length);
     setStamina(100);
     setStreakBanner(null);
+    setIsNewRecord(false);
     setGameState('playing');
 
     // BGM スタート
@@ -542,12 +620,17 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
     // 1. トレイル上のセルを領地化
     let capturedFromTrail = 0;
+    let sumX = 0;
+    let sumY = 0;
+
     for (const p of char.trail) {
       if (p.x >= 0 && p.x < MAP_GRID && p.y >= 0 && p.y < MAP_GRID) {
         const idx = p.y * MAP_GRID + p.x;
         if (s.grid[idx] !== charId) {
           s.grid[idx] = charId;
           capturedFromTrail++;
+          sumX += (p.x + 0.5) * CELL_SIZE;
+          sumY += (p.y + 0.5) * CELL_SIZE;
         }
         s.trailGrid[idx] = 0;
       }
@@ -614,6 +697,8 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
         if (visited[idx] === 0 && s.grid[idx] !== charId) {
           s.grid[idx] = charId;
           newlyCaptured++;
+          sumX += (x + 0.5) * CELL_SIZE;
+          sumY += (y + 0.5) * CELL_SIZE;
         }
       }
     }
@@ -631,14 +716,92 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
         if (earnedPercent >= 0.2) {
           addFloatingText(char.x, char.y - 20, `+${earnedPercent.toFixed(1)}%`, '#10b981');
         }
+
+        // 大規模キャプチャ時のショックウェーブ演出！
+        if (totalCaptured >= 8) {
+          const centerX = sumX / totalCaptured;
+          const centerY = sumY / totalCaptured;
+          createShockwave(centerX, centerY, char.color.trail, Math.min(260, totalCaptured * 8));
+          sound.playPaperShockwave();
+        }
       }
     }
   };
 
-  // キャラクター死亡処理
+  // キャラクター死亡＆ライフ減少処理
   const killCharacter = (victim: Character, killer: Character | null) => {
     const s = stateRef.current;
+
+    // プレイヤーにライフが残っている場合：残機を減らして自陣へ即時復活！
+    if (victim.isPlayer && victim.lives > 1) {
+      victim.lives -= 1;
+      setPlayerLives(victim.lives);
+
+      // トレイルのクリア
+      for (const p of victim.trail) {
+        const idx = p.y * MAP_GRID + p.x;
+        if (s.trailGrid[idx] === victim.id) {
+          s.trailGrid[idx] = 0;
+        }
+      }
+      victim.trail = [];
+
+      // 自陣の重心セルを見つけてリスポーン
+      let ownXSum = 0;
+      let ownYSum = 0;
+      let ownCount = 0;
+      for (let y = 0; y < MAP_GRID; y++) {
+        for (let x = 0; x < MAP_GRID; x++) {
+          if (s.grid[y * MAP_GRID + x] === victim.id) {
+            ownXSum += (x + 0.5) * CELL_SIZE;
+            ownYSum += (y + 0.5) * CELL_SIZE;
+            ownCount++;
+          }
+        }
+      }
+
+      if (ownCount > 0) {
+        victim.x = ownXSum / ownCount;
+        victim.y = ownYSum / ownCount;
+      } else {
+        victim.x = WORLD_SIZE / 2;
+        victim.y = WORLD_SIZE / 2;
+      }
+
+      // 2.5秒間無敵点滅バリア
+      victim.invincibleTimer = 150;
+      victim.stamina = 100;
+      victim.hasShield = false;
+      victim.ghostTimer = 0;
+
+      sound.playPaperRespawn();
+      s.screenShake = 14;
+      createParticles(victim.x, victim.y, '#38bdf8', 35, 6);
+      createShockwave(victim.x, victim.y, '#38bdf8', 150);
+      addFloatingText(victim.x, victim.y - 35, `❤️ REVIVED! (${victim.lives} LIVES LEFT)`, '#38bdf8');
+
+      if (killer) {
+        killer.kills += 1;
+        killer.score += 500;
+        const feedItem: KillFeedItem = {
+          id: s.nextKillId++,
+          killer: killer.name,
+          victim: victim.name,
+          killerColor: killer.color.main,
+          time: Date.now(),
+        };
+        s.killFeedList.unshift(feedItem);
+        if (s.killFeedList.length > 5) s.killFeedList.pop();
+        setKillFeed([...s.killFeedList]);
+      }
+      return;
+    }
+
+    // ライフ0 または ボット：完全撃破
     victim.isAlive = false;
+    if (victim.isPlayer) {
+      setPlayerLives(0);
+    }
 
     // トレイルのクリア
     for (const p of victim.trail) {
@@ -656,7 +819,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       }
     }
 
-    createParticles(victim.x, victim.y, victim.color.main, 35, 6);
+    createParticles(victim.x, victim.y, victim.color.main, 40, 7);
 
     // 1位（KING）の判定
     const isVictimKing = s.characters
@@ -673,8 +836,9 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
         if (killer.isPlayer) {
           sound.playPaperBounty();
           addFloatingText(victim.x, victim.y - 45, '👑 KING BOUNTY! +1,500', '#f59e0b');
-          s.screenShake = 16;
+          s.screenShake = 18;
           createParticles(victim.x, victim.y, '#f59e0b', 50, 8);
+          createShockwave(victim.x, victim.y, '#f59e0b', 200);
         }
       }
 
@@ -687,6 +851,8 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           s.currentStreak = 1;
         }
         s.lastKillTime = nowTime;
+        s.highestStreak = Math.max(s.highestStreak, s.currentStreak);
+        setMaxStreak(s.highestStreak);
 
         if (s.currentStreak === 2) {
           earnedScore += 250;
@@ -708,7 +874,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           addFloatingText(victim.x, victim.y - 30, `KILL! +500`, '#fbbf24');
         }
 
-        s.screenShake = Math.max(s.screenShake, 12);
+        s.screenShake = Math.max(s.screenShake, 14);
         setKills((prev) => prev + 1);
         setScore((prev) => prev + earnedScore);
       }
@@ -735,7 +901,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       setGameState('gameover');
       updateRecords(victim.score, victim.kills, victim.territoryPercent);
     } else {
-      // バトロワモードではボットはリスポーンしない
       if (gameMode !== 'royale') {
         victim.respawnTimer = 180;
       }
@@ -762,6 +927,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     bot.magnetTimer = 0;
     bot.speedBoostTimer = 0;
     bot.stamina = 100;
+    bot.invincibleTimer = 0;
     bot.aiState = 'EXPAND';
     bot.aiStepCount = 0;
   };
@@ -776,7 +942,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
     bot.aiStepCount = (bot.aiStepCount || 0) + 1;
 
-    // 氷結中は思考・行動スキップ
     if (bot.freezeTimer > 0) return;
 
     let targetTrailPos: Position | null = null;
@@ -791,8 +956,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           const tOwner = s.trailGrid[sy * MAP_GRID + sx];
           if (tOwner > 0 && tOwner !== bot.id) {
             const targetChar = s.characters.find((c) => c.id === tOwner);
-            // ゴースト中は狙わない
-            if (targetChar && targetChar.ghostTimer <= 0) {
+            if (targetChar && targetChar.ghostTimer <= 0 && targetChar.invincibleTimer <= 0) {
               const d = Math.hypot(dx, dy);
               if (d < minTrailDist) {
                 minTrailDist = d;
@@ -956,11 +1120,12 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
           aliveTotal++;
 
-          // バフ・デバフタイマー減少
+          // バフ・デバフタイマー
           if (char.speedBoostTimer > 0) char.speedBoostTimer--;
           if (char.ghostTimer > 0) char.ghostTimer--;
           if (char.freezeTimer > 0) char.freezeTimer--;
           if (char.magnetTimer > 0) char.magnetTimer--;
+          if (char.invincibleTimer > 0) char.invincibleTimer--;
 
           // スタミナ＆ダッシュ計算
           const currentCellGx = Math.floor(char.x / CELL_SIZE);
@@ -978,7 +1143,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
               char.stamina = Math.max(0, char.stamina - 0.7);
             } else {
               char.isBoosting = false;
-              // 自陣内は高速回復、外は自然回復
               char.stamina = Math.min(100, char.stamina + (isInOwnTerritory ? 0.8 : 0.25));
             }
             setStamina(Math.round(char.stamina));
@@ -987,7 +1151,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           // 実効スピード計算
           let effectiveSpeed = char.baseSpeed;
           if (char.freezeTimer > 0) {
-            effectiveSpeed *= 0.5; // 氷結スロー
+            effectiveSpeed *= 0.5;
           } else {
             if (char.speedBoostTimer > 0) effectiveSpeed *= 1.4;
             if (char.isBoosting) effectiveSpeed *= 1.7;
@@ -1003,7 +1167,18 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             updateBotAI(char);
           }
 
-          char.dir = char.nextDir;
+          // ★ 方向転換時のグリッド中心スナップ（ラインズレ完全解消！）
+          if (char.dir !== char.nextDir) {
+            const isTurningVertical = char.nextDir === 'UP' || char.nextDir === 'DOWN';
+            const isTurningHorizontal = char.nextDir === 'LEFT' || char.nextDir === 'RIGHT';
+
+            if (isTurningVertical && (char.dir === 'LEFT' || char.dir === 'RIGHT')) {
+              char.x = (Math.floor(char.x / CELL_SIZE) + 0.5) * CELL_SIZE;
+            } else if (isTurningHorizontal && (char.dir === 'UP' || char.dir === 'DOWN')) {
+              char.y = (Math.floor(char.y / CELL_SIZE) + 0.5) * CELL_SIZE;
+            }
+            char.dir = char.nextDir;
+          }
 
           let vx = 0;
           let vy = 0;
@@ -1015,9 +1190,9 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           char.x += vx;
           char.y += vy;
 
-          // 外壁（マップ境界）衝突処理: 安全スライド
-          const minPos = CELL_SIZE * 0.6;
-          const maxPos = WORLD_SIZE - CELL_SIZE * 0.6;
+          // 外壁（マップ境界）衝突処理: 0.5*CELL_SIZE でピタリと壁に沿ってスライド
+          const minPos = CELL_SIZE * 0.5;
+          const maxPos = WORLD_SIZE - CELL_SIZE * 0.5;
 
           if (char.x < minPos) {
             char.x = minPos;
@@ -1049,8 +1224,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
                   addFloatingText(char.x, char.y - 20, 'DANGER ZONE!', '#ef4444');
                 }
               }
-              // ゾーン外に長くいると死亡
-              if (Math.random() < 0.02) {
+              if (Math.random() < 0.02 && char.invincibleTimer <= 0) {
                 killCharacter(char, null);
                 continue;
               }
@@ -1092,16 +1266,15 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
                 char.hasShield = true;
                 if (char.isPlayer) addFloatingText(char.x, char.y - 20, '🛡️ SHIELD ON!', '#10b981');
               } else if (item.type === 'ghost') {
-                char.ghostTimer = 240; // 4秒無敵
+                char.ghostTimer = 240;
                 if (char.isPlayer) {
                   sound.playPaperGhost();
                   addFloatingText(char.x, char.y - 20, '👻 GHOST (INVINCIBLE)!', '#c084fc');
                 }
               } else if (item.type === 'freeze') {
-                // 自分以外のキャラを凍結
                 for (const other of s.characters) {
                   if (other.id !== char.id && other.isAlive) {
-                    other.freezeTimer = 180; // 3秒スロー
+                    other.freezeTimer = 180;
                   }
                 }
                 if (char.isPlayer) {
@@ -1109,7 +1282,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
                   addFloatingText(char.x, char.y - 20, '❄️ ENEMY FROZEN!', '#38bdf8');
                 }
               } else if (item.type === 'magnet') {
-                char.magnetTimer = 360; // 6秒マグネット
+                char.magnetTimer = 360;
                 if (char.isPlayer) addFloatingText(char.x, char.y - 20, '🧲 MAGNET ON!', '#f43f5e');
               } else if (item.type === 'bomb') {
                 const r = 3;
@@ -1145,8 +1318,8 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             const hitChar = s.characters.find((c) => c.id === hitTrailOwnerId);
             if (hitChar && hitChar.isAlive) {
               if (hitChar.id === char.id) {
-                // 自分の過去トレイルに侵入した時のみ自滅（ゴースト中は自滅もしない）
-                if (char.ghostTimer <= 0) {
+                // 自分の過去トレイル（無敵またはゴースト中は自滅しない）
+                if (char.ghostTimer <= 0 && char.invincibleTimer <= 0) {
                   const isHittingOldSelfTrail = char.trail.some(
                     (p, idx) => idx < char.trail.length - 3 && p.x === gx && p.y === gy
                   );
@@ -1156,10 +1329,9 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
                   }
                 }
               } else {
-                // 敵のトレイル切断（ゴースト持ちの敵は無敵）
-                if (hitChar.ghostTimer > 0) {
-                  // 無敵中
-                  if (char.isPlayer) addFloatingText(hitChar.x, hitChar.y - 20, 'GHOST BLOCKED!', '#c084fc');
+                // 敵のトレイル切断
+                if (hitChar.ghostTimer > 0 || hitChar.invincibleTimer > 0) {
+                  if (char.isPlayer) addFloatingText(hitChar.x, hitChar.y - 20, 'BLOCKED!', '#c084fc');
                 } else if (hitChar.hasShield) {
                   hitChar.hasShield = false;
                   createParticles(hitChar.x, hitChar.y, '#38bdf8', 25, 5);
@@ -1237,7 +1409,9 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             (gameMode === 'rush' && playerChar.territoryPercent >= 60)
           ) {
             sound.stopPaperBgm();
+            sound.playPaperVictory();
             setGameState('victory');
+            spawnConfetti(100);
             updateRecords(playerChar.score + 5000, playerChar.kills, playerChar.territoryPercent);
           }
         }
@@ -1252,6 +1426,28 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           if (s.screenShake < 0.2) s.screenShake = 0;
         }
 
+        // ショックウェーブ更新
+        for (let i = s.shockwaves.length - 1; i >= 0; i--) {
+          const w = s.shockwaves[i];
+          w.radius += 5;
+          w.alpha = 1 - w.radius / w.maxRadius;
+          if (w.radius >= w.maxRadius) {
+            s.shockwaves.splice(i, 1);
+          }
+        }
+
+        // 紙吹雪更新
+        for (let i = s.confetti.length - 1; i >= 0; i--) {
+          const c = s.confetti[i];
+          c.x += c.vx;
+          c.y += c.vy;
+          c.rotation += c.rotSpeed;
+          if (c.y > (canvasRef.current?.height || 600) + 20) {
+            s.confetti.splice(i, 1);
+          }
+        }
+
+        // パーティクル更新
         for (let i = s.particles.length - 1; i >= 0; i--) {
           const p = s.particles[i];
           p.x += p.vx;
@@ -1265,6 +1461,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           }
         }
 
+        // 浮遊テキスト更新
         for (let i = s.floatingTexts.length - 1; i >= 0; i--) {
           const ft = s.floatingTexts[i];
           ft.y -= 0.8;
@@ -1370,7 +1567,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
       ctx.save();
       if (char.ghostTimer > 0) {
-        ctx.globalAlpha = 0.5; // ゴースト中は半透明
+        ctx.globalAlpha = 0.5;
         ctx.fillStyle = '#c084fc';
         ctx.shadowColor = '#c084fc';
       } else {
@@ -1392,7 +1589,21 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     ctx.lineWidth = 6;
     ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    // 5. アイテムの描画
+    // 5. ショックウェーブ（陣取り波紋）の描画
+    for (const w of s.shockwaves) {
+      ctx.save();
+      ctx.globalAlpha = w.alpha;
+      ctx.strokeStyle = w.color;
+      ctx.lineWidth = 4;
+      ctx.shadowColor = w.color;
+      ctx.shadowBlur = 12;
+      ctx.beginPath();
+      ctx.arc(w.x, w.y, w.radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    // 6. アイテムの描画
     for (const item of s.items) {
       ctx.save();
       ctx.translate(item.x, item.y);
@@ -1449,7 +1660,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       ctx.restore();
     }
 
-    // 6. キャラクター描画
+    // 7. キャラクター描画
     const topChar = s.characters
       .filter((c) => c.isAlive)
       .sort((a, b) => b.territoryPercent - a.territoryPercent)[0];
@@ -1459,6 +1670,20 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
       ctx.save();
       ctx.translate(char.x, char.y);
+
+      // リスポーン無敵点滅
+      if (char.invincibleTimer > 0) {
+        if (Math.floor(char.invincibleTimer / 6) % 2 === 0) {
+          ctx.globalAlpha = 0.4;
+        }
+        ctx.strokeStyle = '#38bdf8';
+        ctx.lineWidth = 3;
+        ctx.shadowColor = '#38bdf8';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.arc(0, 0, CELL_SIZE * 1.1, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
       // ゴースト中
       if (char.ghostTimer > 0) {
@@ -1539,7 +1764,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       ctx.restore();
     }
 
-    // 7. パーティクル
+    // 8. パーティクル
     for (const p of s.particles) {
       ctx.save();
       ctx.globalAlpha = p.alpha;
@@ -1550,7 +1775,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       ctx.restore();
     }
 
-    // 8. 浮遊テキスト
+    // 9. 浮遊テキスト
     for (const ft of s.floatingTexts) {
       ctx.save();
       ctx.globalAlpha = ft.opacity;
@@ -1565,6 +1790,16 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     }
 
     ctx.restore();
+
+    // 10. 紙吹雪（画面全体）
+    for (const c of s.confetti) {
+      ctx.save();
+      ctx.translate(c.x, c.y);
+      ctx.rotate((c.rotation * Math.PI) / 180);
+      ctx.fillStyle = c.color;
+      ctx.fillRect(-c.size / 2, -c.size / 4, c.size, c.size / 2);
+      ctx.restore();
+    }
   };
 
   // ミニマップ描画
@@ -1581,7 +1816,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     ctx.fillStyle = isDark ? 'rgba(15, 23, 42, 0.85)' : 'rgba(255, 255, 255, 0.85)';
     ctx.fillRect(0, 0, size, size);
 
-    // バトロワ安全ゾーン
     if (gameMode === 'royale') {
       ctx.strokeStyle = 'rgba(239, 68, 68, 0.8)';
       ctx.lineWidth = 1.5;
@@ -1751,7 +1985,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     }
   };
 
-  // Canvas リサイズ（フルスクリーン時は画面いっぱい）
+  // Canvas リサイズ
   useEffect(() => {
     const updateSize = () => {
       const canvas = canvasRef.current;
@@ -1803,7 +2037,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
               </div>
             )}
 
-            {/* 左上: 占有率・スコア・キル数・モード情報 */}
+            {/* 左上: 占有率・ライフ・スコア・キル数 */}
             <div className="absolute top-4 left-4 z-20 flex flex-col gap-2 pointer-events-none">
               <div
                 className={`flex items-center gap-3 px-4 py-2 rounded-2xl backdrop-blur-md border shadow-lg ${
@@ -1812,8 +2046,24 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
                     : 'bg-white/90 border-slate-200 text-slate-900'
                 }`}
               >
-                <div className="flex items-center gap-1.5 font-black text-lg text-emerald-400">
-                  <Crown className="w-5 h-5 text-amber-400" />
+                {/* ライフ表示 */}
+                <div className="flex items-center gap-1">
+                  {[1, 2, 3].map((l) => (
+                    <Heart
+                      key={l}
+                      className={`w-4 h-4 transition-all duration-300 ${
+                        l <= playerLives
+                          ? 'fill-rose-500 text-rose-500 scale-100 animate-pulse'
+                          : 'fill-slate-700 text-slate-700 scale-90'
+                      }`}
+                    />
+                  ))}
+                </div>
+
+                <div className="h-4 w-px bg-slate-700/50" />
+
+                <div className="flex items-center gap-1.5 font-black text-base sm:text-lg text-emerald-400">
+                  <Crown className="w-4 h-4 text-amber-400" />
                   <span>{territoryPercent.toFixed(1)}%</span>
                 </div>
                 <div className="h-4 w-px bg-slate-700/50" />
@@ -1983,7 +2233,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 text-center animate-in fade-in duration-300 overflow-y-auto">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-bold mb-2">
               <Crown className="w-4 h-4 text-amber-400" />
-              v2.0 Major Update - Turbo & Battle Royale
+              v2.1 Refined - 3 Lives & Grid Snap
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white mb-2 bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
@@ -2108,37 +2358,84 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           </div>
         )}
 
-        {/* ゲームオーバー画面 */}
+        {/* 🌟 刷新されたモダン・リザルト画面 (ゲームオーバー) */}
         {gameState === 'gameover' && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/85 backdrop-blur-md p-6 text-center animate-in fade-in zoom-in-95 duration-300">
-            <div className="text-rose-500 font-black text-3xl sm:text-4xl mb-2 tracking-wide">
-              ELIMINATED
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 text-center animate-in fade-in zoom-in-95 duration-300 overflow-y-auto">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold mb-3">
+              <ShieldAlert className="w-4 h-4" />
+              GAME OVER
             </div>
-            <p className="text-xs text-slate-400 mb-6">トレイルを切断されました</p>
 
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 grid grid-cols-3 gap-4 mb-6 min-w-[280px]">
-              <div>
-                <div className="text-[10px] text-slate-400">最終占有率</div>
-                <div className="text-emerald-400 font-bold font-mono text-base">
-                  {territoryPercent.toFixed(1)}%
+            <h2 className="text-3xl sm:text-4xl font-black text-white mb-1 tracking-tight">
+              ELIMINATED
+            </h2>
+            <p className="text-xs text-slate-400 mb-5">すべてのライフを消費しました</p>
+
+            {/* スタッツカード */}
+            <div className="w-full max-w-sm p-5 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-xl mb-6">
+              {isNewRecord && (
+                <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 text-xs font-black animate-pulse">
+                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                  🏆 NEW HIGH SCORE!
+                </div>
+              )}
+
+              {/* 占有率バー */}
+              <div className="mb-4 text-left">
+                <div className="flex justify-between text-xs font-bold mb-1">
+                  <span className="text-slate-400">最終占有率</span>
+                  <span className="text-emerald-400 font-mono">{territoryPercent.toFixed(1)}%</span>
+                </div>
+                <div className="w-full h-3 rounded-full bg-slate-800 overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-1000"
+                    style={{ width: `${Math.min(100, territoryPercent)}%` }}
+                  />
                 </div>
               </div>
-              <div>
-                <div className="text-[10px] text-slate-400">スコア</div>
-                <div className="text-amber-400 font-bold font-mono text-base">
-                  {score.toLocaleString()}
+
+              {/* スコア・撃破・ストリーク一覧 */}
+              <div className="grid grid-cols-3 gap-3 py-3 border-y border-slate-800/80 font-mono">
+                <div>
+                  <div className="text-[10px] text-slate-400 font-sans font-bold">SCORE</div>
+                  <div className="text-amber-400 font-black text-lg sm:text-xl">
+                    {score.toLocaleString()}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-400 font-sans font-bold">KILLS</div>
+                  <div className="text-rose-400 font-black text-lg sm:text-xl">{kills}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-400 font-sans font-bold">MAX STREAK</div>
+                  <div className="text-indigo-400 font-black text-lg sm:text-xl">{maxStreak}x</div>
                 </div>
               </div>
-              <div>
-                <div className="text-[10px] text-slate-400">撃破数</div>
-                <div className="text-rose-400 font-bold font-mono text-base">{kills}</div>
+
+              {/* 獲得MVPバッジ */}
+              <div className="mt-4 flex items-center justify-center gap-2">
+                {territoryPercent >= 20 && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-bold text-emerald-400">
+                    <Award className="w-3 h-3" /> Conqueror
+                  </span>
+                )}
+                {kills >= 3 && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-500/10 border border-rose-500/30 text-[10px] font-bold text-rose-400">
+                    <Flame className="w-3 h-3" /> Slayer
+                  </span>
+                )}
+                {maxStreak >= 2 && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[10px] font-bold text-amber-400">
+                    <Zap className="w-3 h-3" /> Combo Master
+                  </span>
+                )}
               </div>
             </div>
 
             <div className="flex items-center gap-3">
               <button
                 onClick={initGame}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-emerald-500 hover:bg-emerald-400 text-white font-bold text-xs shadow-lg shadow-emerald-500/25 active:scale-95 transition-all"
+                className="flex items-center gap-2 px-7 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-500/25 active:scale-95 transition-all"
               >
                 <RotateCcw className="w-4 h-4" />
                 もう一度プレイ
@@ -2153,42 +2450,60 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           </div>
         )}
 
-        {/* 完全制覇ビクトリー画面 */}
+        {/* 🌟 刷新されたモダン・リザルト画面 (完全制覇ビクトリー) */}
         {gameState === 'victory' && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 text-center animate-in fade-in zoom-in-95 duration-300">
-            <Crown className="w-12 h-12 text-amber-400 mb-2 animate-bounce" />
-            <div className="text-amber-400 font-black text-3xl sm:text-4xl mb-2 tracking-wide">
-              {gameMode === 'royale' ? 'CHAMPION!' : 'VICTORY!'}
+          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 text-center animate-in fade-in zoom-in-95 duration-300 overflow-y-auto">
+            <Crown className="w-14 h-14 text-amber-400 mb-2 animate-bounce drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]" />
+
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold mb-2">
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              {gameMode === 'royale' ? 'BATTLE ROYALE CHAMPION' : 'TERRITORY CONQUEROR'}
             </div>
-            <p className="text-xs text-slate-300 mb-6">
+
+            <h2 className="text-4xl sm:text-5xl font-black tracking-tight text-white mb-1 bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-amber-400 to-yellow-500">
+              VICTORY!
+            </h2>
+            <p className="text-xs text-slate-300 mb-5">
               {gameMode === 'royale'
-                ? '最後の1人として生き残りバトルロイヤルを制覇しました！'
-                : 'マップの大部分を制覇し完全勝利を達成しました！'}
+                ? '最後の1人として生き残り完全勝利を達成しました！'
+                : '圧倒的な領地を制覇しゲームをクリアしました！'}
             </p>
 
-            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 grid grid-cols-3 gap-4 mb-6 min-w-[280px]">
-              <div>
-                <div className="text-[10px] text-slate-400">最終占有率</div>
-                <div className="text-emerald-400 font-bold font-mono text-base">
-                  {territoryPercent.toFixed(1)}%
+            {/* スタッツカード */}
+            <div className="w-full max-w-sm p-5 rounded-3xl bg-slate-900/90 border border-amber-500/40 shadow-2xl backdrop-blur-xl mb-6">
+              <div className="grid grid-cols-3 gap-3 py-3 border-b border-slate-800/80 font-mono">
+                <div>
+                  <div className="text-[10px] text-slate-400 font-sans font-bold">FINAL SCORE</div>
+                  <div className="text-amber-400 font-black text-lg sm:text-xl">
+                    {(score + 5000).toLocaleString()}
+                  </div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-400 font-sans font-bold">TOTAL KILLS</div>
+                  <div className="text-rose-400 font-black text-lg sm:text-xl">{kills}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] text-slate-400 font-sans font-bold">TERRITORY</div>
+                  <div className="text-emerald-400 font-black text-lg sm:text-xl">
+                    {territoryPercent.toFixed(1)}%
+                  </div>
                 </div>
               </div>
-              <div>
-                <div className="text-[10px] text-slate-400">スコア</div>
-                <div className="text-amber-400 font-bold font-mono text-base">
-                  {(score + 5000).toLocaleString()}
-                </div>
-              </div>
-              <div>
-                <div className="text-[10px] text-slate-400">撃破数</div>
-                <div className="text-rose-400 font-bold font-mono text-base">{kills}</div>
+
+              <div className="mt-4 flex items-center justify-center gap-2">
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-amber-500/20 border border-amber-500/40 text-[10px] font-black text-amber-300">
+                  👑 Grand Master
+                </span>
+                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-black text-emerald-300">
+                  ⭐ +5,000 Bonus
+                </span>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
               <button
                 onClick={initGame}
-                className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 active:scale-95 transition-all"
+                className="flex items-center gap-2 px-7 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 active:scale-95 transition-all"
               >
                 <RotateCcw className="w-4 h-4" />
                 もう一度プレイ
@@ -2204,7 +2519,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
         )}
       </div>
 
-      {/* 下部コントロール＆操作説明バー (フルスクリーンでない時) */}
+      {/* 下部コントロール＆操作説明バー */}
       {!isFullscreen && (
         <div className="w-full mt-4 flex flex-wrap items-center justify-between gap-3 text-xs">
           <button
@@ -2228,8 +2543,8 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           >
             <span>【操作】 矢印 / WASD</span>
             <span className="text-amber-400 font-bold">【ブースト】 Space / Shift</span>
-            <span className="hidden sm:inline">・ 領地に戻って陣取り</span>
-            <span className="hidden sm:inline">・ 敵の軌跡を踏んでキル</span>
+            <span className="hidden sm:inline">・ ❤️ ライフ3機</span>
+            <span className="hidden sm:inline">・ 陣取り＆トレイル切断</span>
           </div>
 
           <button
