@@ -14,7 +14,8 @@ import {
   Heart,
   Award,
   Flame,
-  ShieldAlert,
+  Shield,
+  Compass,
 } from 'lucide-react';
 
 const HIGH_SCORE_KEY = 'paperio_high_score';
@@ -57,8 +58,8 @@ interface Character {
   baseSpeed: number;
   stamina: number;
   isBoosting: boolean;
-  lives: number; // 残機 (初期値3)
-  invincibleTimer: number; // リスポーン無敵点滅タイマー
+  lives: number;
+  invincibleTimer: number;
   color: {
     main: string;
     trail: string;
@@ -133,6 +134,14 @@ interface KillFeedItem {
   killerColor: string;
   isBounty?: boolean;
   time: number;
+}
+
+interface Achievement {
+  id: string;
+  name: string;
+  desc: string;
+  icon: React.ReactNode;
+  color: string;
 }
 
 const MAP_GRID = 90;
@@ -308,6 +317,19 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
   const [killFeed, setKillFeed] = useState<KillFeedItem[]>([]);
   const [isMuted, setIsMuted] = useState(false);
 
+  // 🌟 超豪華リザルト用アニメーションステート
+  const [resultAnimStage, setResultAnimStage] = useState(0); // 0: Init, 1: Counting, 2: Rank, 3: Badges, 4: Done
+  const [animScore, setAnimScore] = useState(0);
+  const [animPercent, setAnimPercent] = useState(0);
+  const [animKills, setAnimKills] = useState(0);
+  const [finalRank, setFinalRank] = useState<{ grade: string; title: string; color: string; bg: string }>({
+    grade: 'C',
+    title: 'BEGINNER',
+    color: '#94a3b8',
+    bg: 'from-slate-600 to-slate-800',
+  });
+  const [unlockedBadges, setUnlockedBadges] = useState<Achievement[]>([]);
+
   // 内部状態 (Ref)
   const stateRef = useRef({
     grid: new Uint8Array(MAP_GRID * MAP_GRID),
@@ -329,11 +351,10 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     lastTime: performance.now(),
     isGameActive: false,
     isBoosting: false,
-    // キルストリーク管理
+    hasKilledKing: false,
     lastKillTime: 0,
     currentStreak: 0,
     highestStreak: 0,
-    // バトルロイヤル用デンジャーゾーン
     zoneRadius: MAP_GRID / 2,
     zoneCenter: { x: MAP_GRID / 2, y: MAP_GRID / 2 },
     zoneTimer: 0,
@@ -349,30 +370,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
     const sPercent = localStorage.getItem(MAX_PERCENT_KEY);
     if (sPercent) setMaxPercent(parseFloat(sPercent) || 0);
-  }, []);
-
-  // ハイスコア更新
-  const updateRecords = useCallback((finalScore: number, finalKills: number, finalPercent: number) => {
-    let isRecord = false;
-    setHighScore((prev) => {
-      if (finalScore > prev) {
-        isRecord = true;
-        localStorage.setItem(HIGH_SCORE_KEY, finalScore.toString());
-        return finalScore;
-      }
-      return prev;
-    });
-    setHighKills((prev) => {
-      const next = Math.max(prev, finalKills);
-      localStorage.setItem(HIGH_KILLS_KEY, next.toString());
-      return next;
-    });
-    setMaxPercent((prev) => {
-      const next = Math.max(prev, finalPercent);
-      localStorage.setItem(MAX_PERCENT_KEY, next.toFixed(1));
-      return next;
-    });
-    setIsNewRecord(isRecord);
   }, []);
 
   // 浮遊テキスト追加
@@ -404,22 +401,22 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
   };
 
   // 紙吹雪（Confetti）発生
-  const spawnConfetti = (count = 60) => {
+  const spawnConfetti = useCallback((count = 80) => {
     const s = stateRef.current;
-    const colors = ['#f43f5e', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#fbbf24'];
+    const colors = ['#f43f5e', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981', '#f59e0b', '#fbbf24', '#eab308'];
     for (let i = 0; i < count; i++) {
       s.confetti.push({
         x: Math.random() * (canvasRef.current?.width || 800),
-        y: -10 - Math.random() * 50,
-        vx: (Math.random() - 0.5) * 4,
-        vy: Math.random() * 3 + 2,
+        y: -10 - Math.random() * 80,
+        vx: (Math.random() - 0.5) * 6,
+        vy: Math.random() * 4 + 2,
         color: colors[Math.floor(Math.random() * colors.length)],
-        size: Math.random() * 8 + 4,
+        size: Math.random() * 8 + 5,
         rotation: Math.random() * 360,
-        rotSpeed: (Math.random() - 0.5) * 10,
+        rotSpeed: (Math.random() - 0.5) * 12,
       });
     }
-  };
+  }, []);
 
   // パーティクル発生
   const createParticles = (x: number, y: number, color: string, count = 15, speed = 4) => {
@@ -456,6 +453,125 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     }
   };
 
+  // 🌟 リザルト演出トリガー
+  const triggerResultSequence = useCallback(
+    (finalScoreVal: number, finalKillsVal: number, finalPercentVal: number, isVictory: boolean) => {
+      let isRecord = false;
+      setHighScore((prev) => {
+        if (finalScoreVal > prev) {
+          isRecord = true;
+          localStorage.setItem(HIGH_SCORE_KEY, finalScoreVal.toString());
+          return finalScoreVal;
+        }
+        return prev;
+      });
+      setHighKills((prev) => {
+        const next = Math.max(prev, finalKillsVal);
+        localStorage.setItem(HIGH_KILLS_KEY, next.toString());
+        return next;
+      });
+      setMaxPercent((prev) => {
+        const next = Math.max(prev, finalPercentVal);
+        localStorage.setItem(MAX_PERCENT_KEY, next.toFixed(1));
+        return next;
+      });
+      setIsNewRecord(isRecord);
+
+      // ランク判定
+      const totalPoints = finalScoreVal + finalKillsVal * 1000 + finalPercentVal * 180 + (isVictory ? 5000 : 0);
+      let calculatedRank = { grade: 'C', title: 'TRAINEE', color: '#94a3b8', bg: 'from-slate-600 to-slate-800' };
+
+      if (isVictory || totalPoints >= 20000) {
+        calculatedRank = { grade: 'SSS', title: 'GODLIKE CONQUEROR', color: '#fbbf24', bg: 'from-amber-400 via-yellow-500 to-orange-500' };
+      } else if (totalPoints >= 14000) {
+        calculatedRank = { grade: 'SS', title: 'LEGENDARY DOMINATOR', color: '#f43f5e', bg: 'from-rose-500 to-red-600' };
+      } else if (totalPoints >= 9000) {
+        calculatedRank = { grade: 'S', title: 'MASTER SLAYER', color: '#a855f7', bg: 'from-purple-500 to-indigo-600' };
+      } else if (totalPoints >= 5000) {
+        calculatedRank = { grade: 'A', title: 'ELITE WARRIOR', color: '#06b6d4', bg: 'from-cyan-500 to-blue-600' };
+      } else if (totalPoints >= 2500) {
+        calculatedRank = { grade: 'B', title: 'SKILLED EXPEDITION', color: '#10b981', bg: 'from-emerald-500 to-teal-600' };
+      }
+
+      setFinalRank(calculatedRank);
+
+      // 実績アンロック算出
+      const badges: Achievement[] = [];
+      if (isVictory) {
+        badges.push({ id: 'vic', name: 'VICTORY CROWN', desc: 'マップ制覇 / バトロワ優勝', icon: <Crown className="w-4 h-4" />, color: '#fbbf24' });
+      }
+      if (stateRef.current.hasKilledKing) {
+        badges.push({ id: 'king', name: 'KING SLAYER', desc: '賞金首ボットを討伐', icon: <Award className="w-4 h-4" />, color: '#f59e0b' });
+      }
+      if (stateRef.current.highestStreak >= 3) {
+        badges.push({ id: 'rampage', name: 'RAMPAGE MASTER', desc: '3連続キルストリーク達成', icon: <Flame className="w-4 h-4" />, color: '#f43f5e' });
+      }
+      if (finalPercentVal >= 25) {
+        badges.push({ id: 'domain', name: 'SUPERIOR DOMAIN', desc: '領地25%以上を獲得', icon: <Compass className="w-4 h-4" />, color: '#10b981' });
+      }
+      if (finalKillsVal >= 4) {
+        badges.push({ id: 'hunter', name: 'APEX HUNTER', desc: '4体以上のボットを撃破', icon: <Swords className="w-4 h-4" />, color: '#38bdf8' });
+      }
+      if (badges.length === 0) {
+        badges.push({ id: 'brave', name: 'BRAVE CHALLENGER', desc: '戦いに挑んだ勇者', icon: <Shield className="w-4 h-4" />, color: '#a855f7' });
+      }
+      setUnlockedBadges(badges);
+
+      // ステップアニメーション開始
+      setResultAnimStage(1);
+      setAnimScore(0);
+      setAnimPercent(0);
+      setAnimKills(0);
+
+      // カウントアップアニメーション
+      const startTime = performance.now();
+      const countDuration = 1200;
+
+      const stepCount = (now: number) => {
+        const elapsed = now - startTime;
+        const progress = Math.min(1, elapsed / countDuration);
+        const ease = 1 - Math.pow(1 - progress, 3);
+
+        setAnimScore(Math.round(finalScoreVal * ease));
+        setAnimPercent(parseFloat((finalPercentVal * ease).toFixed(1)));
+        setAnimKills(Math.round(finalKillsVal * ease));
+
+        if (Math.random() < 0.3) {
+          sound.playPaperTick();
+        }
+
+        if (progress < 1) {
+          requestAnimationFrame(stepCount);
+        } else {
+          setAnimScore(finalScoreVal);
+          setAnimPercent(finalPercentVal);
+          setAnimKills(finalKillsVal);
+
+          // ランク発表
+          setTimeout(() => {
+            setResultAnimStage(2);
+            sound.playPaperRankStamp();
+            spawnConfetti(60);
+
+            // バッジ発表
+            setTimeout(() => {
+              setResultAnimStage(3);
+              sound.playPaperBadge();
+
+              // 完了
+              setTimeout(() => {
+                setResultAnimStage(4);
+              }, 400);
+            }, 600);
+          }, 300);
+        }
+      };
+
+      requestAnimationFrame(stepCount);
+    },
+    [spawnConfetti]
+  );
+
   // ゲーム初期化
   const initGame = () => {
     const s = stateRef.current;
@@ -471,6 +587,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     s.currentStreak = 0;
     s.highestStreak = 0;
     s.lastKillTime = 0;
+    s.hasKilledKing = false;
     s.zoneRadius = MAP_GRID / 2;
     s.zoneTimer = 0;
 
@@ -497,7 +614,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       baseSpeed: 3.2 * speedMult,
       stamina: 100,
       isBoosting: false,
-      lives: 3, // ライフ3
+      lives: 3,
       invincibleTimer: 0,
       color: playerSkin,
       trail: [],
@@ -586,9 +703,9 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     setStamina(100);
     setStreakBanner(null);
     setIsNewRecord(false);
+    setResultAnimStage(0);
     setGameState('playing');
 
-    // BGM スタート
     sound.startPaperBgm();
   };
 
@@ -717,7 +834,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           addFloatingText(char.x, char.y - 20, `+${earnedPercent.toFixed(1)}%`, '#10b981');
         }
 
-        // 大規模キャプチャ時のショックウェーブ演出！
         if (totalCaptured >= 8) {
           const centerX = sumX / totalCaptured;
           const centerY = sumY / totalCaptured;
@@ -737,7 +853,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       victim.lives -= 1;
       setPlayerLives(victim.lives);
 
-      // トレイルのクリア
       for (const p of victim.trail) {
         const idx = p.y * MAP_GRID + p.x;
         if (s.trailGrid[idx] === victim.id) {
@@ -746,7 +861,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       }
       victim.trail = [];
 
-      // 自陣の重心セルを見つけてリスポーン
       let ownXSum = 0;
       let ownYSum = 0;
       let ownCount = 0;
@@ -768,7 +882,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
         victim.y = WORLD_SIZE / 2;
       }
 
-      // 2.5秒間無敵点滅バリア
       victim.invincibleTimer = 150;
       victim.stamina = 100;
       victim.hasShield = false;
@@ -797,13 +910,11 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       return;
     }
 
-    // ライフ0 または ボット：完全撃破
     victim.isAlive = false;
     if (victim.isPlayer) {
       setPlayerLives(0);
     }
 
-    // トレイルのクリア
     for (const p of victim.trail) {
       const idx = p.y * MAP_GRID + p.x;
       if (s.trailGrid[idx] === victim.id) {
@@ -812,7 +923,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     }
     victim.trail = [];
 
-    // 領地クリア
     for (let i = 0; i < s.grid.length; i++) {
       if (s.grid[i] === victim.id) {
         s.grid[i] = 0;
@@ -821,7 +931,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
     createParticles(victim.x, victim.y, victim.color.main, 40, 7);
 
-    // 1位（KING）の判定
     const isVictimKing = s.characters
       .filter((c) => c.isAlive || c.id === victim.id)
       .sort((a, b) => b.territoryPercent - a.territoryPercent)[0]?.id === victim.id;
@@ -830,10 +939,10 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       killer.kills += 1;
       let earnedScore = 500;
 
-      // KING 討伐賞金首ボーナス
       if (isVictimKing && !victim.isPlayer) {
         earnedScore += 1500;
         if (killer.isPlayer) {
+          s.hasKilledKing = true;
           sound.playPaperBounty();
           addFloatingText(victim.x, victim.y - 45, '👑 KING BOUNTY! +1,500', '#f59e0b');
           s.screenShake = 18;
@@ -842,7 +951,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
         }
       }
 
-      // プレイヤーのキルストリーク判定
       if (killer.isPlayer) {
         const nowTime = Date.now();
         if (nowTime - s.lastKillTime < 6000) {
@@ -899,7 +1007,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       sound.playPaperDie();
       s.screenShake = 20;
       setGameState('gameover');
-      updateRecords(victim.score, victim.kills, victim.territoryPercent);
+      triggerResultSequence(victim.score, victim.kills, victim.territoryPercent, false);
     } else {
       if (gameMode !== 'royale') {
         victim.respawnTimer = 180;
@@ -1083,7 +1191,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       s.lastTime = now;
 
       if (gameState === 'playing' && s.isGameActive) {
-        // バトルロイヤル：デンジャーゾーン縮小
         if (gameMode === 'royale') {
           s.zoneTimer++;
           if (s.zoneTimer > 60) {
@@ -1091,7 +1198,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           }
         }
 
-        // アイテム湧き
         s.itemSpawnTimer++;
         if (s.itemSpawnTimer > (gameMode === 'rush' ? 100 : 160)) {
           s.itemSpawnTimer = 0;
@@ -1120,14 +1226,12 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
           aliveTotal++;
 
-          // バフ・デバフタイマー
           if (char.speedBoostTimer > 0) char.speedBoostTimer--;
           if (char.ghostTimer > 0) char.ghostTimer--;
           if (char.freezeTimer > 0) char.freezeTimer--;
           if (char.magnetTimer > 0) char.magnetTimer--;
           if (char.invincibleTimer > 0) char.invincibleTimer--;
 
-          // スタミナ＆ダッシュ計算
           const currentCellGx = Math.floor(char.x / CELL_SIZE);
           const currentCellGy = Math.floor(char.y / CELL_SIZE);
           const isInOwnTerritory =
@@ -1148,7 +1252,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             setStamina(Math.round(char.stamina));
           }
 
-          // 実効スピード計算
           let effectiveSpeed = char.baseSpeed;
           if (char.freezeTimer > 0) {
             effectiveSpeed *= 0.5;
@@ -1158,7 +1261,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           }
           char.speed = effectiveSpeed;
 
-          // ダッシュ時のパーティクル
           if (char.isBoosting && Math.random() < 0.4) {
             createParticles(char.x, char.y, char.color.trail, 2, 2);
           }
@@ -1167,7 +1269,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             updateBotAI(char);
           }
 
-          // ★ 方向転換時のグリッド中心スナップ（ラインズレ完全解消！）
           if (char.dir !== char.nextDir) {
             const isTurningVertical = char.nextDir === 'UP' || char.nextDir === 'DOWN';
             const isTurningHorizontal = char.nextDir === 'LEFT' || char.nextDir === 'RIGHT';
@@ -1190,7 +1291,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           char.x += vx;
           char.y += vy;
 
-          // 外壁（マップ境界）衝突処理: 0.5*CELL_SIZE でピタリと壁に沿ってスライド
           const minPos = CELL_SIZE * 0.5;
           const maxPos = WORLD_SIZE - CELL_SIZE * 0.5;
 
@@ -1210,7 +1310,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             if (char.dir === 'DOWN') char.nextDir = ['LEFT', 'RIGHT'][Math.floor(Math.random() * 2)] as Direction;
           }
 
-          // バトルロイヤル：デンジャーゾーン外ダメージ判定
           if (gameMode === 'royale') {
             const centerDist = Math.hypot(
               char.x / CELL_SIZE - s.zoneCenter.x,
@@ -1236,7 +1335,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           const cellIdx = gy * MAP_GRID + gx;
           const isOwnTerritory = s.grid[cellIdx] === char.id;
 
-          // マグネット効果（アイテム引き寄せ）
           if (char.magnetTimer > 0) {
             for (const item of s.items) {
               const mDist = Math.hypot(char.x - item.x, char.y - item.y);
@@ -1247,7 +1345,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             }
           }
 
-          // アイテム取得判定
           for (let itIdx = s.items.length - 1; itIdx >= 0; itIdx--) {
             const item = s.items[itIdx];
             const dist = Math.hypot(char.x - item.x, char.y - item.y);
@@ -1312,13 +1409,11 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             }
           }
 
-          // トレイル衝突判定
           const hitTrailOwnerId = s.trailGrid[cellIdx];
           if (hitTrailOwnerId > 0) {
             const hitChar = s.characters.find((c) => c.id === hitTrailOwnerId);
             if (hitChar && hitChar.isAlive) {
               if (hitChar.id === char.id) {
-                // 自分の過去トレイル（無敵またはゴースト中は自滅しない）
                 if (char.ghostTimer <= 0 && char.invincibleTimer <= 0) {
                   const isHittingOldSelfTrail = char.trail.some(
                     (p, idx) => idx < char.trail.length - 3 && p.x === gx && p.y === gy
@@ -1329,7 +1424,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
                   }
                 }
               } else {
-                // 敵のトレイル切断
                 if (hitChar.ghostTimer > 0 || hitChar.invincibleTimer > 0) {
                   if (char.isPlayer) addFloatingText(hitChar.x, hitChar.y - 20, 'BLOCKED!', '#c084fc');
                 } else if (hitChar.hasShield) {
@@ -1343,7 +1437,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             }
           }
 
-          // 領地・トレイル更新
           if (!isOwnTerritory) {
             const lastTrail = char.trail[char.trail.length - 1];
             if (!lastTrail || lastTrail.x !== gx || lastTrail.y !== gy) {
@@ -1362,7 +1455,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
         setAliveCount(aliveTotal);
 
-        // 占有率計算＆リーダーボード更新
         const counts = new Uint32Array(s.characters.length + 2);
         const totalTiles = MAP_GRID * MAP_GRID;
         for (let i = 0; i < s.grid.length; i++) {
@@ -1402,7 +1494,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           setTerritoryPercent(playerChar.territoryPercent);
           setMaxPercent((prev) => Math.max(prev, playerChar.territoryPercent));
 
-          // 勝利判定
           if (
             (gameMode === 'classic' && playerChar.territoryPercent >= 75) ||
             (gameMode === 'royale' && aliveTotal === 1) ||
@@ -1411,8 +1502,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
             sound.stopPaperBgm();
             sound.playPaperVictory();
             setGameState('victory');
-            spawnConfetti(100);
-            updateRecords(playerChar.score + 5000, playerChar.kills, playerChar.territoryPercent);
+            triggerResultSequence(playerChar.score + 5000, playerChar.kills, playerChar.territoryPercent, true);
           }
         }
 
@@ -1426,7 +1516,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           if (s.screenShake < 0.2) s.screenShake = 0;
         }
 
-        // ショックウェーブ更新
         for (let i = s.shockwaves.length - 1; i >= 0; i--) {
           const w = s.shockwaves[i];
           w.radius += 5;
@@ -1436,7 +1525,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           }
         }
 
-        // 紙吹雪更新
         for (let i = s.confetti.length - 1; i >= 0; i--) {
           const c = s.confetti[i];
           c.x += c.vx;
@@ -1447,7 +1535,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           }
         }
 
-        // パーティクル更新
         for (let i = s.particles.length - 1; i >= 0; i--) {
           const p = s.particles[i];
           p.x += p.vx;
@@ -1461,7 +1548,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           }
         }
 
-        // 浮遊テキスト更新
         for (let i = s.floatingTexts.length - 1; i >= 0; i--) {
           const ft = s.floatingTexts[i];
           ft.y -= 0.8;
@@ -1484,7 +1570,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       cancelAnimationFrame(animationFrameId);
       sound.stopPaperBgm();
     };
-  }, [gameState, botDifficulty, gameMode]);
+  }, [gameState, botDifficulty, gameMode, triggerResultSequence]);
 
   // レンダリング (メインCanvas)
   const renderGame = () => {
@@ -1519,7 +1605,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     const viewTop = Math.max(0, Math.floor((s.camera.y - height / 2) / CELL_SIZE));
     const viewBottom = Math.min(MAP_GRID, Math.ceil((s.camera.y + height / 2) / CELL_SIZE));
 
-    // バトルロイヤル：縮小ゾーンの描画
     if (gameMode === 'royale') {
       ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
       ctx.lineWidth = 4;
@@ -1589,7 +1674,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
     ctx.lineWidth = 6;
     ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
 
-    // 5. ショックウェーブ（陣取り波紋）の描画
+    // 5. ショックウェーブ
     for (const w of s.shockwaves) {
       ctx.save();
       ctx.globalAlpha = w.alpha;
@@ -1671,7 +1756,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       ctx.save();
       ctx.translate(char.x, char.y);
 
-      // リスポーン無敵点滅
       if (char.invincibleTimer > 0) {
         if (Math.floor(char.invincibleTimer / 6) % 2 === 0) {
           ctx.globalAlpha = 0.4;
@@ -1685,12 +1769,10 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
         ctx.stroke();
       }
 
-      // ゴースト中
       if (char.ghostTimer > 0) {
         ctx.globalAlpha = 0.65;
       }
 
-      // 氷結中
       if (char.freezeTimer > 0) {
         ctx.strokeStyle = '#38bdf8';
         ctx.lineWidth = 3;
@@ -1699,7 +1781,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
         ctx.stroke();
       }
 
-      // シールド
       if (char.hasShield) {
         ctx.strokeStyle = '#10b981';
         ctx.lineWidth = 3;
@@ -1744,13 +1825,11 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       ctx.arc(4 + eyeDx * 1.5, -2 + eyeDy * 1.5, 1.5, 0, Math.PI * 2);
       ctx.fill();
 
-      // 名前ラベル
       ctx.font = 'bold 11px sans-serif';
       ctx.textAlign = 'center';
       ctx.fillStyle = isDark ? '#ffffff' : '#0f172a';
       ctx.fillText(char.name, 0, -cubeSize / 2 - 8);
 
-      // 1位（KING / 賞金首）
       if (topChar && topChar.id === char.id) {
         ctx.font = '14px sans-serif';
         ctx.fillText('👑', 0, -cubeSize / 2 - 20);
@@ -1764,7 +1843,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       ctx.restore();
     }
 
-    // 8. パーティクル
     for (const p of s.particles) {
       ctx.save();
       ctx.globalAlpha = p.alpha;
@@ -1775,7 +1853,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       ctx.restore();
     }
 
-    // 9. 浮遊テキスト
     for (const ft of s.floatingTexts) {
       ctx.save();
       ctx.globalAlpha = ft.opacity;
@@ -1791,7 +1868,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
     ctx.restore();
 
-    // 10. 紙吹雪（画面全体）
     for (const c of s.confetti) {
       ctx.save();
       ctx.translate(c.x, c.y);
@@ -2030,14 +2106,12 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
         {/* 画面内オーバーレイUI (HUD) */}
         {gameState === 'playing' && (
           <>
-            {/* 上部中央: キルストリーク通知バナー */}
             {streakBanner && (
               <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 animate-bounce px-5 py-2 rounded-2xl bg-gradient-to-r from-amber-500 to-rose-600 text-white font-black text-sm sm:text-base shadow-xl border border-amber-300 pointer-events-none">
                 {streakBanner}
               </div>
             )}
 
-            {/* 左上: 占有率・ライフ・スコア・キル数 */}
             <div className="absolute top-4 left-4 z-20 flex flex-col gap-2 pointer-events-none">
               <div
                 className={`flex items-center gap-3 px-4 py-2 rounded-2xl backdrop-blur-md border shadow-lg ${
@@ -2046,7 +2120,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
                     : 'bg-white/90 border-slate-200 text-slate-900'
                 }`}
               >
-                {/* ライフ表示 */}
                 <div className="flex items-center gap-1">
                   {[1, 2, 3].map((l) => (
                     <Heart
@@ -2086,7 +2159,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
                 )}
               </div>
 
-              {/* スタミナ / ブーストバー */}
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/80 backdrop-blur-md border border-slate-700/60 w-44">
                 <Zap className={`w-4 h-4 ${stamina > 20 ? 'text-amber-400' : 'text-slate-500'}`} />
                 <div className="flex-1 h-2 rounded-full bg-slate-800 overflow-hidden">
@@ -2101,7 +2173,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
               </div>
             </div>
 
-            {/* 右上: リアルタイムリーダーボード */}
             <div className="absolute top-4 right-4 z-20 hidden sm:flex flex-col gap-1 w-48 pointer-events-none">
               <div
                 className={`p-3 rounded-2xl backdrop-blur-md border shadow-lg text-xs ${
@@ -2141,7 +2212,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
               </div>
             </div>
 
-            {/* 左下: キルフィード */}
             <div className="absolute bottom-4 left-4 z-20 flex flex-col gap-1 pointer-events-none">
               {killFeed.map((item) => (
                 <div
@@ -2156,12 +2226,10 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
               ))}
             </div>
 
-            {/* 右下: レーダーミニマップ */}
             <div className="absolute bottom-4 right-4 z-20 pointer-events-none rounded-2xl overflow-hidden border border-slate-700/60 shadow-xl">
               <canvas ref={minimapCanvasRef} width={100} height={100} className="block" />
             </div>
 
-            {/* スマホ用操作 ＆ ブーストボタン */}
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-2 sm:hidden">
               <button
                 onPointerDown={() => {
@@ -2233,14 +2301,13 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 text-center animate-in fade-in duration-300 overflow-y-auto">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/30 text-indigo-400 text-xs font-bold mb-2">
               <Crown className="w-4 h-4 text-amber-400" />
-              v2.1 Refined - 3 Lives & Grid Snap
+              v2.2 Ultimate - Deluxe Results & Perfect Snapping
             </div>
 
             <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white mb-2 bg-clip-text text-transparent bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
               ペーパー.io
             </h1>
 
-            {/* ゲームモード選択 */}
             <div className="flex items-center gap-2 mb-4">
               {[
                 { id: 'classic', label: 'クラシック', desc: '75%制覇' },
@@ -2262,7 +2329,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
               ))}
             </div>
 
-            {/* スキン選択 (全8種) */}
             <div className="w-full max-w-sm mb-4">
               <div className="text-xs font-bold text-slate-300 mb-1.5 flex items-center justify-center gap-1">
                 <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -2287,7 +2353,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
               </div>
             </div>
 
-            {/* 難易度 & ボット人数設定 */}
             <div className="flex flex-wrap items-center justify-center gap-3 mb-4">
               <div className="flex items-center gap-1.5 text-xs">
                 <span className="text-slate-400">Bot難易度:</span>
@@ -2324,7 +2389,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
               </div>
             </div>
 
-            {/* ハイスコア・レコード */}
             <div className="flex items-center gap-6 mb-5 text-xs font-mono">
               <div className="flex flex-col items-center">
                 <span className="text-slate-400 text-[10px]">MAX PERCENT</span>
@@ -2358,162 +2422,154 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
           </div>
         )}
 
-        {/* 🌟 刷新されたモダン・リザルト画面 (ゲームオーバー) */}
-        {gameState === 'gameover' && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 text-center animate-in fade-in zoom-in-95 duration-300 overflow-y-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-rose-500/10 border border-rose-500/30 text-rose-400 text-xs font-bold mb-3">
-              <ShieldAlert className="w-4 h-4" />
-              GAME OVER
+        {/* 👑 圧倒的クオリティ！超豪華フルアニメーション・リザルトモーダル */}
+        {(gameState === 'gameover' || gameState === 'victory') && (
+          <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-slate-950/95 backdrop-blur-2xl p-4 sm:p-6 text-center animate-in fade-in zoom-in-95 duration-500 overflow-y-auto">
+            {/* 神々しい背景光線 (God Rays) */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-3xl animate-spin"
+                style={{
+                  background:
+                    gameState === 'victory'
+                      ? 'conic-gradient(from 0deg, #f59e0b, #ef4444, #8b5cf6, #3b82f6, #10b981, #f59e0b)'
+                      : 'conic-gradient(from 0deg, #6366f1, #ec4899, #3b82f6, #6366f1)',
+                  animationDuration: '25s',
+                }}
+              />
             </div>
 
-            <h2 className="text-3xl sm:text-4xl font-black text-white mb-1 tracking-tight">
-              ELIMINATED
-            </h2>
-            <p className="text-xs text-slate-400 mb-5">すべてのライフを消費しました</p>
+            {/* メインリザルトカード */}
+            <div className="relative w-full max-w-lg p-6 sm:p-8 rounded-[32px] bg-slate-900/90 border-2 border-indigo-500/40 shadow-[0_0_60px_rgba(99,102,241,0.25)] backdrop-blur-2xl flex flex-col items-center z-10 animate-in fade-in duration-300">
+              {/* ヘッダーバッジ */}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-indigo-500/20 to-purple-500/20 border border-indigo-500/40 text-indigo-300 text-xs font-black tracking-wider mb-2">
+                <Sparkles className="w-4 h-4 text-amber-400" />
+                {gameState === 'victory' ? 'BATTLE ROYALE CHAMPION' : 'MATCH RESULTS'}
+              </div>
 
-            {/* スタッツカード */}
-            <div className="w-full max-w-sm p-5 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur-xl mb-6">
+              {/* タイトル */}
+              <h2
+                className={`text-3xl sm:text-4xl font-black tracking-tight mb-2 bg-clip-text text-transparent bg-gradient-to-r ${
+                  gameState === 'victory'
+                    ? 'from-amber-300 via-yellow-400 to-amber-500 drop-shadow-[0_0_20px_rgba(245,158,11,0.5)]'
+                    : 'from-white via-slate-200 to-slate-400'
+                }`}
+              >
+                {gameState === 'victory' ? 'VICTORY CONQUEST!' : 'MATCH FINISHED'}
+              </h2>
+
+              {/* 巨大総合ランクエンブレム (Stamp In) */}
+              <div className="my-3 flex flex-col items-center">
+                {resultAnimStage >= 2 ? (
+                  <div className="animate-in zoom-in-50 duration-500 flex flex-col items-center">
+                    <div
+                      className={`w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-gradient-to-br ${finalRank.bg} border-4 border-white/80 shadow-2xl flex items-center justify-center transform hover:scale-105 transition-transform drop-shadow-[0_0_25px_rgba(251,191,36,0.6)]`}
+                    >
+                      <span className="text-4xl sm:text-5xl font-black text-white tracking-tighter drop-shadow-md">
+                        {finalRank.grade}
+                      </span>
+                    </div>
+                    <span
+                      className="mt-2 text-xs sm:text-sm font-black tracking-widest px-3 py-0.5 rounded-full bg-slate-800/80 border border-slate-700"
+                      style={{ color: finalRank.color }}
+                    >
+                      {finalRank.title}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-slate-800/60 border-2 border-slate-700 flex items-center justify-center animate-pulse">
+                    <span className="text-2xl font-mono text-slate-500">...</span>
+                  </div>
+                )}
+              </div>
+
+              {/* 新記録バッジ */}
               {isNewRecord && (
-                <div className="mb-4 inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/20 border border-amber-500/50 text-amber-300 text-xs font-black animate-pulse">
-                  <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                <div className="mb-3 inline-flex items-center gap-1.5 px-4 py-1 rounded-full bg-amber-500/20 border border-amber-500/60 text-amber-300 text-xs font-black animate-bounce shadow-lg shadow-amber-500/20">
+                  <Trophy className="w-4 h-4 text-amber-400" />
                   🏆 NEW HIGH SCORE!
                 </div>
               )}
 
-              {/* 占有率バー */}
-              <div className="mb-4 text-left">
-                <div className="flex justify-between text-xs font-bold mb-1">
-                  <span className="text-slate-400">最終占有率</span>
-                  <span className="text-emerald-400 font-mono">{territoryPercent.toFixed(1)}%</span>
-                </div>
-                <div className="w-full h-3 rounded-full bg-slate-800 overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-1000"
-                    style={{ width: `${Math.min(100, territoryPercent)}%` }}
-                  />
-                </div>
-              </div>
-
-              {/* スコア・撃破・ストリーク一覧 */}
-              <div className="grid grid-cols-3 gap-3 py-3 border-y border-slate-800/80 font-mono">
-                <div>
-                  <div className="text-[10px] text-slate-400 font-sans font-bold">SCORE</div>
-                  <div className="text-amber-400 font-black text-lg sm:text-xl">
-                    {score.toLocaleString()}
-                  </div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-slate-400 font-sans font-bold">KILLS</div>
-                  <div className="text-rose-400 font-black text-lg sm:text-xl">{kills}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-slate-400 font-sans font-bold">MAX STREAK</div>
-                  <div className="text-indigo-400 font-black text-lg sm:text-xl">{maxStreak}x</div>
-                </div>
-              </div>
-
-              {/* 獲得MVPバッジ */}
-              <div className="mt-4 flex items-center justify-center gap-2">
-                {territoryPercent >= 20 && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[10px] font-bold text-emerald-400">
-                    <Award className="w-3 h-3" /> Conqueror
+              {/* スタッツカウントアップ表 (4項目) */}
+              <div className="w-full p-4 rounded-2xl bg-slate-950/80 border border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-2 my-2 font-mono">
+                <div className="flex flex-col items-center p-2.5 rounded-xl bg-slate-900/50">
+                  <span className="text-[10px] text-slate-400 font-sans font-bold flex items-center gap-1">
+                    <Crown className="w-3 h-3 text-amber-400" />
+                    TERRITORY
                   </span>
-                )}
-                {kills >= 3 && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-rose-500/10 border border-rose-500/30 text-[10px] font-bold text-rose-400">
-                    <Flame className="w-3 h-3" /> Slayer
+                  <span className="text-emerald-400 font-black text-lg sm:text-xl mt-1">
+                    {animPercent.toFixed(1)}%
                   </span>
-                )}
-                {maxStreak >= 2 && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-amber-500/10 border border-amber-500/30 text-[10px] font-bold text-amber-400">
-                    <Zap className="w-3 h-3" /> Combo Master
+                </div>
+
+                <div className="flex flex-col items-center p-2.5 rounded-xl bg-slate-900/50">
+                  <span className="text-[10px] text-slate-400 font-sans font-bold flex items-center gap-1">
+                    <Trophy className="w-3 h-3 text-amber-400" />
+                    SCORE
                   </span>
-                )}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={initGame}
-                className="flex items-center gap-2 px-7 py-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-black text-xs shadow-lg shadow-emerald-500/25 active:scale-95 transition-all"
-              >
-                <RotateCcw className="w-4 h-4" />
-                もう一度プレイ
-              </button>
-              <button
-                onClick={() => setGameState('title')}
-                className="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition-colors"
-              >
-                タイトルへ
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* 🌟 刷新されたモダン・リザルト画面 (完全制覇ビクトリー) */}
-        {gameState === 'victory' && (
-          <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 text-center animate-in fade-in zoom-in-95 duration-300 overflow-y-auto">
-            <Crown className="w-14 h-14 text-amber-400 mb-2 animate-bounce drop-shadow-[0_0_15px_rgba(245,158,11,0.6)]" />
-
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold mb-2">
-              <Sparkles className="w-4 h-4 text-amber-300" />
-              {gameMode === 'royale' ? 'BATTLE ROYALE CHAMPION' : 'TERRITORY CONQUEROR'}
-            </div>
-
-            <h2 className="text-4xl sm:text-5xl font-black tracking-tight text-white mb-1 bg-clip-text text-transparent bg-gradient-to-r from-amber-300 via-amber-400 to-yellow-500">
-              VICTORY!
-            </h2>
-            <p className="text-xs text-slate-300 mb-5">
-              {gameMode === 'royale'
-                ? '最後の1人として生き残り完全勝利を達成しました！'
-                : '圧倒的な領地を制覇しゲームをクリアしました！'}
-            </p>
-
-            {/* スタッツカード */}
-            <div className="w-full max-w-sm p-5 rounded-3xl bg-slate-900/90 border border-amber-500/40 shadow-2xl backdrop-blur-xl mb-6">
-              <div className="grid grid-cols-3 gap-3 py-3 border-b border-slate-800/80 font-mono">
-                <div>
-                  <div className="text-[10px] text-slate-400 font-sans font-bold">FINAL SCORE</div>
-                  <div className="text-amber-400 font-black text-lg sm:text-xl">
-                    {(score + 5000).toLocaleString()}
-                  </div>
+                  <span className="text-amber-400 font-black text-lg sm:text-xl mt-1">
+                    {animScore.toLocaleString()}
+                  </span>
                 </div>
-                <div>
-                  <div className="text-[10px] text-slate-400 font-sans font-bold">TOTAL KILLS</div>
-                  <div className="text-rose-400 font-black text-lg sm:text-xl">{kills}</div>
+
+                <div className="flex flex-col items-center p-2.5 rounded-xl bg-slate-900/50">
+                  <span className="text-[10px] text-slate-400 font-sans font-bold flex items-center gap-1">
+                    <Swords className="w-3 h-3 text-rose-400" />
+                    KILLS
+                  </span>
+                  <span className="text-rose-400 font-black text-lg sm:text-xl mt-1">{animKills}</span>
                 </div>
-                <div>
-                  <div className="text-[10px] text-slate-400 font-sans font-bold">TERRITORY</div>
-                  <div className="text-emerald-400 font-black text-lg sm:text-xl">
-                    {territoryPercent.toFixed(1)}%
-                  </div>
+
+                <div className="flex flex-col items-center p-2.5 rounded-xl bg-slate-900/50">
+                  <span className="text-[10px] text-slate-400 font-sans font-bold flex items-center gap-1">
+                    <Flame className="w-3 h-3 text-amber-400" />
+                    STREAK
+                  </span>
+                  <span className="text-indigo-400 font-black text-lg sm:text-xl mt-1">{maxStreak}x</span>
                 </div>
               </div>
 
-              <div className="mt-4 flex items-center justify-center gap-2">
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-amber-500/20 border border-amber-500/40 text-[10px] font-black text-amber-300">
-                  👑 Grand Master
-                </span>
-                <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-[10px] font-black text-emerald-300">
-                  ⭐ +5,000 Bonus
-                </span>
+              {/* 獲得実績メダル一覧 */}
+              <div className="w-full my-2">
+                <div className="text-[11px] font-bold text-slate-400 mb-2 flex items-center justify-center gap-1">
+                  <Award className="w-3.5 h-3.5 text-indigo-400" />
+                  ACHIEVEMENTS UNLOCKED
+                </div>
+                <div className="flex flex-wrap items-center justify-center gap-2 min-h-[36px]">
+                  {resultAnimStage >= 3 ? (
+                    unlockedBadges.map((b, i) => (
+                      <div
+                        key={b.id}
+                        style={{ animationDelay: `${i * 150}ms` }}
+                        className="animate-in zoom-in-75 fade-in duration-300 flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-800/90 border border-slate-700/80 shadow-md"
+                      >
+                        <span style={{ color: b.color }}>{b.icon}</span>
+                        <span className="text-[11px] font-bold text-slate-200">{b.name}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <span className="text-xs text-slate-600 font-mono">Calculating achievements...</span>
+                  )}
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={initGame}
-                className="flex items-center gap-2 px-7 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-slate-950 font-black text-xs shadow-lg shadow-amber-500/25 active:scale-95 transition-all"
-              >
-                <RotateCcw className="w-4 h-4" />
-                もう一度プレイ
-              </button>
-              <button
-                onClick={() => setGameState('title')}
-                className="px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition-colors"
-              >
-                タイトルへ
-              </button>
+              {/* アクションボタン */}
+              <div className="flex items-center gap-3 mt-4 w-full justify-center">
+                <button
+                  onClick={initGame}
+                  className="flex-1 max-w-[200px] flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-black text-sm shadow-xl shadow-emerald-500/25 active:scale-95 transition-all"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                  もう一度プレイ
+                </button>
+                <button
+                  onClick={() => setGameState('title')}
+                  className="px-6 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 active:scale-95 transition-colors"
+                >
+                  タイトルへ
+                </button>
+              </div>
             </div>
           </div>
         )}
