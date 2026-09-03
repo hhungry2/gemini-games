@@ -86,7 +86,7 @@ const V_WIDTH = 1280;
 const V_HEIGHT = 720;
 const SLING_X = 200;
 const SLING_Y = 510;
-const SLING_MAX_PULL = 90;
+const SLING_MAX_PULL = 100;
 
 export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
   onBackToHub,
@@ -281,17 +281,17 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
 
     if (type === 'small') {
       radius = 16;
-      hp = 40;
+      hp = 25;
     } else if (type === 'medium') {
       radius = 22;
-      hp = 70;
+      hp = 45;
     } else if (type === 'helmet') {
       radius = 22;
-      hp = 130;
+      hp = 90;
       density = 0.003;
     } else if (type === 'king') {
       radius = 32;
-      hp = 220;
+      hp = 160;
       density = 0.004;
     }
 
@@ -343,7 +343,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
       id: 2,
       name: '氷のパビリオン',
       nameEn: 'Glass Castle',
-      birds: ['blues', 'blues', 'red'],
+      birds: ['blues', 'blues', 'red', 'chuck'],
       starScores: [14000, 24000, 32000],
       setup: (world) => {
         const blocks: Matter.Body[] = [];
@@ -373,7 +373,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
       id: 3,
       name: '木工ツインタワー',
       nameEn: 'Wood Fortress',
-      birds: ['chuck', 'chuck', 'red'],
+      birds: ['chuck', 'chuck', 'red', 'bomb'],
       starScores: [16000, 28000, 38000],
       setup: (world) => {
         const blocks: Matter.Body[] = [];
@@ -407,7 +407,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
       id: 4,
       name: 'TNT大連鎖',
       nameEn: 'TNT Reaction',
-      birds: ['red', 'chuck', 'bomb'],
+      birds: ['red', 'chuck', 'bomb', 'blues'],
       starScores: [20000, 35000, 48000],
       setup: (world) => {
         const blocks: Matter.Body[] = [];
@@ -439,7 +439,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
       id: 5,
       name: '堅牢なる石城',
       nameEn: 'Stone Stronghold',
-      birds: ['bomb', 'bomb', 'chuck'],
+      birds: ['bomb', 'bomb', 'chuck', 'red', 'terence'],
       starScores: [18000, 30000, 42000],
       setup: (world) => {
         const blocks: Matter.Body[] = [];
@@ -469,7 +469,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
       id: 6,
       name: '巨人の進撃',
       nameEn: 'The Colossus',
-      birds: ['terence', 'bomb', 'chuck', 'red'],
+      birds: ['terence', 'terence', 'bomb', 'chuck', 'red'],
       starScores: [22000, 38000, 52000],
       setup: (world) => {
         const blocks: Matter.Body[] = [];
@@ -502,7 +502,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
       id: 7,
       name: '三層の要塞防壁',
       nameEn: 'Helmet Fortress',
-      birds: ['blues', 'chuck', 'bomb', 'red'],
+      birds: ['blues', 'chuck', 'bomb', 'red', 'terence'],
       starScores: [25000, 42000, 58000],
       setup: (world) => {
         const blocks: Matter.Body[] = [];
@@ -539,7 +539,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
       id: 8,
       name: 'キングピッグの決戦城',
       nameEn: "King Pig's Citadel",
-      birds: ['red', 'blues', 'chuck', 'bomb', 'terence'],
+      birds: ['red', 'blues', 'chuck', 'bomb', 'bomb', 'terence'],
       starScores: [30000, 55000, 75000],
       setup: (world) => {
         const blocks: Matter.Body[] = [];
@@ -805,44 +805,45 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
           const gA = (bodyA as any).gameData;
           const gB = (bodyB as any).gameData;
 
-          // 相対速度から衝撃エネルギーを算出
-          const speedA = Math.hypot(bodyA.velocity.x, bodyA.velocity.y);
-          const speedB = Math.hypot(bodyB.velocity.x, bodyB.velocity.y);
-          const relSpeed = Math.abs(speedA - speedB);
+          // 相対速度ベクトルから真の衝突エネルギーを算出 (バグ修正)
+          const relVx = bodyA.velocity.x - bodyB.velocity.x;
+          const relVy = bodyA.velocity.y - bodyB.velocity.y;
+          const relSpeed = Math.hypot(relVx, relVy);
+          const isBirdInvolved = gA?.isBird || gB?.isBird;
 
           // 効果音
-          if (relSpeed > 2.5) {
+          if (relSpeed > 2.0) {
             if (gA?.material === 'wood' || gB?.material === 'wood') sound.playImpactWood();
             else if (gA?.material === 'ice' || gB?.material === 'ice') sound.playImpactIce();
             else if (gA?.material === 'stone' || gB?.material === 'stone') sound.playImpactStone();
           }
 
           // ダメージ適用
-          if (relSpeed > 2) {
-            const damage = relSpeed * 7.5;
-            if (relSpeed > 6.5) s.screenShake = Math.max(s.screenShake, 5);
+          if (relSpeed > 1.8) {
+            const damage = relSpeed * (isBirdInvolved ? 24 : 12);
+            if (relSpeed > 6.0) s.screenShake = Math.max(s.screenShake, 6);
             if (gA && gA.alive) {
               gA.hp -= damage;
-              if (gA.isPig && relSpeed > 4) sound.playPigSqueal();
+              if (gA.isPig && relSpeed > 3.5) sound.playPigSqueal();
             }
             if (gB && gB.alive) {
               gB.hp -= damage;
-              if (gB.isPig && relSpeed > 4) sound.playPigSqueal();
+              if (gB.isPig && relSpeed > 3.5) sound.playPigSqueal();
             }
           }
 
           // TNT 直撃点火判定
-          if (relSpeed > 3) {
+          if (relSpeed > 2.8) {
             if (gA?.material === 'tnt' && gA.alive) explodeTNT(bodyA);
             if (gB?.material === 'tnt' && gB.alive) explodeTNT(bodyB);
           }
 
           // ボムバードの着弾爆破タイマー
-          if (gA?.isBird && gA.type === 'bomb' && relSpeed > 3.5) {
-            setTimeout(() => triggerBombExplosion(bodyA), 700);
+          if (gA?.isBird && gA.type === 'bomb' && relSpeed > 3.0) {
+            setTimeout(() => triggerBombExplosion(bodyA), 500);
           }
-          if (gB?.isBird && gB.type === 'bomb' && relSpeed > 3.5) {
-            setTimeout(() => triggerBombExplosion(bodyB), 700);
+          if (gB?.isBird && gB.type === 'bomb' && relSpeed > 3.0) {
+            setTimeout(() => triggerBombExplosion(bodyB), 500);
           }
         });
       });
@@ -1015,7 +1016,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
       if (pullDist > 15) {
         // 発射！
         Matter.Body.setStatic(s.activeBird, false);
-        const power = 0.23;
+        const power = 0.25;
         Matter.Body.setVelocity(s.activeBird, {
           x: dx * power,
           y: dy * power,
@@ -1116,9 +1117,9 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
           const birdSpeed = Math.hypot(s.activeBird.velocity.x, s.activeBird.velocity.y);
           const isOffScreen = bp.x > V_WIDTH + 60 || bp.x < -60 || bp.y > 640;
 
-          if (s.shotTimer > 2.0 && (birdSpeed < 0.6 || isOffScreen || s.shotTimer > 8.0)) {
+          if (s.shotTimer > 1.2 && (birdSpeed < 0.5 || isOffScreen || s.shotTimer > 7.0)) {
             s.settleTimer += dt;
-            if (s.settleTimer > 0.8) {
+            if (s.settleTimer > 0.4) {
               s.settleTimer = 0;
               // 現在のバードを除去
               if ((s.activeBird as any).gameData?.alive) {
@@ -1295,28 +1296,30 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
       });
     }
 
-    // 4. ドラッグ中の放物線予測ガイド
+    // 4. ドラッグ中の放物線予測ガイド (Matter.js物理と完全一致)
     if (s.isDragging && s.dragPos && s.activeBird) {
       const dx = s.slingshotAnchor.x - s.dragPos.x;
       const dy = s.slingshotAnchor.y - s.dragPos.y;
-      const power = 0.23;
+      const power = 0.25;
       let simX = s.dragPos.x;
       let simY = s.dragPos.y;
       let simVx = dx * power;
       let simVy = dy * power;
-      const gravity = 1.05 * 0.001 * 50; // 近似シミュレーション
 
       ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
-      for (let step = 0; step < 26; step++) {
-        simX += simVx * 1.6;
-        simY += simVy * 1.6;
-        simVy += gravity * 1.6;
+      for (let step = 0; step < 70; step++) {
+        simX += simVx;
+        simY += simVy;
+        simVx *= 0.99; // 空気抵抗 frictionAir
+        simVy = simVy * 0.99 + 0.385; // 重力加速度
 
         if (simY > 580) break;
 
-        ctx.beginPath();
-        ctx.arc(simX, simY, Math.max(2, 5 - step * 0.12), 0, Math.PI * 2);
-        ctx.fill();
+        if (step % 2 === 0) {
+          ctx.beginPath();
+          ctx.arc(simX, simY, Math.max(2.2, 5 - step * 0.04), 0, Math.PI * 2);
+          ctx.fill();
+        }
       }
     }
 
