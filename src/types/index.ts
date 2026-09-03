@@ -8,7 +8,8 @@ export type GameId =
   | 'doteater'
   | 'pong'
   | 'paperio'
-  | 'angrybirds';
+  | 'angrybirds'
+  | 'bomberman';
 
 export interface GameInfo {
   id: GameId;

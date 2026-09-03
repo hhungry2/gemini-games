@@ -11,10 +11,14 @@ import { DotEaterGame } from './games/DotEaterGame';
 import { PongGame } from './games/PongGame';
 import { PaperIoGame } from './games/PaperIoGame';
 import { AngryBirdsGame } from './games/AngryBirdsGame';
+import { BombermanGame } from './games/BombermanGame';
 import { GameInfo, GameId } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck } from 'lucide-react';
 
 const THEME_KEY = 'games_hub_theme';
+const BOMBERMAN_HIGH_SCORE_KEY = 'bomberman_high_score';
+const BOMBERMAN_BATTLE_WINS_KEY = 'bomberman_battle_wins';
+const BOMBERMAN_STAGE_CLEARED_KEY = 'bomberman_stage_cleared';
 const TETRIS_HIGH_SCORE_KEY = 'tetris_high_score_v1';
 const BROS_HIGH_SCORE_KEY = 'gemini_bros_high_score';
 const SHOOTER_HIGH_SCORE_KEY = 'star_striker_high_score';
@@ -29,6 +33,17 @@ const ANGRY_BIRDS_HIGH_SCORE_KEY = 'angrybirds_high_score';
 const ANGRY_BIRDS_STARS_KEY = 'angrybirds_level_stars';
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'bomberman',
+    title: 'ボンバーブラスト (Bomber Blast)',
+    titleEn: 'Classic Bomb Arena Battle',
+    description:
+      '爆弾でブロックを破壊しアイテムを集めてライバルを吹き飛ばせ！4人同時バトル（賢いCPU AI・サドンデス落下ブロック・ローカル2P対戦）＆全5面のアドベンチャー、10種のアイテム完備。',
+    badge: '大人気対戦爆破',
+    iconName: 'bomberman',
+    color: 'from-orange-500 via-amber-500 to-red-600',
+    tags: ['爆弾対戦', '4人バトル', 'サドンデス', '全10種アイテム', 'スマホ・PC両対応'],
+  },
   {
     id: 'angrybirds',
     title: 'アングリーバード (Angry Birds)',
@@ -164,6 +179,9 @@ export function App() {
   const [paperioHighScore, setPaperioHighScore] = useState<number>(0);
   const [paperioMaxPercent, setPaperioMaxPercent] = useState<number>(0);
   const [paperioHighKills, setPaperioHighKills] = useState<number>(0);
+  const [bombermanHighScore, setBombermanHighScore] = useState<number>(0);
+  const [bombermanBattleWins, setBombermanBattleWins] = useState<number>(0);
+  const [bombermanStageCleared, setBombermanStageCleared] = useState<number>(0);
   const [angryBirdsHighScore, setAngryBirdsHighScore] = useState<number>(0);
   const [angryBirdsTotalStars, setAngryBirdsTotalStars] = useState<number>(0);
   const [minesweeperBests, setMinesweeperBests] = useState<{
@@ -211,6 +229,15 @@ export function App() {
 
     const abScore = localStorage.getItem(ANGRY_BIRDS_HIGH_SCORE_KEY);
     if (abScore) setAngryBirdsHighScore(parseInt(abScore, 10) || 0);
+
+    const bmScore = localStorage.getItem(BOMBERMAN_HIGH_SCORE_KEY);
+    if (bmScore) setBombermanHighScore(parseInt(bmScore, 10) || 0);
+
+    const bmWins = localStorage.getItem(BOMBERMAN_BATTLE_WINS_KEY);
+    if (bmWins) setBombermanBattleWins(parseInt(bmWins, 10) || 0);
+
+    const bmStage = localStorage.getItem(BOMBERMAN_STAGE_CLEARED_KEY);
+    if (bmStage) setBombermanStageCleared(parseInt(bmStage, 10) || 0);
 
     const abStars = localStorage.getItem(ANGRY_BIRDS_STARS_KEY);
     if (abStars) {
@@ -270,7 +297,9 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'angrybirds') {
+    if (activeGame === 'bomberman') {
+      document.title = 'ボンバーブラスト (Bomber Blast) | Games Hub';
+    } else if (activeGame === 'angrybirds') {
       document.title = 'アングリーバード (Angry Birds) | Games Hub';
     } else if (activeGame === 'paperio') {
       document.title = 'ペーパー.io (Paper.io) | Games Hub';
@@ -297,6 +326,22 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'bomberman') {
+      return [
+        {
+          label: 'BATTLE WINS',
+          value: bombermanBattleWins > 0 ? `👑 ${bombermanBattleWins} 勝` : '--',
+        },
+        {
+          label: 'HIGH SCORE',
+          value: bombermanHighScore > 0 ? `${bombermanHighScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: 'STAGE CLEARED',
+          value: bombermanStageCleared > 0 ? `STAGE ${bombermanStageCleared}` : '--',
+        },
+      ];
+    }
     if (gameId === 'angrybirds') {
       return [
         {
@@ -570,7 +615,7 @@ export function App() {
                       isDark ? 'text-white' : 'text-slate-900'
                     }`}
                   >
-                    ゲーム一覧 (全10タイトル)
+                    ゲーム一覧 (全11タイトル)
                   </h2>
                   <p
                     className={`text-xs mt-1 ${
@@ -597,6 +642,13 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'bomberman' && (
+              <BombermanGame
+                onBackToHub={() => setActiveGame(null)}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'angrybirds' && (
               <AngryBirdsGame
                 onBackToHub={() => setActiveGame(null)}
