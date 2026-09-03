@@ -578,6 +578,16 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
     },
   ];
 
+  // バード特性ヘルパー
+  const getBirdProps = (type: BirdType) => {
+    if (type === 'red') return { radius: 18, density: 0.004 };
+    if (type === 'chuck') return { radius: 16, density: 0.003 };
+    if (type === 'blues') return { radius: 13, density: 0.0025 };
+    if (type === 'bomb') return { radius: 22, density: 0.005 };
+    if (type === 'terence') return { radius: 30, density: 0.012 };
+    return { radius: 18, density: 0.004 };
+  };
+
   // --- 次のバードをスリングショットに装填 ---
   const loadNextBird = useCallback(() => {
     const s = stateRef.current;
@@ -591,47 +601,12 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
 
     const type = s.birdsQueue.shift()!;
     s.activeBirdType = type;
+    s.activeBird = null;
     s.isBirdLaunched = false;
     s.hasUsedSkill = false;
     s.shotTimer = 0;
     s.subBirds = [];
-
-    let radius = 18;
-    let density = 0.0035;
-
-    if (type === 'red') {
-      radius = 18;
-      density = 0.004;
-    } else if (type === 'chuck') {
-      radius = 16;
-      density = 0.003;
-    } else if (type === 'blues') {
-      radius = 13;
-      density = 0.0025;
-    } else if (type === 'bomb') {
-      radius = 22;
-      density = 0.005;
-    } else if (type === 'terence') {
-      radius = 30;
-      density = 0.012;
-    }
-
-    const bird = Matter.Bodies.circle(s.slingshotAnchor.x, s.slingshotAnchor.y, radius, {
-      isStatic: true,
-      density,
-      friction: 0.5,
-      restitution: 0.4,
-    });
-
-    (bird as any).gameData = {
-      isBird: true,
-      type,
-      radius,
-      alive: true,
-    };
-
-    Matter.World.add(s.engine.world, bird);
-    s.activeBird = bird;
+    s.dragPos = null;
   }, []);
 
   // --- TNT 爆破処理 ---
@@ -949,7 +924,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
       return;
     }
 
-    if (!s.activeBird || s.isBirdLaunched) return;
+    if (s.isBirdLaunched || !s.activeBirdType) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -971,7 +946,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
 
   const handlePointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const s = stateRef.current;
-    if (!s.isDragging || !s.activeBird) return;
+    if (!s.isDragging || !s.activeBirdType || s.isBirdLaunched) return;
 
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -997,14 +972,15 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
       x: s.slingshotAnchor.x + dx,
       y: s.slingshotAnchor.y + dy,
     };
-
-    // バードの位置をドラッグ位置に追従
-    Matter.Body.setPosition(s.activeBird, s.dragPos);
   };
 
   const handlePointerUp = () => {
     const s = stateRef.current;
-    if (!s.isDragging || !s.activeBird) return;
+    if (!s.isDragging || !s.activeBirdType || s.isBirdLaunched || !s.engine) {
+      s.isDragging = false;
+      s.dragPos = null;
+      return;
+    }
 
     s.isDragging = false;
 
@@ -1014,14 +990,30 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
       const pullDist = Math.hypot(dx, dy);
 
       if (pullDist > 15) {
-        // 発射！
-        Matter.Body.setStatic(s.activeBird, false);
+        // 発射！ 動的リジッドボディを生成してワールドに追加 (isStatic切替によるNaNバグを完全根絶)
+        const { radius, density } = getBirdProps(s.activeBirdType);
+        const bird = Matter.Bodies.circle(s.dragPos.x, s.dragPos.y, radius, {
+          density,
+          friction: 0.5,
+          restitution: 0.4,
+        });
+
+        (bird as any).gameData = {
+          isBird: true,
+          type: s.activeBirdType,
+          radius,
+          alive: true,
+        };
+
+        Matter.World.add(s.engine.world, bird);
+
         const power = 0.25;
-        Matter.Body.setVelocity(s.activeBird, {
+        Matter.Body.setVelocity(bird, {
           x: dx * power,
           y: dy * power,
         });
 
+        s.activeBird = bird;
         s.isBirdLaunched = true;
         s.shotTimer = 0;
         s.prevTrajectory = [...s.currentTrajectory];
@@ -1029,9 +1021,6 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
 
         sound.playSlingshotRelease();
         sound.playBirdFly();
-      } else {
-        // 引きが弱すぎる場合は元に戻す
-        Matter.Body.setPosition(s.activeBird, s.slingshotAnchor);
       }
     }
 
@@ -1132,6 +1121,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
                 Matter.World.remove(s.engine!.world, sb);
               });
               s.subBirds = [];
+              s.activeBird = null;
 
               // 次のバードへ
               loadNextBird();
@@ -1176,6 +1166,8 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
           livingPigs.length > 0 &&
           s.birdsQueue.length === 0 &&
           !s.activeBird &&
+          !s.activeBirdType &&
+          !s.isBirdLaunched &&
           gameState === 'playing'
         ) {
           sound.playGameOver();
@@ -1297,7 +1289,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
     }
 
     // 4. ドラッグ中の放物線予測ガイド (Matter.js物理と完全一致)
-    if (s.isDragging && s.dragPos && s.activeBird) {
+    if (s.isDragging && s.dragPos && s.activeBirdType && !s.isBirdLaunched) {
       const dx = s.slingshotAnchor.x - s.dragPos.x;
       const dy = s.slingshotAnchor.y - s.dragPos.y;
       const power = 0.25;
@@ -1324,7 +1316,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
     }
 
     // 5. スリングショット奥のゴム紐
-    if (s.dragPos && s.activeBird) {
+    if (s.dragPos && s.activeBirdType && !s.isBirdLaunched) {
       ctx.strokeStyle = '#451a03';
       ctx.lineWidth = 5;
       ctx.beginPath();
@@ -1337,7 +1329,7 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
     drawSlingshot(ctx, s.slingshotAnchor.x, s.slingshotAnchor.y);
 
     // 7. スリングショット手前のゴム紐
-    if (s.dragPos && s.activeBird) {
+    if (s.dragPos && s.activeBirdType && !s.isBirdLaunched) {
       ctx.strokeStyle = '#78350f';
       ctx.lineWidth = 6;
       ctx.beginPath();
@@ -1370,37 +1362,49 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
     });
 
     // 11. アクティブバード描画
-    if (s.activeBird && (s.activeBird as any).gameData?.alive) {
-      const bp = s.activeBird.position;
-      let angle = s.activeBird.angle;
-      const vx = s.activeBird.velocity.x;
-      const vy = s.activeBird.velocity.y;
-      const speed = Math.hypot(vx, vy);
+    if (s.isBirdLaunched) {
+      // 飛行中
+      if (s.activeBird && (s.activeBird as any).gameData?.alive) {
+        const bp = s.activeBird.position;
+        let angle = s.activeBird.angle;
+        const vx = s.activeBird.velocity.x;
+        const vy = s.activeBird.velocity.y;
+        const speed = Math.hypot(vx, vy);
 
-      // 飛行中は進行方向に頭を向ける
-      if (s.isBirdLaunched && speed > 1.2) {
-        angle = Math.atan2(vy, vx);
-        // 白いモクモクスモークトレイル
-        if (Math.random() < 0.45) {
-          s.particles.push({
-            x: bp.x - (vx / speed) * 14,
-            y: bp.y - (vy / speed) * 14,
-            vx: (Math.random() - 0.5) * 0.6,
-            vy: (Math.random() - 0.5) * 0.6,
-            radius: Math.random() * 4 + 3,
-            color: 'rgba(255, 255, 255, 0.75)',
-            alpha: 0.8,
-            life: 0,
-            maxLife: 22,
-            rotation: 0,
-            vRot: 0,
-            shape: 'circle',
-          });
+        // 飛行中は進行方向に頭を向ける
+        if (speed > 1.2) {
+          angle = Math.atan2(vy, vx);
+          // 白いモクモクスモークトレイル
+          if (Math.random() < 0.45) {
+            s.particles.push({
+              x: bp.x - (vx / speed) * 14,
+              y: bp.y - (vy / speed) * 14,
+              vx: (Math.random() - 0.5) * 0.6,
+              vy: (Math.random() - 0.5) * 0.6,
+              radius: Math.random() * 4 + 3,
+              color: 'rgba(255, 255, 255, 0.75)',
+              alpha: 0.8,
+              life: 0,
+              maxLife: 22,
+              rotation: 0,
+              vRot: 0,
+              shape: 'circle',
+            });
+          }
         }
-      }
 
-      const gData = (s.activeBird as any).gameData;
-      drawBird(ctx, bp.x, bp.y, angle, gData.type, gData.radius);
+        const gData = (s.activeBird as any).gameData;
+        drawBird(ctx, bp.x, bp.y, angle, gData.type, gData.radius);
+      }
+    } else if (s.activeBirdType) {
+      // スリングショット装填中 / ドラッグ中
+      const drawX = s.dragPos ? s.dragPos.x : s.slingshotAnchor.x;
+      const drawY = s.dragPos ? s.dragPos.y : s.slingshotAnchor.y;
+      const angle = s.dragPos
+        ? Math.atan2(s.dragPos.y - s.slingshotAnchor.y, s.dragPos.x - s.slingshotAnchor.x)
+        : 0;
+      const { radius } = getBirdProps(s.activeBirdType);
+      drawBird(ctx, drawX, drawY, angle, s.activeBirdType, radius);
     }
 
     // 分裂サブバード描画
