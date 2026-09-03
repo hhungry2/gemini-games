@@ -14,6 +14,7 @@ import {
   TableProperties,
   SquareDashedKanban,
   Crown,
+  Target,
 } from 'lucide-react';
 
 export interface RecordItem {
@@ -36,6 +37,8 @@ export const GameCard: React.FC<GameCardProps> = ({
 }) => {
   const getGameIcon = () => {
     switch (game.id) {
+      case 'angrybirds':
+        return <Target className="w-6 h-6 text-white" />;
       case 'shooter':
         return <Crosshair className="w-6 h-6 text-white" />;
       case 'bros':

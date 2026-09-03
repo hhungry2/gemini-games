@@ -10,6 +10,7 @@ import { Game2048 } from './games/Game2048';
 import { DotEaterGame } from './games/DotEaterGame';
 import { PongGame } from './games/PongGame';
 import { PaperIoGame } from './games/PaperIoGame';
+import { AngryBirdsGame } from './games/AngryBirdsGame';
 import { GameInfo, GameId } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck } from 'lucide-react';
 
@@ -24,8 +25,21 @@ const PONG_RALLY_KEY = 'pong_rally_best';
 const PAPERIO_HIGH_SCORE_KEY = 'paperio_high_score';
 const PAPERIO_MAX_PERCENT_KEY = 'paperio_max_percent';
 const PAPERIO_HIGH_KILLS_KEY = 'paperio_high_kills';
+const ANGRY_BIRDS_HIGH_SCORE_KEY = 'angrybirds_high_score';
+const ANGRY_BIRDS_STARS_KEY = 'angrybirds_level_stars';
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'angrybirds',
+    title: 'アングリーバード (Angry Birds)',
+    titleEn: 'Slingshot Physics Destruction',
+    description:
+      'スリングショットで鳥を撃ち放ち、木・氷・石・TNTの砦を豪快に粉砕せよ！5種類の特殊バード、リアルな2D剛体物理、全8ステージ、3つ星評価を搭載。',
+    badge: '大人気物理パズル',
+    iconName: 'angrybirds',
+    color: 'from-red-500 via-amber-500 to-emerald-500',
+    tags: ['物理演算', 'スリングショット', '破壊爽快感', '特殊スキル', 'スマホ・PC両対応'],
+  },
   {
     id: 'paperio',
     title: 'ペーパー.io (Paper.io)',
@@ -150,6 +164,8 @@ export function App() {
   const [paperioHighScore, setPaperioHighScore] = useState<number>(0);
   const [paperioMaxPercent, setPaperioMaxPercent] = useState<number>(0);
   const [paperioHighKills, setPaperioHighKills] = useState<number>(0);
+  const [angryBirdsHighScore, setAngryBirdsHighScore] = useState<number>(0);
+  const [angryBirdsTotalStars, setAngryBirdsTotalStars] = useState<number>(0);
   const [minesweeperBests, setMinesweeperBests] = useState<{
     easy: number | null;
     medium: number | null;
@@ -192,6 +208,21 @@ export function App() {
 
     const pKills = localStorage.getItem(PAPERIO_HIGH_KILLS_KEY);
     if (pKills) setPaperioHighKills(parseInt(pKills, 10) || 0);
+
+    const abScore = localStorage.getItem(ANGRY_BIRDS_HIGH_SCORE_KEY);
+    if (abScore) setAngryBirdsHighScore(parseInt(abScore, 10) || 0);
+
+    const abStars = localStorage.getItem(ANGRY_BIRDS_STARS_KEY);
+    if (abStars) {
+      try {
+        const parsed = JSON.parse(abStars);
+        const total = Object.values(parsed).reduce(
+          (acc: number, cur) => acc + (typeof cur === 'number' ? cur : 0),
+          0
+        ) as number;
+        setAngryBirdsTotalStars(total);
+      } catch {}
+    }
 
     const mEasy = localStorage.getItem('minesweeper_best_easy');
     const mMed = localStorage.getItem('minesweeper_best_medium');
@@ -239,7 +270,9 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'paperio') {
+    if (activeGame === 'angrybirds') {
+      document.title = 'アングリーバード (Angry Birds) | Games Hub';
+    } else if (activeGame === 'paperio') {
       document.title = 'ペーパー.io (Paper.io) | Games Hub';
     } else if (activeGame === 'breakout') {
       document.title = 'ブロック崩し (Breakout) | Games Hub';
@@ -264,6 +297,18 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'angrybirds') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: angryBirdsHighScore > 0 ? `${angryBirdsHighScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: 'STARS',
+          value: angryBirdsTotalStars > 0 ? `★ ${angryBirdsTotalStars} / 24` : '--',
+        },
+      ];
+    }
     if (gameId === 'paperio') {
       return [
         {
@@ -525,7 +570,7 @@ export function App() {
                       isDark ? 'text-white' : 'text-slate-900'
                     }`}
                   >
-                    ゲーム一覧 (全9タイトル)
+                    ゲーム一覧 (全10タイトル)
                   </h2>
                   <p
                     className={`text-xs mt-1 ${
@@ -552,6 +597,13 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'angrybirds' && (
+              <AngryBirdsGame
+                onBackToHub={() => setActiveGame(null)}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'paperio' && (
               <PaperIoGame
                 onBackToHub={() => setActiveGame(null)}
