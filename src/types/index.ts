@@ -9,7 +9,9 @@ export type GameId =
   | 'pong'
   | 'paperio'
   | 'angrybirds'
-  | 'bomberman';
+  | 'bomberman'
+  | 'excitebike'
+  | 'holeio';
 
 export interface GameInfo {
   id: GameId;

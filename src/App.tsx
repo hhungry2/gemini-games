@@ -12,10 +12,16 @@ import { PongGame } from './games/PongGame';
 import { PaperIoGame } from './games/PaperIoGame';
 import { AngryBirdsGame } from './games/AngryBirdsGame';
 import { BombermanGame } from './games/BombermanGame';
+import { ExcitebikeGame } from './games/ExcitebikeGame';
+import { HoleIoGame } from './games/HoleIoGame';
 import { GameInfo, GameId } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck } from 'lucide-react';
 
 const THEME_KEY = 'games_hub_theme';
+const HOLEIO_HIGH_SCORE_KEY = 'holeio_high_score';
+const HOLEIO_BEST_KILLS_KEY = 'holeio_best_kills';
+const HOLEIO_MAX_SIZE_KEY = 'holeio_max_size';
+const EXCITEBIKE_BEST_TIMES_KEY = 'excitebike_best_times_v1';
 const BOMBERMAN_HIGH_SCORE_KEY = 'bomberman_high_score';
 const BOMBERMAN_BATTLE_WINS_KEY = 'bomberman_battle_wins';
 const BOMBERMAN_STAGE_CLEARED_KEY = 'bomberman_stage_cleared';
@@ -33,6 +39,28 @@ const ANGRY_BIRDS_HIGH_SCORE_KEY = 'angrybirds_high_score';
 const ANGRY_BIRDS_STARS_KEY = 'angrybirds_level_stars';
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'holeio',
+    title: 'ブラックホール.io (Hole.io)',
+    titleEn: 'City Devourer Physics Action',
+    description:
+      '地面のブラックホールとなり街のすべてを飲み込め！歩行者や車から始まり、ビルやライバルホールまで吸い込んで超巨大化！2.5D都市・8体の賢いBot対戦・3つのゲームモード・パワーアップ完備。',
+    badge: '新作！大迫力io',
+    iconName: 'holeio',
+    color: 'from-sky-500 via-indigo-600 to-rose-600',
+    tags: ['ブラックホール', '街破壊', 'Bot対戦', '吸い込み物理', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'excitebike',
+    title: 'エキサイトバイク (Excitebike)',
+    titleEn: 'Classic Motocross 2.5D Racing',
+    description:
+      '名作モトクロスレースが完全復活！通常＆ターボアクセル・オーバーヒート管理・クーラーパッド・空中チルト制御・クラッシュ連打復帰・全5コース・CPUバトル・自作コースエディタ完備。',
+    badge: '名作レース',
+    iconName: 'excitebike',
+    color: 'from-amber-500 via-red-500 to-rose-600',
+    tags: ['モトクロス', '2.5Dレース', 'ターボ＆チルト', 'コースエディタ', 'スマホ・PC両対応'],
+  },
   {
     id: 'bomberman',
     title: 'ボンバーブラスト (Bomber Blast)',
@@ -169,6 +197,9 @@ export function App() {
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   // ハイスコア / ベストタイム状態
+  const [holeioHighScore, setHoleioHighScore] = useState<number>(0);
+  const [holeioBestKills, setHoleioBestKills] = useState<number>(0);
+  const [holeioMaxSize, setHoleioMaxSize] = useState<number>(0);
   const [shooterHighScore, setShooterHighScore] = useState<number>(0);
   const [tetrisHighScore, setTetrisHighScore] = useState<number>(0);
   const [brosHighScore, setBrosHighScore] = useState<number>(0);
@@ -184,6 +215,7 @@ export function App() {
   const [bombermanStageCleared, setBombermanStageCleared] = useState<number>(0);
   const [angryBirdsHighScore, setAngryBirdsHighScore] = useState<number>(0);
   const [angryBirdsTotalStars, setAngryBirdsTotalStars] = useState<number>(0);
+  const [excitebikeBestTimes, setExcitebikeBestTimes] = useState<Record<string, number>>({});
   const [minesweeperBests, setMinesweeperBests] = useState<{
     easy: number | null;
     medium: number | null;
@@ -197,6 +229,21 @@ export function App() {
   // レコードの読み込み
   const loadRecords = () => {
     if (typeof window === 'undefined') return;
+    const ebTimes = localStorage.getItem(EXCITEBIKE_BEST_TIMES_KEY);
+    if (ebTimes) {
+      try {
+        setExcitebikeBestTimes(JSON.parse(ebTimes));
+      } catch {}
+    }
+
+    const hScore = localStorage.getItem(HOLEIO_HIGH_SCORE_KEY);
+    if (hScore) setHoleioHighScore(parseInt(hScore, 10) || 0);
+
+    const hKills = localStorage.getItem(HOLEIO_BEST_KILLS_KEY);
+    if (hKills) setHoleioBestKills(parseInt(hKills, 10) || 0);
+
+    const hSize = localStorage.getItem(HOLEIO_MAX_SIZE_KEY);
+    if (hSize) setHoleioMaxSize(parseInt(hSize, 10) || 0);
     const sScore = localStorage.getItem(SHOOTER_HIGH_SCORE_KEY);
     if (sScore) setShooterHighScore(parseInt(sScore, 10) || 0);
 
@@ -297,7 +344,11 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'bomberman') {
+    if (activeGame === 'holeio') {
+      document.title = 'ブラックホール.io (Hole.io) | Games Hub';
+    } else if (activeGame === 'excitebike') {
+      document.title = 'エキサイトバイク (Excitebike) | Games Hub';
+    } else if (activeGame === 'bomberman') {
       document.title = 'ボンバーブラスト (Bomber Blast) | Games Hub';
     } else if (activeGame === 'angrybirds') {
       document.title = 'アングリーバード (Angry Birds) | Games Hub';
@@ -326,6 +377,41 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'holeio') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: holeioHighScore > 0 ? `${holeioHighScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: 'MAX RADIUS',
+          value: holeioMaxSize > 0 ? `${holeioMaxSize} m` : '--',
+        },
+        {
+          label: 'MAX KILLS',
+          value: holeioBestKills > 0 ? `${holeioBestKills} 撃破` : '--',
+        },
+      ];
+    }
+    if (gameId === 'excitebike') {
+      const t1 = excitebikeBestTimes['track_1'];
+      const t2 = excitebikeBestTimes['track_2'];
+      const t3 = excitebikeBestTimes['track_3'];
+      return [
+        {
+          label: 'TRACK 1 BEST',
+          value: t1 !== undefined ? `${t1.toFixed(2)}s` : '--',
+        },
+        {
+          label: 'TRACK 2 BEST',
+          value: t2 !== undefined ? `${t2.toFixed(2)}s` : '--',
+        },
+        {
+          label: 'TRACK 3 BEST',
+          value: t3 !== undefined ? `${t3.toFixed(2)}s` : '--',
+        },
+      ];
+    }
     if (gameId === 'bomberman') {
       return [
         {
@@ -615,7 +701,7 @@ export function App() {
                       isDark ? 'text-white' : 'text-slate-900'
                     }`}
                   >
-                    ゲーム一覧 (全11タイトル)
+                    ゲーム一覧 (全13タイトル)
                   </h2>
                   <p
                     className={`text-xs mt-1 ${
@@ -642,6 +728,23 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'holeio' && (
+              <HoleIoGame
+                onBackToHub={() => {
+                  setActiveGame(null);
+                  loadRecords();
+                }}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'excitebike' && (
+              <ExcitebikeGame
+                onBackToHub={() => setActiveGame(null)}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'bomberman' && (
               <BombermanGame
                 onBackToHub={() => setActiveGame(null)}

@@ -16,6 +16,8 @@ import {
   Crown,
   Target,
   Flame,
+  Bike,
+  Aperture,
 } from 'lucide-react';
 
 export interface RecordItem {
@@ -60,6 +62,10 @@ export const GameCard: React.FC<GameCardProps> = ({
         return <Crown className="w-6 h-6 text-white" />;
       case 'bomberman':
         return <Flame className="w-6 h-6 text-white" />;
+      case 'excitebike':
+        return <Bike className="w-6 h-6 text-white" />;
+      case 'holeio':
+        return <Aperture className="w-6 h-6 text-white" />;
       default:
         return <LayoutGrid className="w-6 h-6 text-white" />;
     }
