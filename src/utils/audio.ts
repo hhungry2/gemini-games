@@ -98,6 +98,12 @@ class SoundEngine {
   private bombermanBgmTimer: number | null = null;
   private bombermanBgmStep: number = 0;
 
+  // ちいかわ BGM シーケンサー状態
+  private isChiikawaBgmRunning: boolean = false;
+  private chiikawaBgmTimer: number | null = null;
+  private chiikawaBgmStep: number = 0;
+  private chiikawaBgmTheme: 'chill' | 'battle' = 'chill';
+
   constructor() {}
 
   private initCtx() {
@@ -2026,6 +2032,820 @@ class SoundEngine {
     gain.connect(this.ctx.destination);
     osc.start(now);
     osc.stop(now + 0.1);
+  }
+
+  // --- ジュエルパズル (Jewel Quest) 効果音群 ---
+  public playJewelSelect() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(659.25, now);
+    osc.frequency.exponentialRampToValueAtTime(880, now + 0.05);
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.07);
+  }
+
+  public playJewelSwap() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.exponentialRampToValueAtTime(600, now + 0.09);
+    gain.gain.setValueAtTime(0.09, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.09);
+  }
+
+  public playJewelInvalid() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.setValueAtTime(180, now + 0.06);
+    gain.gain.setValueAtTime(0.07, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.15);
+  }
+
+  public playJewelMatch(combo: number = 1) {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const scale = [523.25, 587.33, 659.25, 783.99, 880.0, 1046.5, 1174.66, 1318.5, 1567.98, 1760.0];
+    const baseIndex = Math.min(combo - 1, scale.length - 2);
+    const f1 = scale[baseIndex];
+    const f2 = scale[Math.min(baseIndex + 2, scale.length - 1)];
+
+    [f1, f2].forEach((f, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      const t = now + idx * 0.04;
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0.12, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.22);
+    });
+  }
+
+  public playJewelSpecialCreate() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const notes = [523.25, 659.25, 783.99, 1046.5];
+    notes.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      const t = now + idx * 0.05;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.1, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    });
+  }
+
+  public playJewelLaser() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(200, now + 0.25);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  }
+
+  public playJewelBomb() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(35, now + 0.35);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.35);
+  }
+
+  public playJewelRainbow() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const notes = [440, 554.37, 659.25, 880, 1108.73, 1318.51];
+    notes.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      const t = now + idx * 0.04;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.09, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.3);
+    });
+  }
+
+  public playJewelShuffle() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    for (let i = 0; i < 4; i++) {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      const t = now + i * 0.05;
+      osc.frequency.setValueAtTime(300 + Math.random() * 300, t);
+      gain.gain.setValueAtTime(0.06, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.08);
+    }
+  }
+
+  public playJewelClear() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const fanfare = [523.25, 659.25, 783.99, 1046.5];
+    fanfare.forEach((f, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      const t = now + i * 0.1;
+      const dur = i === fanfare.length - 1 ? 0.6 : 0.15;
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0.14, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + dur);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + dur);
+    });
+  }
+
+  public playJewelGameOver() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const notes = [440, 415.3, 392, 349.23];
+    notes.forEach((f, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      const t = now + i * 0.12;
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0.1, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.2);
+    });
+  }
+
+  // ==========================================
+  // ちいかわ (Chiikawa) サウンドエンジン
+  // ==========================================
+
+  public startChiikawaBgm(theme: 'chill' | 'battle' = 'chill') {
+    this.initCtx();
+    this.stopChiikawaBgm();
+    this.isChiikawaBgmRunning = true;
+    this.chiikawaBgmStep = 0;
+    this.chiikawaBgmTheme = theme;
+
+    const tempo = theme === 'chill' ? 120 : 155;
+    const stepTimeMs = (60 / tempo / 4) * 1000;
+
+    this.chiikawaBgmTimer = window.setInterval(() => {
+      this.tickChiikawaBgm(stepTimeMs / 1000);
+    }, stepTimeMs);
+  }
+
+  public stopChiikawaBgm() {
+    this.isChiikawaBgmRunning = false;
+    if (this.chiikawaBgmTimer) {
+      clearInterval(this.chiikawaBgmTimer);
+      this.chiikawaBgmTimer = null;
+    }
+    this.chiikawaBgmStep = 0;
+  }
+
+  private tickChiikawaBgm(duration: number) {
+    if (!this.isChiikawaBgmRunning || this.isMuted || !this.ctx) return;
+
+    // ほのぼのメロディ (ひとりごつ風の優しい音色)
+    const CHILL_LEAD = [
+      523.25, 0, 587.33, 0, 659.25, 0, 783.99, 0,
+      880.0, 0, 783.99, 0, 659.25, 0, 587.33, 0,
+      523.25, 523.25, 587.33, 0, 659.25, 0, 523.25, 0,
+      440.0, 0, 392.0, 0, 523.25, 0, 0, 0,
+      659.25, 0, 698.46, 0, 783.99, 0, 880.0, 0,
+      1046.5, 0, 880.0, 0, 783.99, 0, 659.25, 0,
+      587.33, 0, 659.25, 0, 783.99, 0, 587.33, 0,
+      523.25, 0, 0, 0, 523.25, 0, 0, 0,
+    ];
+
+    // 討伐バトル用アップテンポメロディ (なんとかなれ！勇気ある行進曲)
+    const BATTLE_LEAD = [
+      587.33, 587.33, 587.33, 0, 659.25, 0, 783.99, 0,
+      880.0, 0, 880.0, 880.0, 1046.5, 0, 880.0, 0,
+      783.99, 0, 659.25, 0, 783.99, 0, 880.0, 0,
+      587.33, 0, 0, 0, 659.25, 0, 783.99, 0,
+      880.0, 880.0, 987.77, 0, 1046.5, 0, 1174.66, 0,
+      1046.5, 0, 987.77, 0, 880.0, 0, 783.99, 0,
+      659.25, 0, 783.99, 0, 880.0, 0, 987.77, 0,
+      1046.5, 0, 1046.5, 0, 1046.5, 0, 0, 0,
+    ];
+
+    const BASS_NOTES = [
+      261.63, 0, 329.63, 0, 392.0, 0, 329.63, 0,
+      220.0, 0, 261.63, 0, 329.63, 0, 261.63, 0,
+      174.61, 0, 220.0, 0, 261.63, 0, 220.0, 0,
+      196.0, 0, 246.94, 0, 293.66, 0, 196.0, 0,
+    ];
+
+    const leadSeq = this.chiikawaBgmTheme === 'chill' ? CHILL_LEAD : BATTLE_LEAD;
+    const leadNote = leadSeq[this.chiikawaBgmStep % leadSeq.length];
+    const bassNote = BASS_NOTES[(this.chiikawaBgmStep / 2 | 0) % BASS_NOTES.length];
+
+    const now = this.ctx.currentTime;
+
+    if (leadNote > 0) {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = this.chiikawaBgmTheme === 'chill' ? 'triangle' : 'square';
+      osc.frequency.setValueAtTime(leadNote, now);
+      const vol = this.chiikawaBgmTheme === 'chill' ? 0.05 : 0.035;
+      gain.gain.setValueAtTime(vol, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + duration * 1.6);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + duration * 1.6);
+    }
+
+    if (this.chiikawaBgmStep % 2 === 0 && bassNote > 0) {
+      const bOsc = this.ctx.createOscillator();
+      const bGain = this.ctx.createGain();
+      bOsc.type = 'sine';
+      bOsc.frequency.setValueAtTime(bassNote, now);
+      bGain.gain.setValueAtTime(0.06, now);
+      bGain.gain.exponentialRampToValueAtTime(0.001, now + duration * 1.8);
+      bOsc.connect(bGain);
+      bGain.connect(this.ctx.destination);
+      bOsc.start(now);
+      bOsc.stop(now + duration * 1.8);
+    }
+
+    this.chiikawaBgmStep++;
+  }
+
+  // さすまた攻撃音
+  public playChiikawaAttack() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(600, now);
+    osc.frequency.exponentialRampToValueAtTime(200, now + 0.1);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  }
+
+  // 敵へのヒット音
+  public playChiikawaHit() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(320, now);
+    osc.frequency.exponentialRampToValueAtTime(100, now + 0.08);
+    gain.gain.setValueAtTime(0.1, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.08);
+  }
+
+  // 敵討伐完了音
+  public playChiikawaDefeat() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const freqs = [523.25, 659.25, 783.99, 1046.5];
+    freqs.forEach((f, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      const t = now + i * 0.04;
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0.08, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.12);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.12);
+    });
+  }
+
+  // 草むしり音
+  public playChiikawaWeed(combo: number = 0) {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const baseFreq = 440 * Math.pow(1.05, Math.min(combo, 16));
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(baseFreq * 0.8, now);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + 0.08);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.1);
+  }
+
+  // 危険草のペナルティ音
+  public playChiikawaDanger() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(150, now);
+    osc.frequency.linearRampToValueAtTime(80, now + 0.25);
+    gain.gain.setValueAtTime(0.14, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  }
+
+  // おやつ・アイテム拾い音
+  public playChiikawaEat() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const tones = [659.25, 880.0];
+    tones.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      const t = now + idx * 0.06;
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.1, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.1);
+    });
+  }
+
+  // 各キャラの必殺スキル音
+  public playChiikawaSpecial(character: string) {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    if (character === 'chiikawa') {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(300, now);
+      osc.frequency.exponentialRampToValueAtTime(700, now + 0.15);
+      osc.frequency.exponentialRampToValueAtTime(200, now + 0.4);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.45);
+    } else if (character === 'hachiware') {
+      const notes = [440, 554.37, 659.25, 880, 1108.73];
+      notes.forEach((f, i) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'triangle';
+        const t = now + i * 0.06;
+        osc.frequency.setValueAtTime(f, t);
+        gain.gain.setValueAtTime(0.14, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.2);
+      });
+    } else if (character === 'usagi') {
+      for (let i = 0; i < 6; i++) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'square';
+        const t = now + i * 0.04;
+        osc.frequency.setValueAtTime(800 + (i % 2) * 300, t);
+        gain.gain.setValueAtTime(0.08, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.05);
+      }
+    } else if (character === 'kurimanju') {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.linearRampToValueAtTime(60, now + 0.5);
+      gain.gain.setValueAtTime(0.2, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.5);
+    } else {
+      const arpeggio = [523.25, 659.25, 783.99, 1046.5, 1318.5];
+      arpeggio.forEach((f, i) => {
+        if (!this.ctx) return;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        const t = now + i * 0.05;
+        osc.frequency.setValueAtTime(f, t);
+        gain.gain.setValueAtTime(0.12, t);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(t);
+        osc.stop(t + 0.25);
+      });
+    }
+  }
+
+  // レベルアップ音
+  public playChiikawaLevelUp() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const chord = [523.25, 659.25, 783.99, 1046.5];
+    chord.forEach((f, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      const t = now + i * 0.08;
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0.15, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.4);
+    });
+  }
+
+  // 討伐成功 / 合格ファンファーレ
+  public playChiikawaVictory() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const fanfare = [
+      { f: 523.25, dur: 0.15, d: 0 },
+      { f: 659.25, dur: 0.15, d: 0.15 },
+      { f: 783.99, dur: 0.15, d: 0.3 },
+      { f: 1046.5, dur: 0.4, d: 0.45 },
+      { f: 880.0, dur: 0.2, d: 0.9 },
+      { f: 1046.5, dur: 0.6, d: 1.1 },
+    ];
+    fanfare.forEach((n) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      const t = now + n.d;
+      osc.frequency.setValueAtTime(n.f, t);
+      gain.gain.setValueAtTime(0.16, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + n.dur);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + n.dur);
+    });
+  }
+
+  // しょんぼりゲームオーバー
+  public playChiikawaGameOver() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const notes = [440, 415.3, 392, 349.23, 329.63];
+    notes.forEach((f, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      const t = now + i * 0.14;
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0.12, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.25);
+    });
+  }
+
+  // ===== クッキークリッカー用サウンド =====
+
+  // クッキークリック音（心地よいサクサク・タップ音、音程ランダム微変化）
+  public playCookieClick() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    // ランダム微ピッチ（0.92 〜 1.08倍）
+    const pitchMod = 0.92 + Math.random() * 0.16;
+    const baseFreq = 520 * pitchMod;
+
+    // クリック・トーン（木魚/パーカッシブな短音）
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(baseFreq, now);
+    osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.4, now + 0.045);
+
+    gain.gain.setValueAtTime(0.22, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.05);
+
+    // かすかなクリスピー・ノイズ
+    const noiseBuffer = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.02), this.ctx.sampleRate);
+    const data = noiseBuffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.3));
+    }
+    const noiseSource = this.ctx.createBufferSource();
+    noiseSource.buffer = noiseBuffer;
+    const noiseGain = this.ctx.createGain();
+    noiseGain.gain.setValueAtTime(0.08, now);
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, now + 0.02);
+    noiseSource.connect(noiseGain);
+    noiseGain.connect(this.ctx.destination);
+    noiseSource.start(now);
+  }
+
+  // 施設購入音（チャリン！とレジ音）
+  public playCookieBuy() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const freqs = [987.77, 1318.51]; // B5 -> E6
+    freqs.forEach((f, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      const t = now + i * 0.06;
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0.18, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.18);
+    });
+  }
+
+  // アップグレード購入音（華やかな上昇和音）
+  public playCookieUpgrade() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const chords = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+    chords.forEach((f, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      const t = now + i * 0.05;
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0.16, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.28);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.28);
+    });
+  }
+
+  // ゴールデンクッキー出現音（神秘的なキラリンチャイム）
+  public playGoldenCookieSpawn() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const bellNotes = [1046.5, 1318.5, 1567.98, 2093.0];
+    bellNotes.forEach((f, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      const t = now + i * 0.08;
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0.15, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.5);
+    });
+  }
+
+  // ゴールデンクッキークリック音（大当たり大歓喜ハープ）
+  public playGoldenCookieClick() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const arpeggio = [523.25, 659.25, 783.99, 1046.5, 1318.5, 1567.98, 2093.0];
+    arpeggio.forEach((f, i) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      const t = now + i * 0.04;
+      osc.frequency.setValueAtTime(f, t);
+      gain.gain.setValueAtTime(0.2, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + 0.4);
+    });
+  }
+
+  // 実績解除ファンファーレ
+  public playCookieAchievement() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const notes = [
+      { f: 587.33, d: 0, dur: 0.1 },
+      { f: 783.99, d: 0.1, dur: 0.1 },
+      { f: 880.0, d: 0.2, dur: 0.12 },
+      { f: 1174.66, d: 0.32, dur: 0.4 },
+    ];
+    notes.forEach((n) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      const t = now + n.d;
+      osc.frequency.setValueAtTime(n.f, t);
+      gain.gain.setValueAtTime(0.22, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + n.dur);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + n.dur);
+    });
+  }
+
+  // 転生・昇天（天界の神秘的ワープ音）
+  public playCookieAscend() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    // 低音〜中音の神秘的な上昇スウィープ
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(880, now + 1.2);
+
+    gain.gain.setValueAtTime(0.01, now);
+    gain.gain.linearRampToValueAtTime(0.22, now + 0.6);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.4);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 1.4);
+
+    // 星の煌めき
+    for (let i = 0; i < 6; i++) {
+      const f = 1200 + Math.random() * 1200;
+      const t = now + 0.3 + i * 0.15;
+      const starOsc = this.ctx.createOscillator();
+      const starGain = this.ctx.createGain();
+      starOsc.type = 'triangle';
+      starOsc.frequency.setValueAtTime(f, t);
+      starGain.gain.setValueAtTime(0.12, t);
+      starGain.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+      starOsc.connect(starGain);
+      starGain.connect(this.ctx.destination);
+      starOsc.start(t);
+      starOsc.stop(t + 0.3);
+    }
   }
 }
 

@@ -11,7 +11,14 @@ export type GameId =
   | 'angrybirds'
   | 'bomberman'
   | 'excitebike'
-  | 'holeio';
+  | 'holeio'
+  | 'jewel'
+  | 'chiikawa'
+  | 'spire'
+  | 'cookie'
+  | 'suika'
+  | 'wario'
+  | 'sonic';
 
 export type GameGenre = 'action' | 'puzzle' | 'arcade' | 'racing' | 'io';
 

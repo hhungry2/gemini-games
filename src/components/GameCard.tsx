@@ -18,6 +18,9 @@ import {
   Flame,
   Bike,
   Aperture,
+  Gem,
+  Heart,
+  Swords,
 } from 'lucide-react';
 
 export interface RecordItem {
@@ -66,6 +69,98 @@ export const GameCard: React.FC<GameCardProps> = ({
         return <Bike className="w-6 h-6 text-white" />;
       case 'holeio':
         return <Aperture className="w-6 h-6 text-white" />;
+      case 'jewel':
+        return <Gem className="w-6 h-6 text-white" />;
+      case 'chiikawa':
+        return <Heart className="w-6 h-6 text-white fill-white" />;
+      case 'spire':
+        return <Swords className="w-6 h-6 text-white" />;
+      case 'cookie':
+        return (
+          <svg className="w-6 h-6 text-amber-100" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10c0-1.07-.17-2.1-.48-3.07a3.5 3.5 0 0 1-4.45-4.45C16.1 4.17 15.07 4 14 4a2 2 0 0 1-2-2zm-3.5 6a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm6 2a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm-4 4a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm5.5 2a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3zm-6 2a1.5 1.5 0 1 1 0 3 1.5 1.5 0 0 1 0-3z" />
+          </svg>
+        );
+      case 'suika':
+        return (
+          <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none">
+            {/* スイカスライスSVG */}
+            <path
+              d="M12 3C7.03 3 3 7.03 3 12c0 2.24.82 4.29 2.18 5.86L17.86 5.18C16.29 3.82 14.24 3 12 3z"
+              fill="#22c55e"
+            />
+            <path
+              d="M12 5c-3.87 0-7 3.13-7 7 0 1.76.65 3.37 1.73 4.61L16.61 6.73C15.37 5.65 13.76 5 12 5z"
+              fill="#ef4444"
+            />
+            {/* 種 */}
+            <circle cx="9" cy="9" r="0.8" fill="#1e293b" />
+            <circle cx="11.5" cy="11.5" r="0.8" fill="#1e293b" />
+            <circle cx="8" cy="12" r="0.8" fill="#1e293b" />
+            <circle cx="12" cy="8" r="0.8" fill="#1e293b" />
+            {/* 皮のふち */}
+            <path
+              d="M3 12a9 9 0 0 0 2.18 5.86l12.68-12.68A9 9 0 0 0 12 3"
+              stroke="#15803d"
+              strokeWidth="1.5"
+            />
+          </svg>
+        );
+      case 'wario':
+        return (
+          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+            {/* ワリオの鼻 & ギザギザヒゲ & 爆弾 */}
+            {/* ピンクの丸い鼻 */}
+            <circle cx="12" cy="9" r="4.5" fill="#f43f5e" />
+            {/* ギザギザ黒ヒゲ */}
+            <path
+              d="M4 14l3-2 3 3 2-2 2 2 3-3 3 2-1 4-4-1-1 2-1-2-4 1z"
+              fill="#1e293b"
+            />
+            {/* 上部のボム導火線 */}
+            <path d="M12 4.5V2" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" />
+            <circle cx="12" cy="1.5" r="1.5" fill="#ef4444" />
+          </svg>
+        );
+      case 'sonic':
+        return (
+          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none">
+            {/* ソニックの青いトゲトゲヘッド & ゴールドリング */}
+            <path
+              d="M12 3C8 3 4.5 5.5 3.5 9c-1 3.5.5 7 2 9.5l-3.5 1.5 5 1c3.5 2 8 1 10.5-1.5 2-2 3-5 2.5-8-.5-3-3.5-6.5-6-7.5l2-1.5-4.5.5z"
+              fill="#2563eb"
+            />
+            {/* トゲのディテール */}
+            <path
+              d="M4 11l-3 3 4 1M6 6.5l-4 1.5 4 2"
+              stroke="#1d4ed8"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            {/* 目・耳 */}
+            <circle cx="14" cy="10" r="3.5" fill="#ffffff" />
+            <circle cx="15.5" cy="10" r="1.5" fill="#0f172a" />
+            <circle cx="16" cy="9.5" r="0.5" fill="#ffffff" />
+            {/* 輝くゴールドリング */}
+            <ellipse
+              cx="17"
+              cy="16"
+              rx="4.5"
+              ry="2.5"
+              stroke="#fbbf24"
+              strokeWidth="2"
+              fill="none"
+              transform="rotate(-20 17 16)"
+            />
+            {/* スピードスパーク */}
+            <path
+              d="M19 5l1.5 2.5 2.5.5-2 1.5.5 2.5-2.5-1.5L16.5 12l.5-2.5-2-1.5 2.5-.5z"
+              fill="#fef08a"
+              transform="scale(0.4) translate(22, 0)"
+            />
+          </svg>
+        );
       default:
         return <LayoutGrid className="w-6 h-6 text-white" />;
     }

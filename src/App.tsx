@@ -14,10 +14,31 @@ import { AngryBirdsGame } from './games/AngryBirdsGame';
 import { BombermanGame } from './games/BombermanGame';
 import { ExcitebikeGame } from './games/ExcitebikeGame';
 import { HoleIoGame } from './games/HoleIoGame';
+import { JewelGame } from './games/JewelGame';
+import { ChiikawaGame } from './games/ChiikawaGame';
+import { SpireGame } from './games/SpireGame';
+import { CookieClickerGame, COOKIE_ALL_TIME_KEY, COOKIE_PRESTIGE_KEY, formatNumber } from './games/CookieClickerGame';
+import { SuikaGame } from './games/SuikaGame';
+import { WarioGame } from './games/WarioGame';
+import { SonicGame, SONIC_HIGH_SCORE_KEY, SONIC_BEST_TIME_KEY, SONIC_MAX_RINGS_KEY } from './games/SonicGame';
 import { GameInfo, GameId, GameGenre } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck, Search, X } from 'lucide-react';
 
 const THEME_KEY = 'games_hub_theme';
+const SONIC_HIGH_KEY = SONIC_HIGH_SCORE_KEY;
+const SONIC_TIME_KEY = SONIC_BEST_TIME_KEY;
+const SONIC_RINGS_KEY = SONIC_MAX_RINGS_KEY;
+const WARIO_HIGH_SCORE_KEY = 'wario_high_score_v1';
+const WARIO_MAX_SPEED_KEY = 'wario_max_speed_v1';
+const SUIKA_HIGH_SCORE_KEY = 'suika_high_score';
+const SUIKA_WATERMELONS_KEY = 'suika_watermelons_count';
+const SPIRE_HIGH_FLOOR_KEY = 'spire_high_floor_v1';
+const SPIRE_WINS_KEY = 'spire_total_wins_v1';
+const CHIIKAWA_SUBJUGATION_HIGH_SCORE_KEY = 'chiikawa_subjugation_high_score';
+const CHIIKAWA_WEEDING_HIGH_SCORE_KEY = 'chiikawa_weeding_high_score';
+const CHIIKAWA_WEEDING_BEST_RANK_KEY = 'chiikawa_weeding_best_rank';
+const JEWEL_HIGH_SCORE_KEY = 'jewel_quest_high_score_timeAttack';
+const JEWEL_STARS_KEY = 'jewel_quest_stage_stars_';
 const HOLEIO_HIGH_SCORE_KEY = 'holeio_high_score';
 const HOLEIO_BEST_KILLS_KEY = 'holeio_best_kills';
 const HOLEIO_MAX_SIZE_KEY = 'holeio_max_size';
@@ -48,6 +69,97 @@ const GENRES: { id: GameGenre | 'all'; label: string; icon: string }[] = [
 ];
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'sonic',
+    title: 'ソニック・スピード・ラッシュ (Sonic Speed Rush)',
+    titleEn: 'Sonic the Hedgehog Clone Adventure',
+    description:
+      'メガドライブの名作『ソニック』を完全再現！慣性と最高速度の物理演算、スピンダッシュ、ローリング、ホーミングアタック、360度大ループを搭載！テイルス（飛行）やナックルズ（滑空＆壁登り）も選べる爽快ハイスピードアクション！ACT 1 グリーンヒル＆ACT 2 Dr.エッグマンボス戦完備！',
+    badge: '超爽快！新作アクション',
+    iconName: 'sonic',
+    color: 'from-blue-600 via-sky-500 to-amber-400',
+    genre: 'action',
+    genres: ['action', 'arcade'],
+    tags: ['ソニック', 'スピンダッシュ', 'ホーミングアタック', '360度ループ', 'テイルス＆ナックルズ', 'Dr.エッグマン', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'wario',
+    title: 'メイド イン ワリオ (WarioWare)',
+    titleEn: 'Microgame Frenzy Action',
+    description:
+      '4秒間の超短時間プチゲームが次々と襲来！「よけろ！」「ぬけ！」「つかめ！」「いれろ！」「おせ！」「きれ！」など直感反射アクションをクリアせよ！BPMが加速するスピードアップ＆プチゲーム図鑑（練習モード）完備！',
+    badge: '超爽快！瞬間アクション',
+    iconName: 'wario',
+    color: 'from-amber-500 via-orange-600 to-rose-600',
+    genre: 'action',
+    genres: ['action', 'arcade'],
+    tags: ['メイドインワリオ', 'プチゲーム', '瞬間アクション', '連打・反射神経', 'スピードアップ', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'suika',
+    title: 'スイカゲーム (Suika Game)',
+    titleEn: 'Fruit Merge Physics Puzzle',
+    description:
+      '同じフルーツ同士をくっつけて大きなスイカを目指せ！リアルでコミカルな剛体物理演算、11段階の進化ツリー、表情豊かなフルーツ達、Web Audioサウンド＆BGM、困ったときのフルーツ揺らし(SHAKE)機能完備！',
+    badge: '超人気！新作パズル',
+    iconName: 'suika',
+    color: 'from-emerald-500 via-rose-500 to-amber-500',
+    genre: 'puzzle',
+    genres: ['puzzle', 'arcade'],
+    tags: ['スイカゲーム', 'フルーツ合体', '物理演算', '進化パズル', 'シェイク機能', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'cookie',
+    title: 'クッキークリッカー (Cookie Clicker)',
+    titleEn: 'Infinite Bakery Empire',
+    description:
+      '世界的大ヒット放置インクリメンタルゲームを完全再現！巨大クッキーを連打し、カーソルやおばあちゃんから反物質凝縮器・プリズムまで14大施設を建設！50種以上の強化、黄金クッキー、ミルク＆アヒルちゃん、ニュース速報、転生昇天（Prestige）完備の中毒性MAXクッキー帝国！',
+    badge: '大人気！無限育成',
+    iconName: 'cookie',
+    color: 'from-amber-500 via-orange-500 to-yellow-600',
+    genre: 'arcade',
+    genres: ['arcade', 'action', 'puzzle'],
+    tags: ['クリッカー', '放置育成', '14大施設', '黄金クッキー', '転生・昇天', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'spire',
+    title: 'スパイア・オブ・フェイト (Spire of Fate)',
+    titleEn: 'Deckbuilding Roguelike Card RPG',
+    description:
+      '名作Slay the Spireを徹底再現！3人の英雄（戦士・暗殺者・魔導士）から選び、分岐ツリーマップを登攀せよ！敵のインテント予測、エナジー管理、カード強化、オーブ循環、レリック＆ポーション、ショップ完備の本格デッキ構築RPG！',
+    badge: '超大作！新作RPG',
+    iconName: 'spire',
+    color: 'from-amber-600 via-rose-600 to-indigo-700',
+    genre: 'puzzle',
+    genres: ['puzzle', 'action', 'arcade'],
+    tags: ['デッキ構築', 'ローグライク', 'カードバトル', 'インテント予測', '3大クラス', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'chiikawa',
+    title: 'ちいかわ なんとかなれ！大作戦',
+    titleEn: 'Chiikawa: Nantokanare Quest',
+    description:
+      'ちいかわ達と危険なヤツらを大討伐！全5人のキャラ（ちいかわ・ハチワレ・うさぎ・くりまんじゅう・モモンガ）で出撃！迫力のサバイバル討伐クエスト＆草むしり検定（特級マスターを目指せ！）の2大モード搭載！',
+    badge: '超人気！最新作',
+    iconName: 'chiikawa',
+    color: 'from-pink-400 via-rose-500 to-amber-400',
+    genre: 'action',
+    genres: ['action', 'arcade'],
+    tags: ['ちいかわ', '大討伐', '草むしり検定', 'なんとかなれーッ！', '5人キャラ選択', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'jewel',
+    title: 'ジュエルクエスト (Jewel Quest)',
+    titleEn: 'Match-3 Cascade Puzzle',
+    description:
+      '3つ以上つなげて爽快粉砕！4消し雷光レーザー、交差爆弾、5消しレインボーを駆使して超絶連鎖を決めろ！タイムアタック・エンドレス・全5面ステージミッションの3モード完備。',
+    badge: '新作！爽快パズル',
+    iconName: 'jewel',
+    color: 'from-pink-500 via-purple-600 to-cyan-500',
+    genre: 'puzzle',
+    genres: ['puzzle', 'arcade'],
+    tags: ['マッチ3', '連鎖コンボ', '雷光＆大爆発', '3モード搭載', 'スマホ・PC両対応'],
+  },
   {
     id: 'holeio',
     title: 'ブラックホール.io (Hole.io)',
@@ -236,6 +348,13 @@ export function App() {
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // ハイスコア / ベストタイム状態
+  const [spireHighFloor, setSpireHighFloor] = useState<number>(0);
+  const [spireWins, setSpireWins] = useState<number>(0);
+  const [chiikawaSubjugationScore, setChiikawaSubjugationScore] = useState<number>(0);
+  const [chiikawaWeedingScore, setChiikawaWeedingScore] = useState<number>(0);
+  const [chiikawaWeedingRank, setChiikawaWeedingRank] = useState<string>('未取得');
+  const [jewelHighScore, setJewelHighScore] = useState<number>(0);
+  const [jewelTotalStars, setJewelTotalStars] = useState<number>(0);
   const [holeioHighScore, setHoleioHighScore] = useState<number>(0);
   const [holeioBestKills, setHoleioBestKills] = useState<number>(0);
   const [holeioMaxSize, setHoleioMaxSize] = useState<number>(0);
@@ -264,10 +383,74 @@ export function App() {
     medium: null,
     hard: null,
   });
+  const [cookieAllTimeEarned, setCookieAllTimeEarned] = useState<number>(0);
+  const [cookiePrestigeChips, setCookiePrestigeChips] = useState<number>(0);
+  const [suikaHighScore, setSuikaHighScore] = useState<number>(0);
+  const [suikaWatermelons, setSuikaWatermelons] = useState<number>(0);
+  const [warioHighScore, setWarioHighScore] = useState<number>(0);
+  const [warioMaxSpeed, setWarioMaxSpeed] = useState<number>(1);
+  const [sonicHighScore, setSonicHighScore] = useState<number>(0);
+  const [sonicBestTime, setSonicBestTime] = useState<number>(0);
+  const [sonicMaxRings, setSonicMaxRings] = useState<number>(0);
 
   // レコードの読み込み
   const loadRecords = () => {
     if (typeof window === 'undefined') return;
+
+    const snkScore = localStorage.getItem(SONIC_HIGH_KEY);
+    if (snkScore) setSonicHighScore(parseInt(snkScore, 10) || 0);
+
+    const snkTime = localStorage.getItem(SONIC_TIME_KEY);
+    if (snkTime) setSonicBestTime(parseInt(snkTime, 10) || 0);
+
+    const snkRings = localStorage.getItem(SONIC_RINGS_KEY);
+    if (snkRings) setSonicMaxRings(parseInt(snkRings, 10) || 0);
+
+    const wScore = localStorage.getItem(WARIO_HIGH_SCORE_KEY);
+    if (wScore) setWarioHighScore(parseInt(wScore, 10) || 0);
+
+    const wSpeed = localStorage.getItem(WARIO_MAX_SPEED_KEY);
+    if (wSpeed) setWarioMaxSpeed(parseInt(wSpeed, 10) || 1);
+
+    const suikaScore = localStorage.getItem(SUIKA_HIGH_SCORE_KEY);
+    if (suikaScore) setSuikaHighScore(parseInt(suikaScore, 10) || 0);
+
+    const sMelons = localStorage.getItem(SUIKA_WATERMELONS_KEY);
+    if (sMelons) setSuikaWatermelons(parseInt(sMelons, 10) || 0);
+
+    const cAllTime = localStorage.getItem(COOKIE_ALL_TIME_KEY);
+    if (cAllTime) setCookieAllTimeEarned(parseFloat(cAllTime) || 0);
+
+    const cPres = localStorage.getItem(COOKIE_PRESTIGE_KEY);
+    if (cPres) setCookiePrestigeChips(parseInt(cPres, 10) || 0);
+
+    const sFloor = localStorage.getItem(SPIRE_HIGH_FLOOR_KEY);
+    if (sFloor) setSpireHighFloor(parseInt(sFloor, 10) || 0);
+
+    const sWins = localStorage.getItem(SPIRE_WINS_KEY);
+    if (sWins) setSpireWins(parseInt(sWins, 10) || 0);
+
+    const cSub = localStorage.getItem(CHIIKAWA_SUBJUGATION_HIGH_SCORE_KEY);
+    if (cSub) setChiikawaSubjugationScore(parseInt(cSub, 10) || 0);
+
+    const cWeed = localStorage.getItem(CHIIKAWA_WEEDING_HIGH_SCORE_KEY);
+    if (cWeed) setChiikawaWeedingScore(parseInt(cWeed, 10) || 0);
+
+    const cRank = localStorage.getItem(CHIIKAWA_WEEDING_BEST_RANK_KEY);
+    if (cRank) setChiikawaWeedingRank(cRank);
+
+    const jScore = localStorage.getItem(JEWEL_HIGH_SCORE_KEY);
+    if (jScore) setJewelHighScore(parseInt(jScore, 10) || 0);
+
+    const jStars = localStorage.getItem(JEWEL_STARS_KEY);
+    if (jStars) {
+      try {
+        const parsed = JSON.parse(jStars);
+        const total = Object.values(parsed).reduce((a: any, b: any) => (a || 0) + (b || 0), 0);
+        setJewelTotalStars(Number(total) || 0);
+      } catch {}
+    }
+
     const ebTimes = localStorage.getItem(EXCITEBIKE_BEST_TIMES_KEY);
     if (ebTimes) {
       try {
@@ -383,7 +566,19 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'holeio') {
+    if (activeGame === 'sonic') {
+      document.title = 'ソニック・スピード・ラッシュ (Sonic Speed Rush) | Games Hub';
+    } else if (activeGame === 'wario') {
+      document.title = 'メイド イン ワリオ (WarioWare) | Games Hub';
+    } else if (activeGame === 'suika') {
+      document.title = 'スイカゲーム (Suika Game) | Games Hub';
+    } else if (activeGame === 'cookie') {
+      document.title = 'クッキークリッカー (Cookie Clicker) | Games Hub';
+    } else if (activeGame === 'spire') {
+      document.title = 'スパイア・オブ・フェイト (Spire of Fate) | Games Hub';
+    } else if (activeGame === 'chiikawa') {
+      document.title = 'ちいかわ なんとかなれ！大作戦 | Games Hub';
+    } else if (activeGame === 'holeio') {
       document.title = 'ブラックホール.io (Hole.io) | Games Hub';
     } else if (activeGame === 'excitebike') {
       document.title = 'エキサイトバイク (Excitebike) | Games Hub';
@@ -409,6 +604,8 @@ export function App() {
       document.title = 'テトリス (Tetris) | Games Hub';
     } else if (activeGame === 'minesweeper') {
       document.title = 'マインスイーパー (Minesweeper) | Games Hub';
+    } else if (activeGame === 'jewel') {
+      document.title = 'ジュエルクエスト (Jewel Quest) | Games Hub';
     } else {
       document.title = 'Games Hub - Web Mini Games Collection';
     }
@@ -416,6 +613,101 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'sonic') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: sonicHighScore > 0 ? `${sonicHighScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: 'BEST TIME',
+          value:
+            sonicBestTime > 0
+              ? `${Math.floor(sonicBestTime / 60000)}:${Math.floor((sonicBestTime % 60000) / 1000).toString().padStart(2, '0')}`
+              : '--',
+        },
+        {
+          label: 'MAX RINGS',
+          value: sonicMaxRings > 0 ? `${sonicMaxRings} 💍` : '--',
+        },
+      ];
+    }
+    if (gameId === 'wario') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: warioHighScore > 0 ? `${warioHighScore.toLocaleString()} ゲーム` : '--',
+        },
+        {
+          label: 'MAX SPEED',
+          value: warioMaxSpeed > 1 ? `Lv.${warioMaxSpeed}` : 'Lv.1',
+        },
+      ];
+    }
+    if (gameId === 'suika') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: suikaHighScore > 0 ? `${suikaHighScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: '🍉 スイカ作成数',
+          value: suikaWatermelons > 0 ? `${suikaWatermelons} 個` : '--',
+        },
+      ];
+    }
+    if (gameId === 'cookie') {
+      return [
+        {
+          label: '累計生産クッキー',
+          value: cookieAllTimeEarned > 0 ? `🍪 ${formatNumber(cookieAllTimeEarned)}` : '--',
+        },
+        {
+          label: '昇天チップス',
+          value: cookiePrestigeChips > 0 ? `👼 ${cookiePrestigeChips} 個` : '--',
+        },
+      ];
+    }
+    if (gameId === 'spire') {
+      return [
+        {
+          label: '最高到達階層',
+          value: spireHighFloor > 0 ? `${spireHighFloor} F` : '--',
+        },
+        {
+          label: '尖塔制覇クリア',
+          value: spireWins > 0 ? `👑 ${spireWins} 回` : '--',
+        },
+      ];
+    }
+    if (gameId === 'chiikawa') {
+      return [
+        {
+          label: '討伐 HIGH SCORE',
+          value: chiikawaSubjugationScore > 0 ? `${chiikawaSubjugationScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: '草むしり HIGH',
+          value: chiikawaWeedingScore > 0 ? `${chiikawaWeedingScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: '草むしり検定段位',
+          value: chiikawaWeedingRank !== '未取得' ? chiikawaWeedingRank : '--',
+        },
+      ];
+    }
+    if (gameId === 'jewel') {
+      return [
+        {
+          label: 'TIME ATTACK',
+          value: jewelHighScore > 0 ? `${jewelHighScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: 'MISSION STARS',
+          value: jewelTotalStars > 0 ? `★ ${jewelTotalStars} / 15` : '--',
+        },
+      ];
+    }
     if (gameId === 'holeio') {
       return [
         {
@@ -882,6 +1174,76 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'sonic' && (
+              <SonicGame
+                onBackToHub={() => {
+                  setActiveGame(null);
+                  loadRecords();
+                }}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'wario' && (
+              <WarioGame
+                onBackToHub={() => {
+                  setActiveGame(null);
+                  loadRecords();
+                }}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'suika' && (
+              <SuikaGame
+                onBackToHub={() => {
+                  setActiveGame(null);
+                  loadRecords();
+                }}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'cookie' && (
+              <CookieClickerGame
+                onBackToHub={() => {
+                  setActiveGame(null);
+                  loadRecords();
+                }}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'spire' && (
+              <SpireGame
+                onBackToHub={() => {
+                  setActiveGame(null);
+                  loadRecords();
+                }}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'chiikawa' && (
+              <ChiikawaGame
+                onBackToHub={() => {
+                  setActiveGame(null);
+                  loadRecords();
+                }}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'jewel' && (
+              <JewelGame
+                onBackToHub={() => {
+                  setActiveGame(null);
+                  loadRecords();
+                }}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'holeio' && (
               <HoleIoGame
                 onBackToHub={() => {
