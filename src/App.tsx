@@ -14,8 +14,8 @@ import { AngryBirdsGame } from './games/AngryBirdsGame';
 import { BombermanGame } from './games/BombermanGame';
 import { ExcitebikeGame } from './games/ExcitebikeGame';
 import { HoleIoGame } from './games/HoleIoGame';
-import { GameInfo, GameId } from './types';
-import { Gamepad2, Sparkles, Zap, ShieldCheck } from 'lucide-react';
+import { GameInfo, GameId, GameGenre } from './types';
+import { Gamepad2, Sparkles, Zap, ShieldCheck, Search, X } from 'lucide-react';
 
 const THEME_KEY = 'games_hub_theme';
 const HOLEIO_HIGH_SCORE_KEY = 'holeio_high_score';
@@ -38,6 +38,15 @@ const PAPERIO_HIGH_KILLS_KEY = 'paperio_high_kills';
 const ANGRY_BIRDS_HIGH_SCORE_KEY = 'angrybirds_high_score';
 const ANGRY_BIRDS_STARS_KEY = 'angrybirds_level_stars';
 
+const GENRES: { id: GameGenre | 'all'; label: string; icon: string }[] = [
+  { id: 'all', label: 'すべて', icon: '🌟' },
+  { id: 'action', label: 'アクション・対戦', icon: '⚡' },
+  { id: 'puzzle', label: 'パズル・知略', icon: '🧩' },
+  { id: 'io', label: '.io・サバイバル', icon: '🌐' },
+  { id: 'arcade', label: 'アーケード・名作', icon: '🕹️' },
+  { id: 'racing', label: 'レース・バイク', icon: '🏁' },
+];
+
 const GAMES: GameInfo[] = [
   {
     id: 'holeio',
@@ -48,6 +57,8 @@ const GAMES: GameInfo[] = [
     badge: '新作！大迫力io',
     iconName: 'holeio',
     color: 'from-sky-500 via-indigo-600 to-rose-600',
+    genre: 'io',
+    genres: ['io', 'action'],
     tags: ['ブラックホール', '街破壊', 'Bot対戦', '吸い込み物理', 'スマホ・PC両対応'],
   },
   {
@@ -59,6 +70,8 @@ const GAMES: GameInfo[] = [
     badge: '名作レース',
     iconName: 'excitebike',
     color: 'from-amber-500 via-red-500 to-rose-600',
+    genre: 'racing',
+    genres: ['racing', 'arcade', 'action'],
     tags: ['モトクロス', '2.5Dレース', 'ターボ＆チルト', 'コースエディタ', 'スマホ・PC両対応'],
   },
   {
@@ -70,6 +83,8 @@ const GAMES: GameInfo[] = [
     badge: '大人気対戦爆破',
     iconName: 'bomberman',
     color: 'from-orange-500 via-amber-500 to-red-600',
+    genre: 'action',
+    genres: ['action', 'arcade'],
     tags: ['爆弾対戦', '4人バトル', 'サドンデス', '全10種アイテム', 'スマホ・PC両対応'],
   },
   {
@@ -81,6 +96,8 @@ const GAMES: GameInfo[] = [
     badge: '大人気物理パズル',
     iconName: 'angrybirds',
     color: 'from-red-500 via-amber-500 to-emerald-500',
+    genre: 'puzzle',
+    genres: ['puzzle', 'action'],
     tags: ['物理演算', 'スリングショット', '破壊爽快感', '特殊スキル', 'スマホ・PC両対応'],
   },
   {
@@ -92,6 +109,8 @@ const GAMES: GameInfo[] = [
     badge: '人気陣取り',
     iconName: 'paperio',
     color: 'from-emerald-500 via-teal-500 to-cyan-600',
+    genre: 'io',
+    genres: ['io', 'action'],
     tags: ['陣取り', '対戦アクション', 'Bot対戦', 'パワーアップ', 'スマホ・PC両対応'],
   },
   {
@@ -103,6 +122,8 @@ const GAMES: GameInfo[] = [
     badge: '定番アクション',
     iconName: 'breakout',
     color: 'from-amber-500 via-orange-500 to-rose-500',
+    genre: 'arcade',
+    genres: ['arcade', 'action'],
     tags: ['アクション', 'アイテム', 'マルチボール', 'レーザー', 'スマホ・PC両対応'],
   },
   {
@@ -114,6 +135,8 @@ const GAMES: GameInfo[] = [
     badge: '人気パズル',
     iconName: 'game2048',
     color: 'from-yellow-500 via-amber-500 to-orange-600',
+    genre: 'puzzle',
+    genres: ['puzzle'],
     tags: ['パズル', '思考', 'Undo機能', 'スワイプ操作', 'スマホ・PC両対応'],
   },
   {
@@ -125,6 +148,8 @@ const GAMES: GameInfo[] = [
     badge: '名作アーケード',
     iconName: 'doteater',
     color: 'from-yellow-400 via-emerald-500 to-teal-600',
+    genre: 'arcade',
+    genres: ['arcade', 'action'],
     tags: ['迷路', 'アーケード', 'ゴーストAI', 'パワーアップ', 'スマホ・PC両対応'],
   },
   {
@@ -136,6 +161,8 @@ const GAMES: GameInfo[] = [
     badge: '対戦スポーツ',
     iconName: 'pong',
     color: 'from-sky-500 via-blue-600 to-indigo-600',
+    genre: 'arcade',
+    genres: ['arcade', 'action'],
     tags: ['対戦', '2P対戦', 'VS CPU', 'ラリー', 'スマホ・PC両対応'],
   },
   {
@@ -147,6 +174,8 @@ const GAMES: GameInfo[] = [
     badge: '本格STG',
     iconName: 'shooter',
     color: 'from-cyan-500 via-indigo-600 to-rose-500',
+    genre: 'action',
+    genres: ['action', 'arcade'],
     tags: ['縦シュー', '弾幕', '3ステージ', '巨大ボス', 'スマホ・PC両対応'],
   },
   {
@@ -158,6 +187,8 @@ const GAMES: GameInfo[] = [
     badge: '2Dアクション',
     iconName: 'bros',
     color: 'from-blue-600 via-indigo-600 to-purple-600',
+    genre: 'action',
+    genres: ['action', 'arcade'],
     tags: ['2Dアクション', '4ワールド', 'ボス戦', 'チップチューン', 'スマホ操作OK'],
   },
   {
@@ -169,6 +200,8 @@ const GAMES: GameInfo[] = [
     badge: '定番パズル',
     iconName: 'tetris',
     color: 'from-indigo-500 via-purple-500 to-pink-500',
+    genre: 'puzzle',
+    genres: ['puzzle', 'arcade'],
     tags: ['パズル', '定番', 'アクション', 'サウンド対応', 'スマホ操作OK'],
   },
   {
@@ -180,6 +213,8 @@ const GAMES: GameInfo[] = [
     badge: '知略パズル',
     iconName: 'minesweeper',
     color: 'from-rose-500 via-amber-500 to-emerald-500',
+    genre: 'puzzle',
+    genres: ['puzzle'],
     tags: ['知略', '初手安全', '連鎖オープン', 'タイムアタック', 'スマホ操作OK'],
   },
 ];
@@ -195,6 +230,10 @@ export function App() {
   });
 
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+
+  // ジャンルフィルタ＆検索状態
+  const [selectedGenre, setSelectedGenre] = useState<GameGenre | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   // ハイスコア / ベストタイム状態
   const [holeioHighScore, setHoleioHighScore] = useState<number>(0);
@@ -531,6 +570,28 @@ export function App() {
     return [];
   };
 
+  // ジャンル別該当件数の計算
+  const getGenreCount = (genreId: GameGenre | 'all'): number => {
+    if (genreId === 'all') return GAMES.length;
+    return GAMES.filter((g) => g.genres.includes(genreId)).length;
+  };
+
+  // ジャンルおよびキーワードによるフィルタリング
+  const filteredGames = GAMES.filter((game) => {
+    const matchesGenre = selectedGenre === 'all' || game.genres.includes(selectedGenre);
+    if (!matchesGenre) return false;
+
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
+    return (
+      game.title.toLowerCase().includes(q) ||
+      game.titleEn.toLowerCase().includes(q) ||
+      game.description.toLowerCase().includes(q) ||
+      game.badge.toLowerCase().includes(q) ||
+      game.tags.some((t) => t.toLowerCase().includes(q))
+    );
+  });
+
   return (
     <div
       className={`min-h-screen flex flex-col antialiased transition-colors duration-200 ${
@@ -692,38 +753,131 @@ export function App() {
               </div>
             </div>
 
-            {/* ゲーム一覧 */}
-            <div>
-              <div className="flex items-center justify-between mb-6">
+            {/* ゲーム一覧 ＆ ジャンルフィルタリング */}
+            <div className="space-y-5">
+              {/* ヘッダー＆検索バー */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2
-                    className={`text-2xl font-black tracking-wide ${
+                    className={`text-2xl font-black tracking-wide flex items-center gap-2.5 ${
                       isDark ? 'text-white' : 'text-slate-900'
                     }`}
                   >
-                    ゲーム一覧 (全13タイトル)
+                    <span>ゲーム一覧</span>
+                    <span className="text-xs font-bold font-mono px-2.5 py-0.5 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
+                      {filteredGames.length} / {GAMES.length}
+                    </span>
                   </h2>
                   <p
                     className={`text-xs mt-1 ${
                       isDark ? 'text-slate-400' : 'text-slate-500'
                     }`}
                   >
-                    プレイしたいゲームを選択してください
+                    ジャンル選択やキーワード検索でお好みのゲームを瞬時に見つけられます
                   </p>
+                </div>
+
+                {/* キーワード検索入力 */}
+                <div className="relative w-full sm:w-72">
+                  <Search className={`absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 ${isDark ? 'text-slate-400' : 'text-slate-500'}`} />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="ゲーム名・キーワード検索..."
+                    className={`w-full pl-10 pr-9 py-2.5 rounded-2xl text-xs font-medium border transition-all outline-hidden ${
+                      isDark
+                        ? 'bg-slate-900/80 border-slate-700/80 text-white placeholder:text-slate-500 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20'
+                        : 'bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 shadow-xs'
+                    }`}
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 rounded-full text-slate-400 hover:text-slate-200 transition-colors"
+                      title="検索をクリア"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
-                {GAMES.map((game) => (
-                  <GameCard
-                    key={game.id}
-                    game={game}
-                    onSelect={(id) => setActiveGame(id)}
-                    isDark={isDark}
-                    records={getGameRecords(game.id)}
-                  />
-                ))}
+              {/* ピル型ジャンルフィルタータブバー */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1.5 scrollbar-none">
+                {GENRES.map((g) => {
+                  const isSelected = selectedGenre === g.id;
+                  const count = getGenreCount(g.id);
+                  return (
+                    <button
+                      key={g.id}
+                      onClick={() => setSelectedGenre(g.id)}
+                      className={`shrink-0 flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-2xl text-xs font-bold transition-all cursor-pointer select-none ${
+                        isSelected
+                          ? 'bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 text-white shadow-md shadow-indigo-500/25 scale-102 border border-indigo-400/40'
+                          : isDark
+                          ? 'bg-slate-900/70 hover:bg-slate-800 text-slate-300 border border-slate-800 hover:border-slate-700'
+                          : 'bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 shadow-xs'
+                      }`}
+                    >
+                      <span className="text-sm">{g.icon}</span>
+                      <span>{g.label}</span>
+                      <span
+                        className={`text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
+                          isSelected
+                            ? 'bg-white/20 text-white font-black'
+                            : isDark
+                            ? 'bg-slate-800 text-slate-400'
+                            : 'bg-slate-100 text-slate-500'
+                        }`}
+                      >
+                        {count}
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
+
+              {/* ゲームカードグリッド */}
+              {filteredGames.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
+                  {filteredGames.map((game) => (
+                    <GameCard
+                      key={game.id}
+                      game={game}
+                      onSelect={(id) => setActiveGame(id)}
+                      isDark={isDark}
+                      records={getGameRecords(game.id)}
+                    />
+                  ))}
+                </div>
+              ) : (
+                /* 検索・絞り込み結果0件の空ステート */
+                <div
+                  className={`w-full py-16 px-4 rounded-3xl border text-center flex flex-col items-center justify-center space-y-3 ${
+                    isDark ? 'bg-slate-900/40 border-slate-800' : 'bg-white border-slate-200 shadow-sm'
+                  }`}
+                >
+                  <div className="w-16 h-16 rounded-full bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-2xl text-indigo-400">
+                    🔍
+                  </div>
+                  <div className={`text-base font-bold ${isDark ? 'text-slate-200' : 'text-slate-800'}`}>
+                    条件に一致するゲームが見つかりませんでした
+                  </div>
+                  <p className="text-xs text-slate-400 max-w-sm">
+                    検索キーワードを変更するか、ジャンルフィルターを「すべて」に切り替えてみてください。
+                  </p>
+                  <button
+                    onClick={() => {
+                      setSelectedGenre('all');
+                      setSearchQuery('');
+                    }}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold transition shadow-md cursor-pointer"
+                  >
+                    すべてのゲームを表示
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ) : (

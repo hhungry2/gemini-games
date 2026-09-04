@@ -97,15 +97,40 @@ export const GameCard: React.FC<GameCardProps> = ({
           >
             {getGameIcon()}
           </div>
-          <span
-            className={`text-[11px] font-bold tracking-wider px-3 py-1 rounded-full border ${
-              isDark
-                ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'
-                : 'bg-indigo-50 border-indigo-200 text-indigo-700 font-semibold'
-            }`}
-          >
-            {game.badge}
-          </span>
+          <div className="flex flex-wrap items-center gap-1.5 justify-end">
+            <span
+              className={`text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded-full border ${
+                game.genre === 'action'
+                  ? 'bg-amber-500/10 border-amber-500/30 text-amber-400'
+                  : game.genre === 'puzzle'
+                  ? 'bg-purple-500/10 border-purple-500/30 text-purple-400'
+                  : game.genre === 'io'
+                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                  : game.genre === 'racing'
+                  ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                  : 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
+              }`}
+            >
+              {game.genre === 'action'
+                ? '⚡ アクション'
+                : game.genre === 'puzzle'
+                ? '🧩 パズル'
+                : game.genre === 'io'
+                ? '🌐 .io'
+                : game.genre === 'racing'
+                ? '🏁 レース'
+                : '🕹️ アーケード'}
+            </span>
+            <span
+              className={`text-[11px] font-bold tracking-wider px-3 py-1 rounded-full border ${
+                isDark
+                  ? 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'
+                  : 'bg-indigo-50 border-indigo-200 text-indigo-700 font-semibold'
+              }`}
+            >
+              {game.badge}
+            </span>
+          </div>
         </div>
 
         <h3

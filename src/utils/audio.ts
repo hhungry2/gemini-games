@@ -795,6 +795,30 @@ class SoundEngine {
     });
   }
 
+  public playPacStart() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    // クラシックな開始ジングル
+    const notes = [493.88, 987.77, 739.99, 622.25, 987.77, 739.99, 622.25];
+    const times = [0, 0.12, 0.24, 0.36, 0.48, 0.60, 0.72];
+    notes.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + times[idx]);
+      gain.gain.setValueAtTime(0.12, now + times[idx]);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + times[idx] + 0.1);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + times[idx]);
+      osc.stop(now + times[idx] + 0.1);
+    });
+  }
+
   // --- ポン用効果音 ---
   public playPongPaddle() {
     if (this.isMuted) return;

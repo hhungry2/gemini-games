@@ -13,6 +13,8 @@ export type GameId =
   | 'excitebike'
   | 'holeio';
 
+export type GameGenre = 'action' | 'puzzle' | 'arcade' | 'racing' | 'io';
+
 export interface GameInfo {
   id: GameId;
   title: string;
@@ -21,5 +23,7 @@ export interface GameInfo {
   badge: string;
   iconName: string;
   color: string;
+  genre: GameGenre;
+  genres: GameGenre[];
   tags: string[];
 }

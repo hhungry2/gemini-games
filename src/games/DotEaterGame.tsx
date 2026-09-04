@@ -11,19 +11,31 @@ interface DotEaterGameProps {
 }
 
 type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | 'NONE';
+type GhostHouseState = 'OUT' | 'WAITING' | 'EXITING';
+type GhostMode = 'CHASE' | 'FRIGHTENED' | 'EATEN';
 
 interface Ghost {
   id: number;
+  name: string;
+  color: string;
   x: number;
   y: number;
-  dir: Direction;
-  targetDir: Direction;
-  color: string;
-  name: string;
-  mode: 'CHASE' | 'FRIGHTENED' | 'EATEN';
-  speed: number;
   spawnX: number;
   spawnY: number;
+  dir: Direction;
+  mode: GhostMode;
+  speed: number;
+  houseState: GhostHouseState;
+  houseTimer: number;
+}
+
+interface FloatingScore {
+  id: number;
+  x: number;
+  y: number;
+  text: string;
+  opacity: number;
+  color: string;
 }
 
 // 迷路マップ (19x19)
@@ -56,6 +68,11 @@ const MAP_COLS = INITIAL_MAP[0].length;
 const CANVAS_WIDTH = MAP_COLS * TILE_SIZE;
 const CANVAS_HEIGHT = MAP_ROWS * TILE_SIZE;
 
+// ゴーストハウス基準座標
+const HOUSE_CENTER_X = 9 * TILE_SIZE + TILE_SIZE / 2; // 228
+const HOUSE_CENTER_Y = 10 * TILE_SIZE + TILE_SIZE / 2; // 252
+const HOUSE_EXIT_Y = 7 * TILE_SIZE + TILE_SIZE / 2; // 180 (ゲート上の通路)
+
 export const DotEaterGame: React.FC<DotEaterGameProps> = ({
   onBackToHub,
   isDark,
@@ -63,7 +80,7 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const [gameState, setGameState] = useState<'title' | 'playing' | 'paused' | 'gameover' | 'cleared'>('title');
+  const [gameState, setGameState] = useState<'title' | 'ready' | 'playing' | 'dying' | 'paused' | 'gameover' | 'cleared'>('title');
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
   const [lives, setLives] = useState(3);
@@ -80,16 +97,21 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
       speed: 2.4,
       mouthAngle: 0.2,
       mouthDir: 0.04,
+      deathProgress: 0,
     },
     ghosts: [] as Ghost[],
     frightenedTimer: 0,
     frightenedCombo: 0,
     fruit: null as { x: number; y: number; active: boolean; timer: number } | null,
+    floatingScores: [] as FloatingScore[],
+    nextScoreId: 1,
     totalDots: 0,
     dotsEaten: 0,
     score: 0,
     lives: 3,
     stage: 1,
+    readyTimer: 0,
+    dyingTimer: 0,
   });
 
   // ハイスコア読み込み
@@ -110,6 +132,95 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
     });
   }, []);
 
+  // 浮動スコア追加
+  const addFloatingScore = (x: number, y: number, text: string, color = '#38bdf8') => {
+    const s = stateRef.current;
+    s.floatingScores.push({
+      id: s.nextScoreId++,
+      x,
+      y,
+      text,
+      opacity: 1,
+      color,
+    });
+  };
+
+  // キャラクター位置リセット
+  const resetEntitiesPositions = (resetTimers = false) => {
+    const s = stateRef.current;
+    // プレイヤー初期位置
+    s.player.x = 9 * TILE_SIZE + TILE_SIZE / 2;
+    s.player.y = 14 * TILE_SIZE + TILE_SIZE / 2;
+    s.player.dir = 'NONE';
+    s.player.nextDir = 'NONE';
+    s.player.mouthAngle = 0.2;
+    s.player.deathProgress = 0;
+
+    // ゴースト初期化
+    const baseSpeed = 1.8 + Math.min(s.stage * 0.18, 0.9);
+    s.ghosts = [
+      {
+        id: 0,
+        name: 'Blinky',
+        color: '#ef4444', // 赤
+        x: 9 * TILE_SIZE + TILE_SIZE / 2,
+        y: HOUSE_EXIT_Y,
+        spawnX: 9 * TILE_SIZE + TILE_SIZE / 2,
+        spawnY: HOUSE_EXIT_Y,
+        dir: 'LEFT',
+        mode: 'CHASE',
+        speed: baseSpeed,
+        houseState: 'OUT',
+        houseTimer: 0,
+      },
+      {
+        id: 1,
+        name: 'Pinky',
+        color: '#ec4899', // ピンク
+        x: HOUSE_CENTER_X,
+        y: HOUSE_CENTER_Y,
+        spawnX: HOUSE_CENTER_X,
+        spawnY: HOUSE_CENTER_Y,
+        dir: 'UP',
+        mode: 'CHASE',
+        speed: baseSpeed * 0.95,
+        houseState: resetTimers ? 'WAITING' : 'EXITING',
+        houseTimer: resetTimers ? 40 : 0,
+      },
+      {
+        id: 2,
+        name: 'Inky',
+        color: '#06b6d4', // シアン
+        x: 8 * TILE_SIZE + TILE_SIZE / 2,
+        y: HOUSE_CENTER_Y,
+        spawnX: 8 * TILE_SIZE + TILE_SIZE / 2,
+        spawnY: HOUSE_CENTER_Y,
+        dir: 'UP',
+        mode: 'CHASE',
+        speed: baseSpeed * 0.9,
+        houseState: resetTimers ? 'WAITING' : 'EXITING',
+        houseTimer: resetTimers ? 180 : 30,
+      },
+      {
+        id: 3,
+        name: 'Clyde',
+        color: '#f97316', // オレンジ
+        x: 10 * TILE_SIZE + TILE_SIZE / 2,
+        y: HOUSE_CENTER_Y,
+        spawnX: 10 * TILE_SIZE + TILE_SIZE / 2,
+        spawnY: HOUSE_CENTER_Y,
+        dir: 'UP',
+        mode: 'CHASE',
+        speed: baseSpeed * 0.85,
+        houseState: resetTimers ? 'WAITING' : 'EXITING',
+        houseTimer: resetTimers ? 320 : 60,
+      },
+    ];
+
+    s.frightenedTimer = 0;
+    s.frightenedCombo = 0;
+  };
+
   // 初期化
   const initGame = (targetStage = 1, keepScore = false) => {
     const s = stateRef.current;
@@ -120,9 +231,8 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
     }
 
     s.map = INITIAL_MAP.map((r) => [...r]);
-    s.frightenedTimer = 0;
-    s.frightenedCombo = 0;
     s.fruit = null;
+    s.floatingScores = [];
 
     let dotCount = 0;
     for (let r = 0; r < MAP_ROWS; r++) {
@@ -133,127 +243,322 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
     s.totalDots = dotCount;
     s.dotsEaten = 0;
 
-    // プレイヤー初期位置
-    s.player = {
-      x: 9 * TILE_SIZE + TILE_SIZE / 2,
-      y: 14 * TILE_SIZE + TILE_SIZE / 2,
-      dir: 'NONE',
-      nextDir: 'NONE',
-      speed: 2.4,
-      mouthAngle: 0.2,
-      mouthDir: 0.04,
-    };
-
-    // ゴースト初期化
-    const baseSpeed = 1.8 + Math.min(targetStage * 0.2, 1.0);
-    s.ghosts = [
-      {
-        id: 0,
-        name: 'Blinky',
-        color: '#ef4444', // 赤
-        x: 9 * TILE_SIZE + TILE_SIZE / 2,
-        y: 7 * TILE_SIZE + TILE_SIZE / 2,
-        spawnX: 9 * TILE_SIZE + TILE_SIZE / 2,
-        spawnY: 7 * TILE_SIZE + TILE_SIZE / 2,
-        dir: 'LEFT',
-        targetDir: 'LEFT',
-        mode: 'CHASE',
-        speed: baseSpeed,
-      },
-      {
-        id: 1,
-        name: 'Pinky',
-        color: '#ec4899', // ピンク
-        x: 9 * TILE_SIZE + TILE_SIZE / 2,
-        y: 10 * TILE_SIZE + TILE_SIZE / 2,
-        spawnX: 9 * TILE_SIZE + TILE_SIZE / 2,
-        spawnY: 10 * TILE_SIZE + TILE_SIZE / 2,
-        dir: 'UP',
-        targetDir: 'UP',
-        mode: 'CHASE',
-        speed: baseSpeed * 0.95,
-      },
-      {
-        id: 2,
-        name: 'Inky',
-        color: '#06b6d4', // シアン
-        x: 8 * TILE_SIZE + TILE_SIZE / 2,
-        y: 10 * TILE_SIZE + TILE_SIZE / 2,
-        spawnX: 8 * TILE_SIZE + TILE_SIZE / 2,
-        spawnY: 10 * TILE_SIZE + TILE_SIZE / 2,
-        dir: 'UP',
-        targetDir: 'UP',
-        mode: 'CHASE',
-        speed: baseSpeed * 0.9,
-      },
-      {
-        id: 3,
-        name: 'Clyde',
-        color: '#f97316', // オレンジ
-        x: 10 * TILE_SIZE + TILE_SIZE / 2,
-        y: 10 * TILE_SIZE + TILE_SIZE / 2,
-        spawnX: 10 * TILE_SIZE + TILE_SIZE / 2,
-        spawnY: 10 * TILE_SIZE + TILE_SIZE / 2,
-        dir: 'UP',
-        targetDir: 'UP',
-        mode: 'CHASE',
-        speed: baseSpeed * 0.85,
-      },
-    ];
+    resetEntitiesPositions(true);
 
     setScore(s.score);
     setLives(s.lives);
     setStage(s.stage);
+
+    // READY演出へ
+    s.readyTimer = 80;
+    setGameState('ready');
+    sound.playPacStart();
   };
 
   const handleStart = () => {
     initGame(1, false);
-    setGameState('playing');
   };
 
   const handleRestart = () => {
     initGame(1, false);
-    setGameState('playing');
   };
 
   const handleNextStage = () => {
     initGame(stage + 1, true);
-    setGameState('playing');
   };
 
-  // 衝突判定ヘルパー (指定位置が通行可能か)
-  const canMove = (x: number, y: number, dir: Direction, isGhost = false): boolean => {
+  // タイル単位の通行可能判定
+  const isTileWalkable = (col: number, row: number, isGhost = false, canPassGate = false): boolean => {
     const s = stateRef.current;
-    let nextX = x;
-    let nextY = y;
-    const offset = TILE_SIZE / 2 - 1;
+    // ワープ通路 (行10の画面外)
+    if (row === 10 && (col < 0 || col >= MAP_COLS)) return true;
+    if (row < 0 || row >= MAP_ROWS || col < 0 || col >= MAP_COLS) return false;
 
-    if (dir === 'UP') nextY -= 2;
-    else if (dir === 'DOWN') nextY += 2;
-    else if (dir === 'LEFT') nextX -= 2;
-    else if (dir === 'RIGHT') nextX += 2;
-
-    // ワープ通路 (左右)
-    if (nextX < 0 || nextX >= CANVAS_WIDTH) return true;
-
-    // 四隅のセルチェック
-    const points = [
-      { x: nextX - offset, y: nextY - offset },
-      { x: nextX + offset, y: nextY - offset },
-      { x: nextX - offset, y: nextY + offset },
-      { x: nextX + offset, y: nextY + offset },
-    ];
-
-    for (const p of points) {
-      const col = Math.floor(p.x / TILE_SIZE);
-      const row = Math.floor(p.y / TILE_SIZE);
-
-      if (row < 0 || row >= MAP_ROWS || col < 0 || col >= MAP_COLS) continue;
-      const cell = s.map[row][col];
-      if (cell === 1) return false;
-      if (cell === 4 && !isGhost) return false; // ゴーストハウスゲート
+    const cell = s.map[row][col];
+    if (cell === 1) return false; // 壁
+    if (cell === 4) {
+      // ゴーストゲート: ゴーストかつ通過許可時のみ通れる
+      return isGhost && canPassGate;
     }
     return true;
+  };
+
+  // プレイヤーのスムーズな移動＆コーナリング処理
+  const updatePlayerMovement = () => {
+    const s = stateRef.current;
+    const p = s.player;
+
+    const opposite: Record<Direction, Direction> = {
+      UP: 'DOWN',
+      DOWN: 'UP',
+      LEFT: 'RIGHT',
+      RIGHT: 'LEFT',
+      NONE: 'NONE',
+    };
+
+    // 1. 真逆（Uターン）の入力は即座に受け付ける
+    if (p.nextDir !== 'NONE' && p.nextDir === opposite[p.dir]) {
+      p.dir = p.nextDir;
+    }
+
+    // 2. 直角方向の入力がある場合、最寄り交差点スナップ（コーナリングスライド）をチェック
+    if (p.nextDir !== 'NONE' && p.nextDir !== p.dir && p.nextDir !== opposite[p.dir]) {
+      const nearestCol = Math.round((p.x - TILE_SIZE / 2) / TILE_SIZE);
+      const nearestRow = Math.round((p.y - TILE_SIZE / 2) / TILE_SIZE);
+      const nearestTileX = nearestCol * TILE_SIZE + TILE_SIZE / 2;
+      const nearestTileY = nearestRow * TILE_SIZE + TILE_SIZE / 2;
+
+      const distToNearestX = p.x - nearestTileX;
+      const distToNearestY = p.y - nearestTileY;
+      const SNAP_THRESHOLD = 10.0; // ±10px以内なら先行コーナリング可能
+
+      if (p.nextDir === 'UP' || p.nextDir === 'DOWN') {
+        // 横移動中または停止中に上下へ曲がる場合、X軸が最寄り交差点に近いか判定
+        if (Math.abs(distToNearestX) <= SNAP_THRESHOLD) {
+          const targetRow = p.nextDir === 'UP' ? nearestRow - 1 : nearestRow + 1;
+          if (isTileWalkable(nearestCol, targetRow, false, false)) {
+            p.x = nearestTileX;
+            p.dir = p.nextDir;
+          }
+        }
+      } else if (p.nextDir === 'LEFT' || p.nextDir === 'RIGHT') {
+        // 縦移動中または停止中に左右へ曲がる場合、Y軸が最寄り交差点に近いか判定
+        if (Math.abs(distToNearestY) <= SNAP_THRESHOLD) {
+          const targetCol = p.nextDir === 'LEFT' ? nearestCol - 1 : nearestCol + 1;
+          if (isTileWalkable(targetCol, nearestRow, false, false)) {
+            p.y = nearestTileY;
+            p.dir = p.nextDir;
+          }
+        }
+      }
+    }
+
+    // 3. 現在の進行方向への移動処理
+    if (p.dir !== 'NONE') {
+      const curCol = Math.floor(p.x / TILE_SIZE);
+      const curRow = Math.floor(p.y / TILE_SIZE);
+      const centerTileX = curCol * TILE_SIZE + TILE_SIZE / 2;
+      const centerTileY = curRow * TILE_SIZE + TILE_SIZE / 2;
+
+      let canProceed = true;
+
+      // 前方に壁がある場合の移動制限（マスの中心を越えて壁に突っ込まない）
+      if (p.dir === 'UP') {
+        if (!isTileWalkable(curCol, curRow - 1, false, false) && p.y <= centerTileY) {
+          p.y = centerTileY;
+          canProceed = false;
+        }
+      } else if (p.dir === 'DOWN') {
+        if (!isTileWalkable(curCol, curRow + 1, false, false) && p.y >= centerTileY) {
+          p.y = centerTileY;
+          canProceed = false;
+        }
+      } else if (p.dir === 'LEFT') {
+        if (curRow !== 10 && !isTileWalkable(curCol - 1, curRow, false, false) && p.x <= centerTileX) {
+          p.x = centerTileX;
+          canProceed = false;
+        }
+      } else if (p.dir === 'RIGHT') {
+        if (curRow !== 10 && !isTileWalkable(curCol + 1, curRow, false, false) && p.x >= centerTileX) {
+          p.x = centerTileX;
+          canProceed = false;
+        }
+      }
+
+      if (canProceed) {
+        if (p.dir === 'UP') {
+          p.y -= p.speed;
+          p.x += (centerTileX - p.x) * 0.35;
+        } else if (p.dir === 'DOWN') {
+          p.y += p.speed;
+          p.x += (centerTileX - p.x) * 0.35;
+        } else if (p.dir === 'LEFT') {
+          p.x -= p.speed;
+          p.y += (centerTileY - p.y) * 0.35;
+        } else if (p.dir === 'RIGHT') {
+          p.x += p.speed;
+          p.y += (centerTileY - p.y) * 0.35;
+        }
+      } else {
+        // 壁にぶつかって止まった際、nextDirが有効ならそちらへ曲がる
+        if (p.nextDir !== p.dir && p.nextDir !== 'NONE') {
+          const nextTargetCol = p.nextDir === 'LEFT' ? curCol - 1 : p.nextDir === 'RIGHT' ? curCol + 1 : curCol;
+          const nextTargetRow = p.nextDir === 'UP' ? curRow - 1 : p.nextDir === 'DOWN' ? curRow + 1 : curRow;
+          if (isTileWalkable(nextTargetCol, nextTargetRow, false, false)) {
+            p.x = centerTileX;
+            p.y = centerTileY;
+            p.dir = p.nextDir;
+          }
+        }
+      }
+    }
+
+    // 4. 左右ワープトンネル (row: 10)
+    const curRow = Math.floor(p.y / TILE_SIZE);
+    if (curRow === 10) {
+      if (p.x < -TILE_SIZE / 2) {
+        p.x = CANVAS_WIDTH + TILE_SIZE / 2;
+      } else if (p.x > CANVAS_WIDTH + TILE_SIZE / 2) {
+        p.x = -TILE_SIZE / 2;
+      }
+    }
+  };
+
+  // ゴーストAIの更新
+  const updateGhosts = () => {
+    const s = stateRef.current;
+
+    s.ghosts.forEach((g) => {
+      // 1. ハウス内待機状態の処理
+      if (g.houseState === 'WAITING') {
+        if (g.houseTimer > 0) {
+          g.houseTimer--;
+          g.y = g.spawnY + Math.sin(Date.now() * 0.006 + g.id) * 3;
+          return;
+        } else {
+          g.houseState = 'EXITING';
+        }
+      }
+
+      // 2. ハウス脱出シーケンス
+      if (g.houseState === 'EXITING') {
+        const exitSpeed = 1.4;
+        // ハウス中央のX座標（HOUSE_CENTER_X）へ寄せる
+        if (Math.abs(g.x - HOUSE_CENTER_X) > 1.0) {
+          g.dir = g.x < HOUSE_CENTER_X ? 'RIGHT' : 'LEFT';
+          g.x += g.dir === 'RIGHT' ? exitSpeed : -exitSpeed;
+        } else {
+          g.x = HOUSE_CENTER_X;
+          g.dir = 'UP';
+          g.y -= exitSpeed;
+          // ゲートを抜けて外の通路に到達したら脱出完了
+          if (g.y <= HOUSE_EXIT_Y) {
+            g.y = HOUSE_EXIT_Y;
+            g.houseState = 'OUT';
+            g.dir = 'LEFT';
+          }
+        }
+        return;
+      }
+
+      // 3. 通常移動（CHASE / FRIGHTENED / EATEN）
+      let currentSpeed = g.speed;
+      if (g.mode === 'FRIGHTENED') currentSpeed = g.speed * 0.55;
+      else if (g.mode === 'EATEN') currentSpeed = g.speed * 1.9;
+
+      // EATENモードでハウス上部に帰還した場合
+      if (g.mode === 'EATEN') {
+        if (Math.abs(g.x - HOUSE_CENTER_X) < 6 && Math.abs(g.y - HOUSE_EXIT_Y) < 6) {
+          g.x = HOUSE_CENTER_X;
+          g.y += currentSpeed;
+          g.dir = 'DOWN';
+          if (g.y >= HOUSE_CENTER_Y) {
+            g.y = HOUSE_CENTER_Y;
+            g.mode = 'CHASE';
+            g.houseState = 'EXITING';
+          }
+          return;
+        }
+      }
+
+      // タイル交差点にいるか判定
+      const curCol = Math.floor(g.x / TILE_SIZE);
+      const curRow = Math.floor(g.y / TILE_SIZE);
+      const centerTileX = curCol * TILE_SIZE + TILE_SIZE / 2;
+      const centerTileY = curRow * TILE_SIZE + TILE_SIZE / 2;
+
+      const isAtIntersection =
+        Math.abs(g.x - centerTileX) < currentSpeed * 0.8 &&
+        Math.abs(g.y - centerTileY) < currentSpeed * 0.8;
+
+      if (isAtIntersection) {
+        g.x = centerTileX;
+        g.y = centerTileY;
+
+        // ターゲット座標の決定
+        let targetX = s.player.x;
+        let targetY = s.player.y;
+
+        if (g.mode === 'FRIGHTENED') {
+          targetX = Math.floor(Math.random() * CANVAS_WIDTH);
+          targetY = Math.floor(Math.random() * CANVAS_HEIGHT);
+        } else if (g.mode === 'EATEN') {
+          targetX = HOUSE_CENTER_X;
+          targetY = HOUSE_EXIT_Y;
+        } else {
+          if (g.id === 1) {
+            // Pinky
+            if (s.player.dir === 'UP') targetY -= TILE_SIZE * 4;
+            else if (s.player.dir === 'DOWN') targetY += TILE_SIZE * 4;
+            else if (s.player.dir === 'LEFT') targetX -= TILE_SIZE * 4;
+            else if (s.player.dir === 'RIGHT') targetX += TILE_SIZE * 4;
+          } else if (g.id === 2) {
+            // Inky
+            const blinky = s.ghosts[0];
+            if (blinky) {
+              targetX = s.player.x * 2 - blinky.x;
+              targetY = s.player.y * 2 - blinky.y;
+            }
+          } else if (g.id === 3) {
+            // Clyde
+            const dist = Math.hypot(g.x - s.player.x, g.y - s.player.y);
+            if (dist < TILE_SIZE * 5) {
+              targetX = 1 * TILE_SIZE;
+              targetY = 17 * TILE_SIZE;
+            }
+          }
+        }
+
+        const opposite: Record<Direction, Direction> = {
+          UP: 'DOWN',
+          DOWN: 'UP',
+          LEFT: 'RIGHT',
+          RIGHT: 'LEFT',
+          NONE: 'NONE',
+        };
+
+        const dirs: Direction[] = ['UP', 'LEFT', 'DOWN', 'RIGHT'];
+        let bestDir = g.dir;
+        let bestDist = Infinity;
+        const availableDirs: Direction[] = [];
+
+        dirs.forEach((d) => {
+          if (d === opposite[g.dir] && g.mode !== 'FRIGHTENED') return;
+
+          const nCol = d === 'LEFT' ? curCol - 1 : d === 'RIGHT' ? curCol + 1 : curCol;
+          const nRow = d === 'UP' ? curRow - 1 : d === 'DOWN' ? curRow + 1 : curRow;
+
+          if (isTileWalkable(nCol, nRow, true, g.mode === 'EATEN')) {
+            availableDirs.push(d);
+            const testX = nCol * TILE_SIZE + TILE_SIZE / 2;
+            const testY = nRow * TILE_SIZE + TILE_SIZE / 2;
+            const dist = Math.hypot(testX - targetX, testY - targetY);
+            if (dist < bestDist) {
+              bestDist = dist;
+              bestDir = d;
+            }
+          }
+        });
+
+        if (availableDirs.length > 0) {
+          g.dir = bestDir;
+        } else {
+          g.dir = opposite[g.dir];
+        }
+      }
+
+      // ゴースト移動
+      if (g.dir === 'UP') g.y -= currentSpeed;
+      else if (g.dir === 'DOWN') g.y += currentSpeed;
+      else if (g.dir === 'LEFT') g.x -= currentSpeed;
+      else if (g.dir === 'RIGHT') g.x += currentSpeed;
+
+      // ワープ
+      if (curRow === 10) {
+        if (g.x < -TILE_SIZE / 2) g.x = CANVAS_WIDTH + TILE_SIZE / 2;
+        else if (g.x > CANVAS_WIDTH + TILE_SIZE / 2) g.x = -TILE_SIZE / 2;
+      }
+    });
   };
 
   // 方向入力
@@ -317,7 +622,7 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
     const deltaY = e.changedTouches[0].clientY - touchStartRef.current.y;
     touchStartRef.current = null;
 
-    const minSwipe = 25;
+    const minSwipe = 20;
     if (Math.abs(deltaX) > Math.abs(deltaY)) {
       if (Math.abs(deltaX) > minSwipe) {
         if (deltaX > 0) setDirection('RIGHT');
@@ -342,7 +647,25 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
 
       if (ctx && canvas) {
         // --- 1. 更新処理 ---
-        if (gameState === 'playing') {
+        if (gameState === 'ready') {
+          s.readyTimer--;
+          if (s.readyTimer <= 0) {
+            setGameState('playing');
+          }
+        } else if (gameState === 'dying') {
+          s.dyingTimer--;
+          s.player.deathProgress = Math.min(1, (65 - s.dyingTimer) / 50);
+
+          if (s.dyingTimer <= 0) {
+            if (s.lives <= 0) {
+              setGameState('gameover');
+            } else {
+              resetEntitiesPositions(false);
+              s.readyTimer = 70;
+              setGameState('ready');
+            }
+          }
+        } else if (gameState === 'playing') {
           // フライトタイマー
           if (s.frightenedTimer > 0) {
             s.frightenedTimer--;
@@ -359,24 +682,8 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
             s.player.mouthDir = -s.player.mouthDir;
           }
 
-          // プレイヤー方向転換試行 (交差点でのスムーズな転回)
-          if (s.player.nextDir !== 'NONE') {
-            if (canMove(s.player.x, s.player.y, s.player.nextDir)) {
-              s.player.dir = s.player.nextDir;
-            }
-          }
-
-          // プレイヤー移動
-          if (canMove(s.player.x, s.player.y, s.player.dir)) {
-            if (s.player.dir === 'UP') s.player.y -= s.player.speed;
-            else if (s.player.dir === 'DOWN') s.player.y += s.player.speed;
-            else if (s.player.dir === 'LEFT') s.player.x -= s.player.speed;
-            else if (s.player.dir === 'RIGHT') s.player.x += s.player.speed;
-          }
-
-          // ワープトンネル処理
-          if (s.player.x < -TILE_SIZE / 2) s.player.x = CANVAS_WIDTH + TILE_SIZE / 2;
-          else if (s.player.x > CANVAS_WIDTH + TILE_SIZE / 2) s.player.x = -TILE_SIZE / 2;
+          // プレイヤー移動更新 (コーナリングスライド)
+          updatePlayerMovement();
 
           // ドットイート判定
           const curCol = Math.floor(s.player.x / TILE_SIZE);
@@ -394,10 +701,11 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
               updateHighScore(s.score);
 
               // フルーツ出現 (70ドット、140ドット)
+              // ゴーストハウスの下側通路 (row: 13, col: 9) に出現させる
               if (s.dotsEaten === 70 || s.dotsEaten === 140) {
                 s.fruit = {
                   x: 9 * TILE_SIZE + TILE_SIZE / 2,
-                  y: 10 * TILE_SIZE + TILE_SIZE / 2,
+                  y: 13 * TILE_SIZE + TILE_SIZE / 2,
                   active: true,
                   timer: 600, // 10秒
                 };
@@ -412,12 +720,12 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
               s.map[curRow][curCol] = 0;
               s.score += 50;
               s.dotsEaten++;
-              s.frightenedTimer = 450; // 約7.5秒
+              s.frightenedTimer = 480; // 約8秒
               s.frightenedCombo = 0;
               sound.playPowerPellet();
 
               s.ghosts.forEach((g) => {
-                if (g.mode !== 'EATEN') {
+                if (g.mode !== 'EATEN' && g.houseState === 'OUT') {
                   g.mode = 'FRIGHTENED';
                 }
               });
@@ -432,17 +740,19 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
             }
           }
 
-          // フルーツ取得
+          // フルーツ取得判定
           if (s.fruit && s.fruit.active) {
             s.fruit.timer--;
             if (s.fruit.timer <= 0) {
               s.fruit.active = false;
             } else {
               const dist = Math.hypot(s.player.x - s.fruit.x, s.player.y - s.fruit.y);
-              if (dist < TILE_SIZE) {
+              if (dist < TILE_SIZE * 0.9) {
                 sound.playFruitEat();
-                s.score += 300;
+                const fruitBonus = 300 * s.stage;
+                s.score += fruitBonus;
                 s.fruit.active = false;
+                addFloatingScore(s.fruit.x, s.fruit.y, `+${fruitBonus}`, '#f43f5e');
                 setScore(s.score);
                 updateHighScore(s.score);
               }
@@ -450,94 +760,13 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
           }
 
           // ゴーストAI更新
-          s.ghosts.forEach((g) => {
-            // 移動
-            const speed = g.mode === 'FRIGHTENED' ? g.speed * 0.6 : g.mode === 'EATEN' ? g.speed * 2 : g.speed;
+          updateGhosts();
 
-            // タイル交差点にいるかチェック
-            const alignX = Math.abs((g.x % TILE_SIZE) - TILE_SIZE / 2) < speed;
-            const alignY = Math.abs((g.y % TILE_SIZE) - TILE_SIZE / 2) < speed;
+          // プレイヤーとゴーストの接触判定
+          let playerHit = false;
+          for (const g of s.ghosts) {
+            if (g.houseState !== 'OUT') continue;
 
-            if (alignX && alignY) {
-              // 目標タイルの設定
-              let targetX = s.player.x;
-              let targetY = s.player.y;
-
-              if (g.mode === 'FRIGHTENED') {
-                // ランダム方向
-                targetX = Math.random() * CANVAS_WIDTH;
-                targetY = Math.random() * CANVAS_HEIGHT;
-              } else if (g.mode === 'EATEN') {
-                // 巣に戻る
-                targetX = g.spawnX;
-                targetY = g.spawnY;
-                if (Math.hypot(g.x - g.spawnX, g.y - g.spawnY) < 10) {
-                  g.mode = 'CHASE';
-                }
-              } else {
-                // 各ゴーストの個性
-                if (g.id === 1) {
-                  // Pinky: プレイヤーの先
-                  if (s.player.dir === 'UP') targetY -= TILE_SIZE * 4;
-                  else if (s.player.dir === 'DOWN') targetY += TILE_SIZE * 4;
-                  else if (s.player.dir === 'LEFT') targetX -= TILE_SIZE * 4;
-                  else if (s.player.dir === 'RIGHT') targetX += TILE_SIZE * 4;
-                } else if (g.id === 3) {
-                  // Clyde: 近づくと逃げる
-                  const dist = Math.hypot(g.x - s.player.x, g.y - s.player.y);
-                  if (dist < TILE_SIZE * 6) {
-                    targetX = 1 * TILE_SIZE;
-                    targetY = 17 * TILE_SIZE;
-                  }
-                }
-              }
-
-              // 有効な方向を選択（180度Uターンは避ける）
-              const dirs: Direction[] = ['UP', 'DOWN', 'LEFT', 'RIGHT'];
-              const opposite: Record<Direction, Direction> = {
-                UP: 'DOWN',
-                DOWN: 'UP',
-                LEFT: 'RIGHT',
-                RIGHT: 'LEFT',
-                NONE: 'NONE',
-              };
-
-              let bestDir = g.dir;
-              let bestDist = Infinity;
-
-              dirs.forEach((d) => {
-                if (d === opposite[g.dir] && g.mode !== 'FRIGHTENED') return;
-                if (canMove(g.x, g.y, d, true)) {
-                  let testX = g.x;
-                  let testY = g.y;
-                  if (d === 'UP') testY -= TILE_SIZE;
-                  else if (d === 'DOWN') testY += TILE_SIZE;
-                  else if (d === 'LEFT') testX -= TILE_SIZE;
-                  else if (d === 'RIGHT') testX += TILE_SIZE;
-
-                  const dDist = Math.hypot(testX - targetX, testY - targetY);
-                  if (dDist < bestDist) {
-                    bestDist = dDist;
-                    bestDir = d;
-                  }
-                }
-              });
-
-              g.dir = bestDir;
-            }
-
-            if (canMove(g.x, g.y, g.dir, true)) {
-              if (g.dir === 'UP') g.y -= speed;
-              else if (g.dir === 'DOWN') g.y += speed;
-              else if (g.dir === 'LEFT') g.x -= speed;
-              else if (g.dir === 'RIGHT') g.x += speed;
-            }
-
-            // ワープ
-            if (g.x < -TILE_SIZE / 2) g.x = CANVAS_WIDTH + TILE_SIZE / 2;
-            else if (g.x > CANVAS_WIDTH + TILE_SIZE / 2) g.x = -TILE_SIZE / 2;
-
-            // プレイヤーとゴーストの衝突判定
             const distToPlayer = Math.hypot(s.player.x - g.x, s.player.y - g.y);
             if (distToPlayer < TILE_SIZE * 0.75) {
               if (g.mode === 'FRIGHTENED') {
@@ -547,35 +776,35 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
                 s.frightenedCombo++;
                 const bonus = 200 * Math.pow(2, s.frightenedCombo - 1);
                 s.score += bonus;
+                addFloatingScore(g.x, g.y, `+${bonus}`, '#38bdf8');
                 setScore(s.score);
                 updateHighScore(s.score);
               } else if (g.mode === 'CHASE') {
                 // プレイヤー死亡
-                sound.playPacDeath();
-                s.lives--;
-                setLives(s.lives);
-
-                if (s.lives <= 0) {
-                  setGameState('gameover');
-                } else {
-                  // リスポーン
-                  s.player.x = 9 * TILE_SIZE + TILE_SIZE / 2;
-                  s.player.y = 14 * TILE_SIZE + TILE_SIZE / 2;
-                  s.player.dir = 'NONE';
-                  s.player.nextDir = 'NONE';
-                  s.ghosts.forEach((gh) => {
-                    gh.x = gh.spawnX;
-                    gh.y = gh.spawnY;
-                    gh.mode = 'CHASE';
-                  });
-                }
+                playerHit = true;
+                break;
               }
             }
+          }
+
+          if (playerHit) {
+            sound.playPacDeath();
+            s.lives--;
+            setLives(s.lives);
+            s.dyingTimer = 65; // 約1.1秒の死亡アニメーション
+            setGameState('dying');
+          }
+
+          // 浮動スコア更新
+          s.floatingScores.forEach((fs) => {
+            fs.y -= 0.6;
+            fs.opacity -= 0.022;
           });
+          s.floatingScores = s.floatingScores.filter((fs) => fs.opacity > 0);
         }
 
-        // --- 2. 描画処理 (クリーン・フラットレトロ) ---
-        ctx.fillStyle = isDark ? '#020617' : '#f1f5f9';
+        // --- 2. 描画処理 ---
+        ctx.fillStyle = isDark ? '#020617' : '#f8fafc';
         ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
         // 迷路の描画
@@ -586,10 +815,10 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
             const py = r * TILE_SIZE;
 
             if (cell === 1) {
-              // 壁 (角丸フラット)
-              ctx.fillStyle = isDark ? '#1e293b' : '#94a3b8';
+              // 壁 (モダン＆クリーンな角丸)
+              ctx.fillStyle = isDark ? '#1e293b' : '#cbd5e1';
               ctx.fillRect(px, py, TILE_SIZE, TILE_SIZE);
-              ctx.strokeStyle = isDark ? '#334155' : '#cbd5e1';
+              ctx.strokeStyle = isDark ? '#334155' : '#94a3b8';
               ctx.lineWidth = 1;
               ctx.strokeRect(px + 0.5, py + 0.5, TILE_SIZE - 1, TILE_SIZE - 1);
             } else if (cell === 4) {
@@ -608,10 +837,10 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
               ctx.fill();
             } else if (cell === 3) {
               // パワードット (脈動)
-              const pulse = Math.sin(Date.now() * 0.008) * 1.5 + 6;
+              const pulse = Math.sin(Date.now() * 0.009) * 1.6 + 6;
               ctx.fillStyle = isDark ? '#fef08a' : '#ca8a04';
               ctx.beginPath();
-              ctx.arc(px + TILE_SIZE / 2, py + TILE_SIZE / 2, pulse, 0, Math.PI * 2);
+              ctx.arc(px + TILE_SIZE / 2, py + TILE_SIZE / 2, Math.max(3, pulse), 0, Math.PI * 2);
               ctx.fill();
             }
           }
@@ -619,33 +848,61 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
 
         // フルーツ描画
         if (s.fruit && s.fruit.active) {
-          ctx.font = '16px sans-serif';
+          ctx.font = '18px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText('🍒', s.fruit.x, s.fruit.y);
         }
 
-        // プレイヤー描画 (Pac)
-        ctx.save();
-        ctx.translate(s.player.x, s.player.y);
+        // プレイヤー描画
+        if (gameState !== 'gameover') {
+          ctx.save();
+          ctx.translate(s.player.x, s.player.y);
 
-        let rotation = 0;
-        if (s.player.dir === 'DOWN') rotation = Math.PI / 2;
-        else if (s.player.dir === 'LEFT') rotation = Math.PI;
-        else if (s.player.dir === 'UP') rotation = -Math.PI / 2;
-        ctx.rotate(rotation);
+          if (gameState === 'dying') {
+            // 死亡アニメーション (口が全開になって消滅)
+            const progress = s.player.deathProgress;
+            const startAngle = progress * Math.PI;
+            const endAngle = (2 - progress) * Math.PI;
 
-        ctx.fillStyle = '#facc15'; // イエロー
-        ctx.beginPath();
-        ctx.arc(0, 0, TILE_SIZE * 0.45, s.player.mouthAngle * Math.PI, (2 - s.player.mouthAngle) * Math.PI);
-        ctx.lineTo(0, 0);
-        ctx.fill();
-        ctx.restore();
+            if (progress < 0.95) {
+              ctx.fillStyle = '#facc15';
+              ctx.beginPath();
+              ctx.arc(0, 0, TILE_SIZE * 0.45 * (1 - progress * 0.5), startAngle, endAngle);
+              ctx.lineTo(0, 0);
+              ctx.fill();
+            }
+          } else {
+            // 通常描画
+            let rotation = 0;
+            if (s.player.dir === 'DOWN') rotation = Math.PI / 2;
+            else if (s.player.dir === 'LEFT') rotation = Math.PI;
+            else if (s.player.dir === 'UP') rotation = -Math.PI / 2;
+            ctx.rotate(rotation);
+
+            const mouth = s.player.dir === 'NONE' ? 0.15 : s.player.mouthAngle;
+            ctx.fillStyle = '#facc15'; // イエロー
+            ctx.beginPath();
+            ctx.arc(0, 0, TILE_SIZE * 0.45, mouth * Math.PI, (2 - mouth) * Math.PI);
+            ctx.lineTo(0, 0);
+            ctx.fill();
+          }
+
+          ctx.restore();
+        }
 
         // ゴースト描画
         s.ghosts.forEach((g) => {
           ctx.save();
           ctx.translate(g.x, g.y);
+
+          // 瞳の視線方向オフセット
+          let eyeOffsetX = 0;
+          let eyeOffsetY = 0;
+          if (g.dir === 'LEFT') eyeOffsetX = -1.5;
+          else if (g.dir === 'RIGHT') eyeOffsetX = 1.5;
+          else if (g.dir === 'UP') eyeOffsetY = -1.5;
+          else if (g.dir === 'DOWN') eyeOffsetY = 1.5;
 
           if (g.mode === 'EATEN') {
             // 目玉のみ
@@ -657,12 +914,12 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
 
             ctx.fillStyle = '#1e3a8a';
             ctx.beginPath();
-            ctx.arc(-4, -2, 2, 0, Math.PI * 2);
-            ctx.arc(4, -2, 2, 0, Math.PI * 2);
+            ctx.arc(-4 + eyeOffsetX * 1.5, -2 + eyeOffsetY * 1.5, 2, 0, Math.PI * 2);
+            ctx.arc(4 + eyeOffsetX * 1.5, -2 + eyeOffsetY * 1.5, 2, 0, Math.PI * 2);
             ctx.fill();
           } else {
             // ゴースト本体
-            const isFlashing = s.frightenedTimer < 120 && Math.floor(s.frightenedTimer / 10) % 2 === 0;
+            const isFlashing = s.frightenedTimer < 140 && Math.floor(s.frightenedTimer / 12) % 2 === 0;
             const ghostColor = g.mode === 'FRIGHTENED' ? (isFlashing ? '#ffffff' : '#2563eb') : g.color;
 
             ctx.fillStyle = ghostColor;
@@ -670,30 +927,77 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
             ctx.beginPath();
             ctx.arc(0, -2, r, Math.PI, 0, false);
             ctx.lineTo(r, r);
-            // 足の波
-            ctx.lineTo(r * 0.5, r * 0.7);
+            // 足の波打つアニメーション
+            const wave = Math.sin(Date.now() * 0.015 + g.id) * 1.5;
+            ctx.lineTo(r * 0.5, r * 0.7 + wave);
             ctx.lineTo(0, r);
-            ctx.lineTo(-r * 0.5, r * 0.7);
+            ctx.lineTo(-r * 0.5, r * 0.7 - wave);
             ctx.lineTo(-r, r);
             ctx.closePath();
             ctx.fill();
 
             // ゴーストの目
-            ctx.fillStyle = '#ffffff';
-            ctx.beginPath();
-            ctx.arc(-3.5, -3, 3, 0, Math.PI * 2);
-            ctx.arc(3.5, -3, 3, 0, Math.PI * 2);
-            ctx.fill();
+            if (g.mode === 'FRIGHTENED') {
+              // 怖がり顔
+              ctx.fillStyle = '#fef08a';
+              ctx.beginPath();
+              ctx.arc(-3.5, -3, 2, 0, Math.PI * 2);
+              ctx.arc(3.5, -3, 2, 0, Math.PI * 2);
+              ctx.fill();
 
-            ctx.fillStyle = g.mode === 'FRIGHTENED' ? '#ef4444' : '#1e3a8a';
-            ctx.beginPath();
-            ctx.arc(-3.5, -3, 1.5, 0, Math.PI * 2);
-            ctx.arc(3.5, -3, 1.5, 0, Math.PI * 2);
-            ctx.fill();
+              // 波打つ口
+              ctx.strokeStyle = '#fef08a';
+              ctx.lineWidth = 1.5;
+              ctx.beginPath();
+              ctx.moveTo(-4, 3);
+              ctx.lineTo(-2, 1);
+              ctx.lineTo(0, 3);
+              ctx.lineTo(2, 1);
+              ctx.lineTo(4, 3);
+              ctx.stroke();
+            } else {
+              // 白目
+              ctx.fillStyle = '#ffffff';
+              ctx.beginPath();
+              ctx.arc(-3.5, -3, 3.5, 0, Math.PI * 2);
+              ctx.arc(3.5, -3, 3.5, 0, Math.PI * 2);
+              ctx.fill();
+
+              // 黒目（進行方向を向く）
+              ctx.fillStyle = '#1e3a8a';
+              ctx.beginPath();
+              ctx.arc(-3.5 + eyeOffsetX, -3 + eyeOffsetY, 1.8, 0, Math.PI * 2);
+              ctx.arc(3.5 + eyeOffsetX, -3 + eyeOffsetY, 1.8, 0, Math.PI * 2);
+              ctx.fill();
+            }
           }
 
           ctx.restore();
         });
+
+        // 浮動スコア描画
+        s.floatingScores.forEach((fs) => {
+          ctx.save();
+          ctx.font = 'bold 12px monospace';
+          ctx.fillStyle = fs.color;
+          ctx.globalAlpha = Math.max(0, fs.opacity);
+          ctx.textAlign = 'center';
+          ctx.fillText(fs.text, fs.x, fs.y);
+          ctx.restore();
+        });
+
+        // READY表示
+        if (gameState === 'ready') {
+          ctx.save();
+          ctx.font = '900 20px monospace';
+          ctx.fillStyle = '#facc15';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.shadowColor = 'rgba(0,0,0,0.8)';
+          ctx.shadowBlur = 4;
+          ctx.fillText('READY!', HOUSE_CENTER_X, 12 * TILE_SIZE + TILE_SIZE / 2);
+          ctx.restore();
+        }
       }
 
       animId = requestAnimationFrame(gameLoop);
@@ -705,19 +1009,23 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
 
   return (
     <div
-      className="w-full flex flex-col items-center select-none"
+      className={`w-full flex flex-col items-center select-none ${
+        isFullscreen ? 'h-full justify-between py-1' : ''
+      }`}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       {/* 上部ヘッダーナビゲーション */}
       <div
-        className={`w-full flex items-center justify-between mb-3 transition-all ${
-          isFullscreen ? 'w-[min(94vw,calc(100vh-120px))]' : 'w-full max-w-[460px]'
+        className={`flex items-center justify-between mb-2 transition-all ${
+          isFullscreen
+            ? 'w-[min(96vw,calc(100vh-100px))] px-1'
+            : 'w-full max-w-[460px]'
         }`}
       >
         <button
           onClick={onBackToHub}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer ${
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer ${
             isDark
               ? 'text-slate-300 hover:text-white bg-slate-900 border-slate-800 hover:bg-slate-800'
               : 'text-slate-700 hover:text-slate-900 bg-white border-slate-200 hover:bg-slate-50 shadow-xs'
@@ -727,7 +1035,7 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
           ゲーム一覧に戻る
         </button>
 
-        <div className="flex items-center gap-4 text-xs font-bold font-mono">
+        <div className="flex items-center gap-3 sm:gap-4 text-xs font-bold font-mono">
           <div className="flex items-center gap-1 text-yellow-500">
             <span>●</span>
             <span>×{lives}</span>
@@ -750,13 +1058,13 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
         </div>
       </div>
 
-      {/* ゲームCanvasコンテナ (フルスクリーン時は最大化) */}
+      {/* ゲームCanvasコンテナ (AGENTS.md ルール1: フルスクリーン時はダイナミック拡大) */}
       <div
         className={`relative flex items-center justify-center rounded-2xl overflow-hidden border shadow-xl transition-all duration-300 ${
           isDark ? 'border-slate-800 bg-slate-950' : 'border-slate-300 bg-slate-100 shadow-md'
         } ${
           isFullscreen
-            ? 'w-[min(94vw,calc(100vh-120px))] aspect-square my-auto'
+            ? 'w-[min(96vw,calc(100vh-110px))] h-[min(96vw,calc(100vh-110px))] aspect-square my-auto'
             : 'w-full max-w-[460px] aspect-square'
         }`}
       >
@@ -764,13 +1072,13 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
           ref={canvasRef}
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
-          className="w-full h-full block touch-none"
+          className="w-full h-full block touch-none image-rendering-pixelated"
         />
 
         {/* タイトルオーバーレイ */}
         {gameState === 'title' && (
           <div className="absolute inset-0 bg-black/80 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center text-white space-y-5 animate-in fade-in duration-200">
-            <div className="w-14 h-14 rounded-2xl bg-yellow-500 flex items-center justify-center text-3xl shadow-lg">
+            <div className="w-14 h-14 rounded-2xl bg-yellow-500 flex items-center justify-center text-3xl shadow-lg animate-bounce">
               🟡
             </div>
             <div>
@@ -813,8 +1121,8 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
 
         {/* ゲームオーバーオーバーレイ */}
         {gameState === 'gameover' && (
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="text-rose-500 text-4xl font-black">GAME OVER</div>
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="text-rose-500 text-4xl font-black tracking-wider">GAME OVER</div>
             <div className="text-sm text-slate-300 font-mono space-y-1">
               <div>SCORE: <span className="font-bold text-white text-lg">{score}</span></div>
               <div>HIGH: <span className="font-bold text-amber-400">{highScore}</span></div>
@@ -831,8 +1139,8 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
 
         {/* ステージクリアオーバーレイ */}
         {gameState === 'cleared' && (
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="text-emerald-400 text-4xl font-black">STAGE CLEAR!</div>
+          <div className="absolute inset-0 bg-black/85 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4 animate-in zoom-in-95 duration-200">
+            <div className="text-emerald-400 text-4xl font-black tracking-wider">STAGE CLEAR!</div>
             <p className="text-sm text-slate-300 font-mono">
               STAGE {stage} クリア！ スコア: <span className="font-bold text-white">{score}</span>
             </p>
@@ -848,30 +1156,30 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
       </div>
 
       {/* スマホ用操作十字キー (D-Pad) */}
-      <div className="w-full max-w-[300px] grid grid-cols-3 gap-2 mt-3 sm:hidden">
+      <div className={`w-full max-w-[280px] grid grid-cols-3 gap-1.5 mt-2 sm:hidden ${isFullscreen ? 'mb-1' : ''}`}>
         <div />
         <button
           onClick={() => setDirection('UP')}
-          className="py-3.5 bg-slate-800 active:bg-indigo-600 text-white font-bold rounded-2xl border border-slate-700"
+          className="py-3 bg-slate-800/90 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 shadow flex items-center justify-center"
         >
           ▲
         </button>
         <div />
         <button
           onClick={() => setDirection('LEFT')}
-          className="py-3.5 bg-slate-800 active:bg-indigo-600 text-white font-bold rounded-2xl border border-slate-700"
+          className="py-3 bg-slate-800/90 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 shadow flex items-center justify-center"
         >
           ◀
         </button>
         <button
           onClick={() => setDirection('DOWN')}
-          className="py-3.5 bg-slate-800 active:bg-indigo-600 text-white font-bold rounded-2xl border border-slate-700"
+          className="py-3 bg-slate-800/90 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 shadow flex items-center justify-center"
         >
           ▼
         </button>
         <button
           onClick={() => setDirection('RIGHT')}
-          className="py-3.5 bg-slate-800 active:bg-indigo-600 text-white font-bold rounded-2xl border border-slate-700"
+          className="py-3 bg-slate-800/90 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 shadow flex items-center justify-center"
         >
           ▶
         </button>
