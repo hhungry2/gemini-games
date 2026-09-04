@@ -104,8 +104,9 @@ interface Player {
   isAlive: boolean;
   deathAnimTimer: number;
   wins: number;
+  overlapBombIds: Set<number>;
   // CPU制御用状態
-  cpuTarget: { x: number; y: number } | null;
+  cpuTarget: { gx: number; gy: number } | null;
   cpuMode: 'SAFE' | 'ATTACK' | 'ITEM' | 'BREAK';
   cpuWaitTimer: number;
   cpuNextDir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | 'IDLE';
@@ -395,6 +396,15 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
       state.players = playerConfigs.map((cfg, idx) => {
         const sp = spawnPoints[idx];
         const existingPlayer = state.players.find((p) => p.id === cfg.id);
+        const cpuSpeed = cfg.isCpu
+          ? cpuDifficulty === 'hard'
+            ? 2.85
+            : cpuDifficulty === 'normal'
+            ? 2.6
+            : 2.3
+          : 2.6;
+        const initBombsMax = cfg.isCpu && cpuDifficulty === 'hard' ? 2 : 1;
+
         return {
           id: cfg.id,
           name: cfg.name,
@@ -405,8 +415,8 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
           y: sp.gy * TILE_SIZE + TILE_SIZE / 2,
           dir: 'IDLE',
           lastMoveDir: idx === 0 ? 'DOWN' : idx === 1 ? 'UP' : idx === 2 ? 'DOWN' : 'UP',
-          speed: 2.6,
-          bombsMax: 1,
+          speed: cpuSpeed,
+          bombsMax: initBombsMax,
           bombsActive: 0,
           fireRange: 2,
           hasKick: false,
@@ -419,6 +429,7 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
           isAlive: true,
           deathAnimTimer: 0,
           wins: existingPlayer ? existingPlayer.wins : 0,
+          overlapBombIds: new Set<number>(),
           cpuTarget: null,
           cpuMode: 'BREAK',
           cpuWaitTimer: 0,
@@ -452,6 +463,7 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
           isAlive: true,
           deathAnimTimer: 0,
           wins: 0,
+          overlapBombIds: new Set<number>(),
           cpuTarget: null,
           cpuMode: 'BREAK',
           cpuWaitTimer: 0,
@@ -599,7 +611,7 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
       return;
     }
 
-    state.bombs.push({
+    const newBomb: Bomb = {
       id: state.nextBombId++,
       gx,
       gy,
@@ -612,6 +624,26 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
       isRemote: player.hasRemote,
       vx: 0,
       vy: 0,
+    };
+    state.bombs.push(newBomb);
+
+    // 設置者およびそのボムマスに体の一部が重なっているプレイヤーに通過権（離脱猶予）を付与
+    state.players.forEach((p) => {
+      if (p.isAlive) {
+        const pRadius = TILE_SIZE * 0.38;
+        const pLeft = p.x - pRadius;
+        const pRight = p.x + pRadius;
+        const pTop = p.y - pRadius;
+        const pBottom = p.y + pRadius;
+        const bLeft = gx * TILE_SIZE;
+        const bRight = (gx + 1) * TILE_SIZE;
+        const bTop = gy * TILE_SIZE;
+        const bBottom = (gy + 1) * TILE_SIZE;
+
+        if (pRight > bLeft && pLeft < bRight && pBottom > bTop && pTop < bBottom) {
+          p.overlapBombIds.add(newBomb.id);
+        }
+      }
     });
 
     player.bombsActive++;
@@ -739,6 +771,7 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
         hasBlockPass?: boolean;
         hasBombPass?: boolean;
         id?: number;
+        overlapBombIds?: Set<number>;
       },
       desiredDir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' | 'IDLE'
     ) => {
@@ -765,9 +798,7 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
           if (entity.hasBombPass && bomb.ownerId === entity.id) {
             return true;
           }
-          const curGx = Math.floor(entity.x / TILE_SIZE);
-          const curGy = Math.floor(entity.y / TILE_SIZE);
-          if (curGx === gx && curGy === gy) {
+          if (entity.overlapBombIds && entity.overlapBombIds.has(bomb.id)) {
             return true;
           }
           return false;
@@ -845,6 +876,8 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
 
     state.bombs.forEach((bomb) => {
       if (bomb.vx !== 0 || bomb.vy !== 0) return;
+      // 設置直後でまだ離脱していない足元のボムは蹴らない（離脱後にキック可能）
+      if (player.overlapBombIds.has(bomb.id)) return;
 
       const dist = Math.hypot(player.x - bomb.px, player.y - bomb.py);
       if (dist < kickRange) {
@@ -964,18 +997,48 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
 
       const curGx = Math.floor(cpu.x / TILE_SIZE);
       const curGy = Math.floor(cpu.y / TILE_SIZE);
-
       const isInDanger = dangerGrid[curGy][curGx];
 
+      // 歩行可能セル判定（自分の一時的通過ボムも考慮）
       const isCellWalkable = (gx: number, gy: number): boolean => {
         if (gx < 0 || gx >= COLS || gy < 0 || gy >= ROWS) return false;
         const tile = state.grid[gy][gx];
         if (tile === TILE.HARD_WALL || tile === TILE.SUDDEN_WALL) return false;
         if (tile === TILE.SOFT_BLOCK && !cpu.hasBlockPass) return false;
-        if (state.bombs.some((b) => b.gx === gx && b.gy === gy)) return false;
+        const bomb = state.bombs.find((b) => b.gx === gx && b.gy === gy);
+        if (bomb) {
+          if (cpu.hasBombPass && bomb.ownerId === cpu.id) return true;
+          if (cpu.overlapBombIds && cpu.overlapBombIds.has(bomb.id)) return true;
+          return false;
+        }
         return true;
       };
 
+      // 0. リモコンボム知性: 敵が自分のボムの爆風範囲に入ったら即座に起爆！
+      if (cpu.hasRemote && !isInDanger) {
+        const myRemoteBombs = state.bombs.filter((b) => b.ownerId === cpu.id && b.isRemote);
+        if (myRemoteBombs.length > 0) {
+          const enemies = state.players.filter((p) => p.id !== cpu.id && p.isAlive);
+          let shouldDetonate = false;
+          myRemoteBombs.forEach((b) => {
+            enemies.forEach((e) => {
+              const egx = Math.floor(e.x / TILE_SIZE);
+              const egy = Math.floor(e.y / TILE_SIZE);
+              if (
+                (egx === b.gx && Math.abs(egy - b.gy) <= b.fireRange) ||
+                (egy === b.gy && Math.abs(egx - b.gx) <= b.fireRange)
+              ) {
+                shouldDetonate = true;
+              }
+            });
+          });
+          if (shouldDetonate || (cpuDifficulty === 'hard' && Math.random() < 0.1)) {
+            triggerRemoteDetonation(cpu);
+          }
+        }
+      }
+
+      // 1. 最優先: 危険ゾーンからの脱出 (ESCAPE)
       if (isInDanger) {
         const escapeDir = findBfsPath(
           curGx,
@@ -992,12 +1055,27 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
         }
       }
 
-      const availableItems = state.items.filter((it) => !it.collected && !dangerGrid[it.y][it.x]);
-      if (availableItems.length > 0 && Math.random() < 0.6) {
+      // 2. 近くでボムがカウントダウン中の場合、自分がすでに安全なら「安全待機（自爆回避）」
+      const activeBombsNearby = state.bombs.some(
+        (b) => Math.hypot(b.gx - curGx, b.gy - curGy) <= b.fireRange + 2
+      );
+      if (activeBombsNearby && !isInDanger) {
+        const stayChance = cpuDifficulty === 'hard' ? 0.9 : cpuDifficulty === 'normal' ? 0.75 : 0.5;
+        if (Math.random() < stayChance) {
+          cpu.dir = 'IDLE';
+          return;
+        }
+      }
+
+      // 3. アイテム回収 (LOOT)
+      const safeItems = state.items.filter(
+        (it) => !it.collected && !dangerGrid[it.y][it.x] && state.grid[it.y][it.x] === TILE.EMPTY
+      );
+      if (safeItems.length > 0) {
         const itemDir = findBfsPath(
           curGx,
           curGy,
-          (gx, gy) => availableItems.some((it) => it.x === gx && it.y === gy),
+          (gx, gy) => safeItems.some((it) => it.x === gx && it.y === gy),
           (gx, gy) => isCellWalkable(gx, gy) && !dangerGrid[gy][gx]
         );
         if (itemDir) {
@@ -1008,62 +1086,157 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
         }
       }
 
-      const adjBlocks = [
-        { dx: 0, dy: -1 },
-        { dx: 0, dy: 1 },
-        { dx: -1, dy: 0 },
-        { dx: 1, dy: 0 },
-      ].filter((d) => {
-        const tx = curGx + d.dx;
-        const ty = curGy + d.dy;
-        return tx >= 0 && tx < COLS && ty >= 0 && ty < ROWS && state.grid[ty][tx] === TILE.SOFT_BLOCK;
-      });
-
+      // 4. 敵プレイヤーの優先選定 (P1優先、次に最寄り敵)
       const enemies = state.players.filter((p) => p.id !== cpu.id && p.isAlive);
-      const isNearEnemy = enemies.some((e) => {
-        const egx = Math.floor(e.x / TILE_SIZE);
-        const egy = Math.floor(e.y / TILE_SIZE);
-        return Math.hypot(curGx - egx, curGy - egy) <= cpu.fireRange;
+      enemies.sort((a, b) => {
+        if (a.id === 0) return -1;
+        if (b.id === 0) return 1;
+        const distA = Math.hypot(a.x - cpu.x, a.y - cpu.y);
+        const distB = Math.hypot(b.x - cpu.x, b.y - cpu.y);
+        return distA - distB;
       });
+      const nearestEnemy = enemies[0];
 
-      if ((adjBlocks.length > 0 || isNearEnemy) && cpu.bombsActive < cpu.bombsMax && !isInDanger) {
-        const simDanger = dangerGrid.map((row) => [...row]);
-        simDanger[curGy][curGx] = true;
-        const dirs = [
+      // 5. ボム設置判定 (攻撃またはソフトブロック開拓)
+      if (cpu.bombsActive < cpu.bombsMax && !isInDanger) {
+        let shouldDropBomb = false;
+
+        // 条件A: 近くに敵がいる
+        if (nearestEnemy) {
+          const egx = Math.floor(nearestEnemy.x / TILE_SIZE);
+          const egy = Math.floor(nearestEnemy.y / TILE_SIZE);
+          const dist = Math.abs(curGx - egx) + Math.abs(curGy - egy);
+          if (dist <= cpu.fireRange + 1) {
+            shouldDropBomb = true;
+          }
+        }
+
+        // 条件B: 隣接ソフトブロックがある
+        const adjSoftBlocks = [
           { dx: 0, dy: -1 },
           { dx: 0, dy: 1 },
           { dx: -1, dy: 0 },
           { dx: 1, dy: 0 },
-        ];
-        dirs.forEach(({ dx, dy }) => {
-          for (let dist = 1; dist <= cpu.fireRange; dist++) {
-            const cx = curGx + dx * dist;
-            const cy = curGy + dy * dist;
-            if (cx < 0 || cx >= COLS || cy < 0 || cy >= ROWS) break;
-            const tile = state.grid[cy][cx];
-            if (tile === TILE.HARD_WALL || tile === TILE.SUDDEN_WALL) break;
-            simDanger[cy][cx] = true;
-            if (tile === TILE.SOFT_BLOCK) break;
-          }
+        ].filter((d) => {
+          const tx = curGx + d.dx;
+          const ty = curGy + d.dy;
+          return tx >= 0 && tx < COLS && ty >= 0 && ty < ROWS && state.grid[ty][tx] === TILE.SOFT_BLOCK;
         });
 
-        const canEscape = findBfsPath(
-          curGx,
-          curGy,
-          (gx, gy) => !simDanger[gy][gx] && isCellWalkable(gx, gy),
-          (gx, gy) => isCellWalkable(gx, gy) && (gx !== curGx || gy !== curGy)
-        );
+        if (adjSoftBlocks.length > 0) {
+          shouldDropBomb = true;
+        }
 
-        if (canEscape) {
-          const dropChance = cpuDifficulty === 'hard' ? 0.85 : cpuDifficulty === 'normal' ? 0.5 : 0.25;
-          if (Math.random() < dropChance) {
-            tryPlaceBomb(cpu);
-            return;
+        // 設置シミュレーション（確実に退避できる安全マスがあるか確認）
+        if (shouldDropBomb) {
+          const simDanger = dangerGrid.map((row) => [...row]);
+          simDanger[curGy][curGx] = true;
+          const dirs = [
+            { dx: 0, dy: -1 },
+            { dx: 0, dy: 1 },
+            { dx: -1, dy: 0 },
+            { dx: 1, dy: 0 },
+          ];
+          dirs.forEach(({ dx, dy }) => {
+            for (let dist = 1; dist <= cpu.fireRange; dist++) {
+              const cx = curGx + dx * dist;
+              const cy = curGy + dy * dist;
+              if (cx < 0 || cx >= COLS || cy < 0 || cy >= ROWS) break;
+              const tile = state.grid[cy][cx];
+              if (tile === TILE.HARD_WALL || tile === TILE.SUDDEN_WALL) break;
+              simDanger[cy][cx] = true;
+              if (tile === TILE.SOFT_BLOCK) break;
+            }
+          });
+
+          // 脱出先の安全マスへの方向
+          const escapeDir = findBfsPath(
+            curGx,
+            curGy,
+            (gx, gy) => !simDanger[gy][gx] && isCellWalkable(gx, gy),
+            (gx, gy) => isCellWalkable(gx, gy) && (gx !== curGx || gy !== curGy)
+          );
+
+          if (escapeDir) {
+            const dropChance = cpuDifficulty === 'hard' ? 0.95 : cpuDifficulty === 'normal' ? 0.75 : 0.45;
+            if (Math.random() < dropChance) {
+              tryPlaceBomb(cpu);
+              // ボム設置と同時に即座に退避方向へ踏み出す
+              moveEntityWithSliding(cpu, escapeDir);
+              cpu.dir = escapeDir;
+              cpu.lastMoveDir = escapeDir;
+              return;
+            }
           }
         }
       }
 
-      const possibleDirs: ('UP' | 'DOWN' | 'LEFT' | 'RIGHT')[] = [];
+      // 6. 敵への追跡 (CHASE)
+      if (nearestEnemy) {
+        const egx = Math.floor(nearestEnemy.x / TILE_SIZE);
+        const egy = Math.floor(nearestEnemy.y / TILE_SIZE);
+
+        const chaseDir = findBfsPath(
+          curGx,
+          curGy,
+          (gx, gy) => Math.abs(gx - egx) + Math.abs(gy - egy) <= 1,
+          (gx, gy) => isCellWalkable(gx, gy) && !dangerGrid[gy][gx]
+        );
+
+        if (chaseDir) {
+          moveEntityWithSliding(cpu, chaseDir);
+          cpu.dir = chaseDir;
+          cpu.lastMoveDir = chaseDir;
+          return;
+        }
+      }
+
+      // 7. ソフトブロックへのアプローチ (CLEAR)
+      const blockApproachDir = findBfsPath(
+        curGx,
+        curGy,
+        (gx, gy) => {
+          return [
+            { dx: 0, dy: -1 },
+            { dx: 0, dy: 1 },
+            { dx: -1, dy: 0 },
+            { dx: 1, dy: 0 },
+          ].some((d) => {
+            const tx = gx + d.dx;
+            const ty = gy + d.dy;
+            return tx >= 0 && tx < COLS && ty >= 0 && ty < ROWS && state.grid[ty][tx] === TILE.SOFT_BLOCK;
+          });
+        },
+        (gx, gy) => isCellWalkable(gx, gy) && !dangerGrid[gy][gx]
+      );
+
+      if (blockApproachDir) {
+        moveEntityWithSliding(cpu, blockApproachDir);
+        cpu.dir = blockApproachDir;
+        cpu.lastMoveDir = blockApproachDir;
+        return;
+      }
+
+      // 8. サドンデス中央退避
+      if (state.timeLeft <= 60) {
+        const centerGx = Math.floor(COLS / 2);
+        const centerGy = Math.floor(ROWS / 2);
+        const centerDir = findBfsPath(
+          curGx,
+          curGy,
+          (gx, gy) => Math.abs(gx - centerGx) <= 2 && Math.abs(gy - centerGy) <= 2,
+          (gx, gy) => isCellWalkable(gx, gy) && !dangerGrid[gy][gx]
+        );
+        if (centerDir) {
+          moveEntityWithSliding(cpu, centerDir);
+          cpu.dir = centerDir;
+          cpu.lastMoveDir = centerDir;
+          return;
+        }
+      }
+
+      // 9. 安全な方向への移動
+      const safeDirs: ('UP' | 'DOWN' | 'LEFT' | 'RIGHT')[] = [];
       const testDirs: { dir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT'; dx: number; dy: number }[] = [
         { dir: 'UP', dx: 0, dy: -1 },
         { dir: 'DOWN', dx: 0, dy: 1 },
@@ -1075,16 +1248,16 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
         const nx = curGx + dx;
         const ny = curGy + dy;
         if (isCellWalkable(nx, ny) && !dangerGrid[ny][nx]) {
-          possibleDirs.push(dir);
+          safeDirs.push(dir);
         }
       });
 
-      if (possibleDirs.length > 0) {
-        let nextDir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' = possibleDirs[0];
-        if (cpu.dir !== 'IDLE' && possibleDirs.includes(cpu.dir) && Math.random() >= 0.15) {
+      if (safeDirs.length > 0) {
+        let nextDir: 'UP' | 'DOWN' | 'LEFT' | 'RIGHT' = safeDirs[0];
+        if (cpu.dir !== 'IDLE' && safeDirs.includes(cpu.dir) && Math.random() >= 0.1) {
           nextDir = cpu.dir;
         } else {
-          nextDir = possibleDirs[Math.floor(Math.random() * possibleDirs.length)];
+          nextDir = safeDirs[Math.floor(Math.random() * safeDirs.length)];
         }
         moveEntityWithSliding(cpu, nextDir);
         cpu.dir = nextDir;
@@ -1093,7 +1266,7 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
         cpu.dir = 'IDLE';
       }
     },
-    [cpuDifficulty, findBfsPath, getDangerGrid, moveEntityWithSliding, tryPlaceBomb]
+    [cpuDifficulty, findBfsPath, getDangerGrid, moveEntityWithSliding, triggerRemoteDetonation, tryPlaceBomb]
   );
 
   const updateMonsters = useCallback(() => {
@@ -1400,6 +1573,32 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
           } else if (player.isCpu) {
             updateCpuPlayer(player);
             checkBombKick(player);
+          }
+
+          // 重なっているボムの離脱チェック（完全にボムマスから出たら障害物判定を有効化）
+          if (player.overlapBombIds.size > 0) {
+            const pRadius = TILE_SIZE * 0.36;
+            const pLeft = player.x - pRadius;
+            const pRight = player.x + pRadius;
+            const pTop = player.y - pRadius;
+            const pBottom = player.y + pRadius;
+
+            player.overlapBombIds.forEach((bombId) => {
+              const bomb = state.bombs.find((b) => b.id === bombId);
+              if (!bomb) {
+                player.overlapBombIds.delete(bombId);
+                return;
+              }
+              const bLeft = bomb.gx * TILE_SIZE;
+              const bRight = (bomb.gx + 1) * TILE_SIZE;
+              const bTop = bomb.gy * TILE_SIZE;
+              const bBottom = (bomb.gy + 1) * TILE_SIZE;
+
+              // 完全に交差しなくなったら離脱完了！
+              if (pRight <= bLeft || pLeft >= bRight || pBottom <= bTop || pTop >= bBottom) {
+                player.overlapBombIds.delete(bombId);
+              }
+            });
           }
 
           const pgx = Math.floor(player.x / TILE_SIZE);
