@@ -12,6 +12,7 @@ import {
   Sparkles,
   Flame,
   HelpCircle,
+  Crown,
 } from 'lucide-react';
 
 const HIGH_SCORE_KEY = 'bomberman_high_score';
@@ -160,6 +161,17 @@ interface FallingBlock {
   isLanding: boolean;
 }
 
+// 祝祭演出用 紙吹雪パーティクル
+const CONFETTI_PIECES = Array.from({ length: 45 }, (_, i) => ({
+  id: i,
+  left: `${(i * 2.2 + 1) % 98}%`,
+  delay: `${(i * 0.08) % 2.5}s`,
+  duration: `${2.0 + (i % 6) * 0.3}s`,
+  color: ['#fbbf24', '#f59e0b', '#ef4444', '#10b981', '#3b82f6', '#ec4899', '#a855f7', '#38bdf8', '#ffffff'][i % 9],
+  size: `${8 + (i % 5) * 3}px`,
+  shape: i % 3 === 0 ? 'rounded-full' : i % 3 === 1 ? 'rounded-xs' : 'rotate-45',
+}));
+
 interface BombermanGameProps {
   onBackToHub: () => void;
   isDark: boolean;
@@ -190,6 +202,9 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
   const [roundWinner, setRoundWinner] = useState<string | null>(null);
   const [remainingTime, setRemainingTime] = useState<number>(180); // 秒
   const [isSuddenDeath, setIsSuddenDeath] = useState<boolean>(false);
+
+  // リザルト画面オープン時刻（誤操作防止ディレイ用）
+  const resultOpenTimeRef = useRef<number>(0);
 
   // 内部ミュータブルステート
   const stateRef = useRef({
@@ -538,10 +553,44 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
   };
 
   useEffect(() => {
+    if (gameState === 'roundOver' || gameState === 'gameOver' || gameState === 'stageClear') {
+      resultOpenTimeRef.current = Date.now();
+    }
+  }, [gameState]);
+
+  useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' ', 'Space'].includes(e.key)) {
         e.preventDefault();
       }
+
+      // スペースキーまたはEnterキーでリザルト画面から次のラウンド/ステージ/リスタートへ進む
+      if (e.code === 'Space' || e.key === ' ' || e.code === 'Enter') {
+        if (Date.now() - resultOpenTimeRef.current > 350) {
+          if (gameState === 'roundOver') {
+            e.preventDefault();
+            initRound('battle');
+            return;
+          }
+          if (gameState === 'stageClear') {
+            e.preventDefault();
+            if (currentStage < 5) {
+              const next = currentStage + 1;
+              setCurrentStage(next);
+              initRound('stage', next);
+            } else {
+              handleStartGame('stage');
+            }
+            return;
+          }
+          if (gameState === 'gameOver') {
+            e.preventDefault();
+            initRound(gameMode, currentStage);
+            return;
+          }
+        }
+      }
+
       keysRef.current[e.key] = true;
       keysRef.current[e.code] = true;
 
@@ -561,7 +610,7 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [gameState]);
+  }, [currentStage, gameMode, gameState, initRound]);
 
   const addFloatingText = (x: number, y: number, text: string, color: string) => {
     const state = stateRef.current;
@@ -2363,94 +2412,274 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
           </div>
         )}
 
+        {/* 祝祭演出用 CSSアニメーション */}
+        <style>{`
+          @keyframes confettiDrop {
+            0% {
+              transform: translateY(-20px) rotate(0deg) scale(0.8);
+              opacity: 1;
+            }
+            70% {
+              opacity: 1;
+            }
+            100% {
+              transform: translateY(680px) rotate(720deg) scale(0.6);
+              opacity: 0;
+            }
+          }
+        `}</style>
+
+        {/* 👑 超豪華フル演出！ラウンド終了リザルト画面 */}
         {gameState === 'roundOver' && (
-          <div className="absolute inset-0 bg-black/80 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="text-amber-400 text-3xl font-black flex items-center gap-2">
-              <Trophy className="w-8 h-8 text-amber-500" />
-              ROUND RESULT
-            </div>
-            <div className="text-xl font-bold text-slate-100 font-mono">
-              勝者: <span className="text-orange-400">{roundWinner}</span>
+          <div className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-6 text-white animate-in fade-in duration-300 overflow-hidden select-none">
+            {/* 1. 神々しい回転ゴッドレイ光線 (God Rays) */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[720px] h-[720px] rounded-full blur-3xl animate-spin"
+                style={{
+                  background:
+                    'conic-gradient(from 0deg, #f59e0b, #ef4444, #fbbf24, #10b981, #3b82f6, #ec4899, #f59e0b)',
+                  animationDuration: '16s',
+                }}
+              />
             </div>
 
-            <div className="bg-slate-900/80 border border-slate-800 p-4 rounded-2xl w-full max-w-sm space-y-2 font-mono text-xs">
-              <div className="text-slate-400 font-bold mb-2">生存ラウンド勝利数:</div>
-              {stateRef.current.players.map((p) => (
-                <div key={p.id} className="flex justify-between items-center">
-                  <span className="flex items-center gap-1.5">
-                    <span className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }} />
-                    {p.name}
-                  </span>
-                  <span className="font-bold text-amber-400 text-sm">👑 {p.wins} 勝</span>
-                </div>
+            {/* 2. 舞い散るキラキラ紙吹雪パーティクル (Confetti) */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+              {CONFETTI_PIECES.map((p) => (
+                <div
+                  key={p.id}
+                  className={`absolute ${p.shape} opacity-0`}
+                  style={{
+                    left: p.left,
+                    top: '-20px',
+                    width: p.size,
+                    height: p.size,
+                    backgroundColor: p.color,
+                    boxShadow: `0 0 12px ${p.color}`,
+                    animation: `confettiDrop ${p.duration} ease-in infinite`,
+                    animationDelay: p.delay,
+                  }}
+                />
               ))}
             </div>
 
-            <button
-              onClick={() => initRound('battle')}
-              className="px-6 py-3 bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-white font-bold rounded-xl shadow-lg transition cursor-pointer flex items-center gap-2 mt-2"
-            >
-              <RotateCcw className="w-4 h-4" />
-              次のラウンドへ
-            </button>
-          </div>
-        )}
-
-        {gameState === 'gameOver' && (
-          <div className="absolute inset-0 bg-black/85 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="text-rose-500 text-4xl font-black">GAME OVER</div>
-            <p className="text-xs text-slate-300 font-mono text-center">
-              爆風に巻き込まれてしまいました！
-            </p>
-            <div className="text-sm font-mono text-slate-300">
-              SCORE: <span className="font-bold text-white text-base">{matchScore.toLocaleString()} pts</span>
-            </div>
-            <button
-              onClick={() => initRound(gameMode, currentStage)}
-              className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer mt-2"
-            >
-              <RotateCcw className="w-4 h-4" />
-              もう一度挑戦
-            </button>
-          </div>
-        )}
-
-        {gameState === 'stageClear' && (
-          <div className="absolute inset-0 bg-black/85 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-white space-y-4 animate-in zoom-in-95 duration-200">
-            <div className="text-emerald-400 text-4xl font-black flex items-center gap-2">
-              <Sparkles className="w-8 h-8 text-amber-400" />
-              STAGE {currentStage} CLEAR!
-            </div>
-            <p className="text-xs text-slate-300 font-mono">
-              扉を開けて無事に脱出しました！
-            </p>
-            <div className="text-sm font-mono text-slate-200">
-              TOTAL SCORE: <span className="font-bold text-amber-400 text-base">{matchScore.toLocaleString()} pts</span>
-            </div>
-
-            {currentStage < 5 ? (
-              <button
-                onClick={() => {
-                  const next = currentStage + 1;
-                  setCurrentStage(next);
-                  initRound('stage', next);
-                }}
-                className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer mt-2"
-              >
-                <Play className="w-4 h-4" />
-                次のステージへ (STAGE {currentStage + 1})
-              </button>
-            ) : (
-              <div className="text-center space-y-3">
-                <div className="text-amber-300 font-bold text-lg">🎉 全ステージ完全制覇！おめでとうございます！ 🎉</div>
-                <button
-                  onClick={() => handleStartGame('stage')}
-                  className="px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-xl shadow-lg transition cursor-pointer"
-                >
-                  最初からやり直す
-                </button>
+            {/* 3. メインリザルトカード */}
+            <div className="relative w-full max-w-md p-6 sm:p-8 rounded-[32px] bg-slate-900/90 border-2 border-amber-500/50 shadow-[0_0_80px_rgba(245,158,11,0.35)] backdrop-blur-2xl flex flex-col items-center z-10 animate-in zoom-in-95 duration-300">
+              {/* ヘッダーリボン */}
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gradient-to-r from-amber-500/20 via-orange-500/20 to-amber-500/20 border border-amber-500/50 text-amber-300 text-xs font-black tracking-widest uppercase mb-1 drop-shadow-md">
+                <Sparkles className="w-4 h-4 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
+                <span>BATTLE ARENA RESULT</span>
+                <Sparkles className="w-4 h-4 text-amber-400 animate-spin" style={{ animationDuration: '6s' }} />
               </div>
-            )}
+
+              {/* 巨大タイトルスタンプ */}
+              <div className="text-center my-3 animate-in zoom-in-75 duration-500">
+                {roundWinner?.includes('白ボン') ? (
+                  <div className="flex flex-col items-center">
+                    <div className="text-4xl sm:text-5xl font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-yellow-200 via-amber-300 to-orange-400 drop-shadow-[0_0_35px_rgba(251,191,36,0.8)] flex items-center justify-center gap-2">
+                      👑 VICTORY!! 🏆
+                    </div>
+                    <span className="text-xs font-bold tracking-widest text-amber-300 mt-1 uppercase">
+                      Player 1 Dominates The Field!
+                    </span>
+                  </div>
+                ) : roundWinner?.includes('DRAW') ? (
+                  <div className="flex flex-col items-center">
+                    <div className="text-4xl sm:text-5xl font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-slate-200 via-slate-300 to-slate-400 drop-shadow-[0_0_30px_rgba(148,163,184,0.6)]">
+                      💥 DRAW GAME 💥
+                    </div>
+                    <span className="text-xs font-bold tracking-widest text-slate-400 mt-1 uppercase">
+                      Mutual Destruction!
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center">
+                    <div className="text-4xl sm:text-5xl font-black tracking-wider bg-clip-text text-transparent bg-gradient-to-r from-orange-400 via-rose-400 to-red-500 drop-shadow-[0_0_30px_rgba(244,63,94,0.7)]">
+                      👑 {roundWinner} WIN!
+                    </div>
+                    <span className="text-xs font-bold tracking-widest text-rose-300 mt-1 uppercase">
+                      Round Champion Emerged!
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* 勝者ハイライトバッジ */}
+              {roundWinner && !roundWinner.includes('DRAW') && (
+                <div className="my-1 px-4 py-1.5 rounded-2xl bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs font-mono font-bold flex items-center gap-2 shadow-inner">
+                  <Trophy className="w-4 h-4 text-amber-400" />
+                  勝者: <span className="text-white font-black text-sm">{roundWinner}</span>
+                </div>
+              )}
+
+              {/* プレイヤー勝利数・クラウン一覧 */}
+              <div className="w-full bg-slate-950/80 border border-slate-800/80 p-4 rounded-2xl my-3 font-mono text-xs space-y-2.5 shadow-inner">
+                <div className="text-[11px] text-slate-400 font-sans font-bold flex items-center justify-between border-b border-slate-800 pb-1.5">
+                  <span className="flex items-center gap-1">
+                    <Crown className="w-3.5 h-3.5 text-amber-400" />
+                    クラウン獲得数 (TOTAL WINS)
+                  </span>
+                  <span className="text-[10px] text-slate-500">BATTLE ARENA</span>
+                </div>
+                {stateRef.current.players.map((p) => (
+                  <div
+                    key={p.id}
+                    className={`flex items-center justify-between p-2 rounded-xl transition-colors ${
+                      p.name === roundWinner
+                        ? 'bg-amber-500/15 border border-amber-500/40 shadow-sm'
+                        : 'bg-slate-900/50'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div
+                        className="w-4 h-4 rounded-full border border-white/60 shadow-xs"
+                        style={{ backgroundColor: p.color }}
+                      />
+                      <span className="font-bold text-slate-200">{p.name}</span>
+                      {p.name === roundWinner && (
+                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded-md bg-amber-500 text-slate-950 uppercase">
+                          WIN
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-black text-amber-400 text-sm">{p.wins}</span>
+                      <span className="text-amber-400 text-xs">👑</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* アクションボタン（スペースキー対応） */}
+              <button
+                onClick={() => initRound('battle')}
+                className="w-full py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-white font-black text-base shadow-[0_0_35px_rgba(245,158,11,0.5)] active:scale-95 transition-all flex items-center justify-center gap-3 cursor-pointer group mt-2"
+              >
+                <RotateCcw className="w-5 h-5 group-hover:rotate-180 transition-transform duration-500" />
+                <span>次のラウンドへ</span>
+                <span className="px-2 py-0.5 rounded-md bg-black/40 border border-white/30 text-xs font-mono text-amber-200 font-bold tracking-wider">
+                  SPACE
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 💀 ゲームオーバーモーダル（スペースキー対応） */}
+        {gameState === 'gameOver' && (
+          <div className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-6 text-white animate-in fade-in duration-300 select-none">
+            <div className="relative w-full max-w-sm p-6 sm:p-8 rounded-[32px] bg-slate-900/90 border-2 border-rose-500/40 shadow-[0_0_60px_rgba(244,63,94,0.3)] backdrop-blur-2xl flex flex-col items-center z-10 animate-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 rounded-full bg-rose-500/20 border border-rose-500/50 flex items-center justify-center text-3xl mb-2 drop-shadow-md">
+                💥
+              </div>
+              <div className="text-rose-500 text-3xl sm:text-4xl font-black tracking-wider drop-shadow-md">
+                GAME OVER
+              </div>
+              <p className="text-xs text-slate-300 font-mono text-center mt-2">
+                爆風に巻き込まれてしまいました！
+              </p>
+              <div className="my-4 px-5 py-2.5 rounded-2xl bg-slate-950/80 border border-slate-800 text-sm font-mono text-slate-300">
+                SCORE: <span className="font-bold text-amber-400 text-base">{matchScore.toLocaleString()} pts</span>
+              </div>
+              <button
+                onClick={() => initRound(gameMode, currentStage)}
+                className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-rose-600 to-indigo-600 hover:from-rose-500 hover:to-indigo-500 text-white font-bold text-sm shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer group"
+              >
+                <RotateCcw className="w-4 h-4 group-hover:rotate-180 transition-transform duration-500" />
+                <span>もう一度挑戦</span>
+                <span className="px-2 py-0.5 rounded-md bg-black/40 border border-white/30 text-xs font-mono text-rose-200 font-bold">
+                  SPACE
+                </span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* 🌟 ステージクリアモーダル（超豪華演出・スペースキー対応） */}
+        {gameState === 'stageClear' && (
+          <div className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-4 sm:p-6 text-white animate-in fade-in duration-300 overflow-hidden select-none">
+            {/* 回転ゴッドレイ */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-25">
+              <div
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] rounded-full blur-3xl animate-spin"
+                style={{
+                  background: 'conic-gradient(from 0deg, #10b981, #06b6d4, #3b82f6, #8b5cf6, #10b981)',
+                  animationDuration: '18s',
+                }}
+              />
+            </div>
+
+            {/* 紙吹雪 */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+              {CONFETTI_PIECES.map((p) => (
+                <div
+                  key={p.id}
+                  className={`absolute ${p.shape} opacity-0`}
+                  style={{
+                    left: p.left,
+                    top: '-20px',
+                    width: p.size,
+                    height: p.size,
+                    backgroundColor: p.color,
+                    boxShadow: `0 0 10px ${p.color}`,
+                    animation: `confettiDrop ${p.duration} ease-in infinite`,
+                    animationDelay: p.delay,
+                  }}
+                />
+              ))}
+            </div>
+
+            <div className="relative w-full max-w-md p-6 sm:p-8 rounded-[32px] bg-slate-900/90 border-2 border-emerald-500/50 shadow-[0_0_80px_rgba(16,185,129,0.35)] backdrop-blur-2xl flex flex-col items-center z-10 animate-in zoom-in-95 duration-300">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 text-xs font-black tracking-widest uppercase mb-2">
+                <Sparkles className="w-4 h-4 text-emerald-400 animate-spin" style={{ animationDuration: '6s' }} />
+                STAGE CLEAR
+              </div>
+
+              <div className="text-3xl sm:text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-300 drop-shadow-[0_0_30px_rgba(16,185,129,0.7)] my-2">
+                STAGE {currentStage} CLEAR!!
+              </div>
+
+              <p className="text-xs text-slate-300 font-mono mt-1">
+                隠された扉を開けて無事に脱出しました！
+              </p>
+
+              <div className="my-4 px-5 py-2.5 rounded-2xl bg-slate-950/80 border border-slate-800 text-sm font-mono text-slate-200">
+                TOTAL SCORE: <span className="font-bold text-amber-400 text-base">{matchScore.toLocaleString()} pts</span>
+              </div>
+
+              {currentStage < 5 ? (
+                <button
+                  onClick={() => {
+                    const next = currentStage + 1;
+                    setCurrentStage(next);
+                    initRound('stage', next);
+                  }}
+                  className="w-full py-3.5 sm:py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-black text-base shadow-[0_0_35px_rgba(16,185,129,0.5)] active:scale-95 transition-all flex items-center justify-center gap-3 cursor-pointer group mt-2"
+                >
+                  <Play className="w-5 h-5 fill-current" />
+                  <span>次のステージへ (STAGE {currentStage + 1})</span>
+                  <span className="px-2 py-0.5 rounded-md bg-black/40 border border-white/30 text-xs font-mono text-emerald-200 font-bold tracking-wider">
+                    SPACE
+                  </span>
+                </button>
+              ) : (
+                <div className="text-center space-y-3 w-full mt-2">
+                  <div className="text-amber-300 font-black text-lg animate-bounce">
+                    🎉 全ステージ完全制覇！おめでとうございます！ 🎉
+                  </div>
+                  <button
+                    onClick={() => handleStartGame('stage')}
+                    className="w-full py-3.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold text-sm shadow-xl transition cursor-pointer flex items-center justify-center gap-2"
+                  >
+                    <span>最初からやり直す</span>
+                    <span className="px-2 py-0.5 rounded-md bg-black/40 border border-white/30 text-xs font-mono text-indigo-200 font-bold">
+                      SPACE
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
 
