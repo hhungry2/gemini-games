@@ -611,12 +611,19 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
       return;
     }
 
+    const cellCenterX = gx * TILE_SIZE + TILE_SIZE / 2;
+    const cellCenterY = gy * TILE_SIZE + TILE_SIZE / 2;
+
+    // プレイヤーの位置をマス中心にスナップ（四方の壁との間に均等な安全マージンを確保）
+    player.x = cellCenterX;
+    player.y = cellCenterY;
+
     const newBomb: Bomb = {
       id: state.nextBombId++,
       gx,
       gy,
-      px: gx * TILE_SIZE + TILE_SIZE / 2,
-      py: gy * TILE_SIZE + TILE_SIZE / 2,
+      px: cellCenterX,
+      py: cellCenterY,
       ownerId: player.id,
       fireRange: player.fireRange,
       timer: 150,
@@ -627,20 +634,14 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
     };
     state.bombs.push(newBomb);
 
-    // 設置者およびそのボムマスに体の一部が重なっているプレイヤーに通過権（離脱猶予）を付与
-    state.players.forEach((p) => {
-      if (p.isAlive) {
-        const pRadius = TILE_SIZE * 0.38;
-        const pLeft = p.x - pRadius;
-        const pRight = p.x + pRadius;
-        const pTop = p.y - pRadius;
-        const pBottom = p.y + pRadius;
-        const bLeft = gx * TILE_SIZE;
-        const bRight = (gx + 1) * TILE_SIZE;
-        const bTop = gy * TILE_SIZE;
-        const bBottom = (gy + 1) * TILE_SIZE;
+    // 設置者は無条件で離脱猶予を保持
+    player.overlapBombIds.add(newBomb.id);
 
-        if (pRight > bLeft && pLeft < bRight && pBottom > bTop && pTop < bBottom) {
+    // その他のプレイヤーで、このボムマスに重なっている者にも通過権を付与
+    state.players.forEach((p) => {
+      if (p.isAlive && p.id !== player.id) {
+        const dist = Math.hypot(p.x - cellCenterX, p.y - cellCenterY);
+        if (dist < TILE_SIZE * 0.75) {
           p.overlapBombIds.add(newBomb.id);
         }
       }
@@ -779,14 +780,8 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
 
       const state = stateRef.current;
       const speed = entity.speed;
-      let dx = 0;
-      let dy = 0;
 
-      if (desiredDir === 'UP') dy = -speed;
-      if (desiredDir === 'DOWN') dy = speed;
-      if (desiredDir === 'LEFT') dx = -speed;
-      if (desiredDir === 'RIGHT') dx = speed;
-
+      // 通行可能判定
       const canPass = (gx: number, gy: number): boolean => {
         if (gx < 0 || gx >= COLS || gy < 0 || gy >= ROWS) return false;
         const tile = state.grid[gy][gx];
@@ -795,76 +790,102 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
 
         const bomb = state.bombs.find((b) => b.gx === gx && b.gy === gy);
         if (bomb) {
-          if (entity.hasBombPass && bomb.ownerId === entity.id) {
-            return true;
-          }
-          if (entity.overlapBombIds && entity.overlapBombIds.has(bomb.id)) {
-            return true;
-          }
+          if (entity.hasBombPass && bomb.ownerId === entity.id) return true;
+          if (entity.overlapBombIds && entity.overlapBombIds.has(bomb.id)) return true;
+          // 念のため、エンティティの中心がまだこのボムのマスにあるなら通過可能
+          const curGx = Math.floor(entity.x / TILE_SIZE);
+          const curGy = Math.floor(entity.y / TILE_SIZE);
+          if (curGx === gx && curGy === gy) return true;
           return false;
         }
         return true;
       };
 
-      const radius = TILE_SIZE * 0.38;
+      // コリジョン半径（48pxマスに対して直径28px = 半径14pxの余裕を持ったサイズ）
+      const r = 14;
       const curGx = Math.floor(entity.x / TILE_SIZE);
       const curGy = Math.floor(entity.y / TILE_SIZE);
       const centerX = curGx * TILE_SIZE + TILE_SIZE / 2;
       const centerY = curGy * TILE_SIZE + TILE_SIZE / 2;
-      const slideThreshold = TILE_SIZE * 0.42;
+      const slideMargin = TILE_SIZE * 0.42;
 
-      if (desiredDir === 'LEFT' || desiredDir === 'RIGHT') {
+      if (desiredDir === 'LEFT') {
         const diffY = entity.y - centerY;
-        const targetGx = desiredDir === 'LEFT' ? curGx - 1 : curGx + 1;
-        if (!canPass(targetGx, curGy)) {
-          if (diffY < -2 && diffY > -slideThreshold && canPass(targetGx, curGy - 1)) {
-            entity.y = Math.max(centerY - slideThreshold, entity.y - speed * 0.8);
-          } else if (diffY > 2 && diffY < slideThreshold && canPass(targetGx, curGy + 1)) {
-            entity.y = Math.min(centerY + slideThreshold, entity.y + speed * 0.8);
+        const targetGx = Math.floor((entity.x - speed - r) / TILE_SIZE);
+
+        if (canPass(targetGx, curGy)) {
+          if (Math.abs(diffY) > 0.5) {
+            entity.y += (diffY > 0 ? -1 : 1) * Math.min(Math.abs(diffY), speed * 0.8);
           }
+          entity.x -= speed;
         } else {
-          if (Math.abs(diffY) > 1 && Math.abs(diffY) < slideThreshold) {
-            entity.y += diffY > 0 ? -Math.min(speed * 0.7, diffY) : Math.min(speed * 0.7, -diffY);
+          if (diffY < -3 && diffY > -slideMargin && canPass(targetGx, curGy - 1)) {
+            entity.y -= speed * 0.9;
+          } else if (diffY > 3 && diffY < slideMargin && canPass(targetGx, curGy + 1)) {
+            entity.y += speed * 0.9;
+          } else {
+            entity.x = Math.max(curGx * TILE_SIZE + r, entity.x - speed);
           }
         }
-      } else if (desiredDir === 'UP' || desiredDir === 'DOWN') {
+      } else if (desiredDir === 'RIGHT') {
+        const diffY = entity.y - centerY;
+        const targetGx = Math.floor((entity.x + speed + r) / TILE_SIZE);
+
+        if (canPass(targetGx, curGy)) {
+          if (Math.abs(diffY) > 0.5) {
+            entity.y += (diffY > 0 ? -1 : 1) * Math.min(Math.abs(diffY), speed * 0.8);
+          }
+          entity.x += speed;
+        } else {
+          if (diffY < -3 && diffY > -slideMargin && canPass(targetGx, curGy - 1)) {
+            entity.y -= speed * 0.9;
+          } else if (diffY > 3 && diffY < slideMargin && canPass(targetGx, curGy + 1)) {
+            entity.y += speed * 0.9;
+          } else {
+            entity.x = Math.min((curGx + 1) * TILE_SIZE - r, entity.x + speed);
+          }
+        }
+      } else if (desiredDir === 'UP') {
         const diffX = entity.x - centerX;
-        const targetGy = desiredDir === 'UP' ? curGy - 1 : curGy + 1;
-        if (!canPass(curGx, targetGy)) {
-          if (diffX < -2 && diffX > -slideThreshold && canPass(curGx - 1, targetGy)) {
-            entity.x = Math.max(centerX - slideThreshold, entity.x - speed * 0.8);
-          } else if (diffX > 2 && diffX < slideThreshold && canPass(curGx + 1, targetGy)) {
-            entity.x = Math.min(centerX + slideThreshold, entity.x + speed * 0.8);
+        const targetGy = Math.floor((entity.y - speed - r) / TILE_SIZE);
+
+        if (canPass(curGx, targetGy)) {
+          if (Math.abs(diffX) > 0.5) {
+            entity.x += (diffX > 0 ? -1 : 1) * Math.min(Math.abs(diffX), speed * 0.8);
           }
+          entity.y -= speed;
         } else {
-          if (Math.abs(diffX) > 1 && Math.abs(diffX) < slideThreshold) {
-            entity.x += diffX > 0 ? -Math.min(speed * 0.7, diffX) : Math.min(speed * 0.7, -diffX);
+          if (diffX < -3 && diffX > -slideMargin && canPass(curGx - 1, targetGy)) {
+            entity.x -= speed * 0.9;
+          } else if (diffX > 3 && diffX < slideMargin && canPass(curGx + 1, targetGy)) {
+            entity.x += speed * 0.9;
+          } else {
+            entity.y = Math.max(curGy * TILE_SIZE + r, entity.y - speed);
+          }
+        }
+      } else if (desiredDir === 'DOWN') {
+        const diffX = entity.x - centerX;
+        const targetGy = Math.floor((entity.y + speed + r) / TILE_SIZE);
+
+        if (canPass(curGx, targetGy)) {
+          if (Math.abs(diffX) > 0.5) {
+            entity.x += (diffX > 0 ? -1 : 1) * Math.min(Math.abs(diffX), speed * 0.8);
+          }
+          entity.y += speed;
+        } else {
+          if (diffX < -3 && diffX > -slideMargin && canPass(curGx - 1, targetGy)) {
+            entity.x -= speed * 0.9;
+          } else if (diffX > 3 && diffX < slideMargin && canPass(curGx + 1, targetGy)) {
+            entity.x += speed * 0.9;
+          } else {
+            entity.y = Math.min((curGy + 1) * TILE_SIZE - r, entity.y + speed);
           }
         }
       }
 
-      const newX = entity.x + dx;
-      const newY = entity.y + dy;
-
-      const canMoveX =
-        canPass(Math.floor((newX - radius) / TILE_SIZE), Math.floor((entity.y - radius * 0.8) / TILE_SIZE)) &&
-        canPass(Math.floor((newX + radius) / TILE_SIZE), Math.floor((entity.y - radius * 0.8) / TILE_SIZE)) &&
-        canPass(Math.floor((newX - radius) / TILE_SIZE), Math.floor((entity.y + radius * 0.8) / TILE_SIZE)) &&
-        canPass(Math.floor((newX + radius) / TILE_SIZE), Math.floor((entity.y + radius * 0.8) / TILE_SIZE));
-
-      if (canMoveX) {
-        entity.x = newX;
-      }
-
-      const canMoveY =
-        canPass(Math.floor((entity.x - radius * 0.8) / TILE_SIZE), Math.floor((newY - radius) / TILE_SIZE)) &&
-        canPass(Math.floor((entity.x + radius * 0.8) / TILE_SIZE), Math.floor((newY - radius) / TILE_SIZE)) &&
-        canPass(Math.floor((entity.x - radius * 0.8) / TILE_SIZE), Math.floor((newY + radius) / TILE_SIZE)) &&
-        canPass(Math.floor((entity.x + radius * 0.8) / TILE_SIZE), Math.floor((newY + radius) / TILE_SIZE));
-
-      if (canMoveY) {
-        entity.y = newY;
-      }
+      // フィールド外周の絶対ガード
+      entity.x = Math.max(TILE_SIZE + r, Math.min((COLS - 1) * TILE_SIZE - r, entity.x));
+      entity.y = Math.max(TILE_SIZE + r, Math.min((ROWS - 1) * TILE_SIZE - r, entity.y));
     },
     []
   );
@@ -1575,27 +1596,16 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
             checkBombKick(player);
           }
 
-          // 重なっているボムの離脱チェック（完全にボムマスから出たら障害物判定を有効化）
+          // 重なっているボムの離脱チェック（中心が隣のマスへしっかり移るまで通過可能を維持）
           if (player.overlapBombIds.size > 0) {
-            const pRadius = TILE_SIZE * 0.36;
-            const pLeft = player.x - pRadius;
-            const pRight = player.x + pRadius;
-            const pTop = player.y - pRadius;
-            const pBottom = player.y + pRadius;
-
             player.overlapBombIds.forEach((bombId) => {
               const bomb = state.bombs.find((b) => b.id === bombId);
               if (!bomb) {
                 player.overlapBombIds.delete(bombId);
                 return;
               }
-              const bLeft = bomb.gx * TILE_SIZE;
-              const bRight = (bomb.gx + 1) * TILE_SIZE;
-              const bTop = bomb.gy * TILE_SIZE;
-              const bBottom = (bomb.gy + 1) * TILE_SIZE;
-
-              // 完全に交差しなくなったら離脱完了！
-              if (pRight <= bLeft || pLeft >= bRight || pBottom <= bTop || pTop >= bBottom) {
+              const dist = Math.hypot(player.x - bomb.px, player.y - bomb.py);
+              if (dist >= TILE_SIZE * 0.72) {
                 player.overlapBombIds.delete(bombId);
               }
             });
