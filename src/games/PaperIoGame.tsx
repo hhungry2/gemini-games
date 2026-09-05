@@ -2083,8 +2083,8 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative flex flex-col items-center justify-center w-full select-none transition-all ${
-        isFullscreen ? 'h-screen w-screen p-0 bg-slate-950' : 'max-w-5xl mx-auto'
+      className={`relative flex flex-col items-center justify-between w-full select-none transition-all ${
+        isFullscreen ? 'h-screen w-screen p-0 bg-slate-950' : 'max-w-5xl mx-auto h-[calc(100dvh-4.5rem)]'
       }`}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
@@ -2092,7 +2092,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       {/* ゲームプレイ画面 */}
       <div
         className={`relative w-full flex flex-col items-center justify-center overflow-hidden border shadow-2xl bg-slate-950 ${
-          isFullscreen ? 'h-screen rounded-none border-none' : 'rounded-3xl border-slate-800/80'
+          isFullscreen ? 'h-screen rounded-none border-none' : 'rounded-2xl sm:rounded-3xl border-slate-800/80 flex-1 min-h-0'
         }`}
       >
         <canvas
@@ -2569,7 +2569,7 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
 
       {/* 下部コントロール＆操作説明バー */}
       {!isFullscreen && (
-        <div className="w-full mt-4 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="w-full mt-2 hidden sm:flex flex-wrap items-center justify-between gap-3 text-xs">
           <div
             className={`flex items-center gap-3 px-4 py-2 rounded-xl border text-[11px] font-medium ${
               isDark

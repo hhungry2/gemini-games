@@ -1128,7 +1128,7 @@ export const BreakoutGame: React.FC<BreakoutGameProps> = ({
         } ${
           isFullscreen
             ? 'w-[min(96vw,calc((100vh-100px)*600/750))] aspect-[4/5] my-auto'
-            : 'w-full max-w-[480px] aspect-[4/5]'
+            : 'w-[min(96vw,calc((100dvh-13rem)*600/750),480px)] aspect-[4/5]'
         }`}
       >
         <canvas
@@ -1136,6 +1136,7 @@ export const BreakoutGame: React.FC<BreakoutGameProps> = ({
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
           onMouseMove={handleCanvasMouseMove}
+          onTouchStart={handleCanvasTouchMove}
           onTouchMove={handleCanvasTouchMove}
           onClick={handleCanvasClick}
           className="w-full h-full block cursor-none touch-none"

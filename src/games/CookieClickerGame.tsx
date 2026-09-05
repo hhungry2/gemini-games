@@ -944,7 +944,7 @@ export const CookieClickerGame: React.FC<CookieClickerGameProps> = ({
 
   return (
     <div
-      className={`relative w-full h-full min-h-screen flex flex-col select-none overflow-hidden ${
+      className={`relative w-full h-[calc(100dvh-4rem)] max-h-screen flex flex-col select-none overflow-hidden ${
         isDark ? 'bg-slate-950 text-slate-100' : 'bg-amber-50/60 text-slate-800'
       }`}
     >
@@ -1105,8 +1105,8 @@ export const CookieClickerGame: React.FC<CookieClickerGameProps> = ({
 
       {/* メインゲームエリア：フルスクリーン時は幅上限解除＆画面フル活用 */}
       <main
-        className={`flex-1 w-full grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden ${
-          isFullscreen ? 'h-[calc(100vh-60px)]' : 'max-w-7xl mx-auto h-[calc(100vh-64px)]'
+        className={`flex-1 min-h-0 w-full grid grid-cols-1 lg:grid-cols-12 gap-0 overflow-hidden ${
+          isFullscreen ? 'h-full' : 'max-w-7xl mx-auto h-full'
         }`}
       >
         {/* ===================== 左ペイン (ビッグクッキー ＆ クリックエリア) ===================== */}

@@ -515,7 +515,7 @@ export const SonicGame: React.FC<SonicGameProps> = ({
         className={`relative flex items-center justify-center overflow-hidden bg-black ${
           isFullscreen
             ? 'w-full h-full flex-1 max-w-none rounded-none border-none'
-            : 'w-full aspect-[16/9] rounded-2xl shadow-2xl border ' +
+            : 'w-full aspect-[16/9] max-h-[calc(100dvh-8rem)] rounded-2xl shadow-2xl border ' +
               (isDark ? 'border-slate-800' : 'border-slate-300')
         }`}
       >

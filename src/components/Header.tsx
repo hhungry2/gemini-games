@@ -51,18 +51,18 @@ export const Header: React.FC<HeaderProps> = ({
             : 'border-slate-200 bg-white/80 text-slate-800 shadow-xs'
         }`}
       >
-        <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 sm:gap-3.5 shrink min-w-0">
+        <div className="max-w-6xl mx-auto px-2.5 sm:px-4 h-14 sm:h-16 flex items-center justify-between gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-3.5 shrink min-w-0">
             <div
-              className="flex items-center gap-2 sm:gap-3 cursor-pointer group shrink-0"
+              className="flex items-center gap-1.5 sm:gap-3 cursor-pointer group shrink-0"
               onClick={onGoHome}
             >
-              <div className="p-2 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/20 text-white group-hover:scale-105 transition-transform">
-                <Gamepad2 className="w-5 h-5" />
+              <div className="p-1.5 sm:p-2 rounded-xl bg-gradient-to-tr from-indigo-500 to-purple-600 shadow-md shadow-indigo-500/20 text-white group-hover:scale-105 transition-transform">
+                <Gamepad2 className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
-              <div className="flex items-center gap-1.5 sm:gap-2">
+              <div className="flex items-center gap-1 sm:gap-2">
                 <span
-                  className={`font-black text-lg sm:text-xl tracking-wider ${
+                  className={`font-black text-base sm:text-xl tracking-wider ${
                     isDark
                       ? 'bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-pink-300'
                       : 'bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-indigo-700 to-purple-700'
@@ -72,7 +72,7 @@ export const Header: React.FC<HeaderProps> = ({
                 </span>
                 {!activeGame && (
                   <span
-                    className={`text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full border ${
+                    className={`text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full border hidden xs:inline-block ${
                       isDark
                         ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300'
                         : 'bg-indigo-50 border-indigo-200 text-indigo-700'
@@ -88,15 +88,16 @@ export const Header: React.FC<HeaderProps> = ({
             {activeGame && (
               <button
                 onClick={onGoHome}
-                className={`flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 text-xs font-semibold rounded-xl border transition cursor-pointer shrink-0 ${
+                className={`flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 sm:py-2 text-xs font-semibold rounded-xl border transition cursor-pointer shrink-0 ${
                   isDark
                     ? 'text-slate-200 hover:text-white bg-slate-900/90 hover:bg-slate-800 border-slate-700 hover:border-indigo-500/50'
                     : 'text-slate-700 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border-slate-300 hover:border-slate-400 shadow-xs'
                 }`}
                 title="ゲーム一覧に戻る"
               >
-                <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-500" />
-                <span>ゲーム一覧に戻る</span>
+                <ArrowLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-500 shrink-0" />
+                <span className="hidden sm:inline">ゲーム一覧に戻る</span>
+                <span className="sm:hidden text-[11px]">一覧へ</span>
               </button>
             )}
           </div>

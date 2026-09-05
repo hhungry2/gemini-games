@@ -2275,7 +2275,7 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
         className={`relative flex flex-col items-center transition-all ${
           isFullscreen
             ? 'w-[min(96vw,calc((100vh-6.5rem)*540/800))] max-w-none my-auto'
-            : 'w-full max-w-[540px]'
+            : 'w-[min(96vw,calc((100dvh-13rem)*540/800),540px)]'
         }`}
       >
         {/* サイバーHUD (上部ステータスバー) */}

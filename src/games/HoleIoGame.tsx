@@ -2156,7 +2156,7 @@ export const HoleIoGame: React.FC<HoleIoGameProps> = ({
         onTouchEnd={handleTouchEnd}
         onContextMenu={(e) => e.preventDefault()}
         className={`w-full block cursor-crosshair ${
-          isFullscreen ? 'h-screen w-screen rounded-none' : 'h-[640px] rounded-3xl'
+          isFullscreen ? 'h-screen w-screen rounded-none' : 'h-[min(640px,calc(100dvh-4.5rem))] rounded-3xl'
         }`}
       />
 

@@ -2636,7 +2636,7 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
         className={`relative aspect-video rounded-3xl overflow-hidden border-2 shadow-2xl transition-all ${
           isFullscreen
             ? 'w-full max-w-[min(98vw,calc((100vh-100px)*16/9))] max-h-[85vh] shadow-[0_0_80px_rgba(99,102,241,0.35)]'
-            : 'w-full max-w-4xl'
+            : 'w-full max-w-4xl max-h-[calc(100dvh-15rem)]'
         } ${
           isDark
             ? 'bg-black border-indigo-500/40 shadow-[0_0_50px_rgba(99,102,241,0.2)]'
@@ -2665,7 +2665,7 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
       </div>
 
       {/* スマホ・タッチ用オンスクリーンコントローラー */}
-      <div className="w-full max-w-4xl mt-4 flex items-center justify-between px-2 touch-manipulation">
+      <div className="w-full max-w-4xl mt-2 sm:mt-4 flex items-center justify-between px-2 touch-manipulation">
         {/* D-PAD 十字キー */}
         <div className="relative w-36 h-36">
           <button

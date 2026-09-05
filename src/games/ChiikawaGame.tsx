@@ -1920,7 +1920,7 @@ export const ChiikawaGame: React.FC<ChiikawaGameProps> = ({
         className={`relative flex items-center justify-center rounded-3xl overflow-hidden border-2 border-slate-300 dark:border-slate-800 shadow-2xl transition-all ${
           isFullscreen
             ? 'w-[min(98vw,calc((100vh-130px)*800/600))] h-[min(calc(100vh-130px),calc(98vw*600/800))]'
-            : 'w-full aspect-[4/3] max-w-[800px]'
+            : 'w-[min(98vw,calc((100dvh-14rem)*800/600),800px)] aspect-[4/3]'
         }`}
       >
         <canvas

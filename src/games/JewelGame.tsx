@@ -1887,7 +1887,7 @@ export const JewelGame: React.FC<JewelGameProps> = ({
       className={`relative select-none overflow-hidden transition-all duration-300 flex flex-col ${
         isFullscreen
           ? 'fixed inset-0 w-screen h-screen z-50 bg-slate-950 text-white'
-          : `w-full max-w-4xl mx-auto my-2 rounded-3xl border shadow-2xl ${
+          : `w-full max-w-4xl mx-auto my-0 sm:my-2 h-[calc(100dvh-4.5rem)] max-h-[720px] rounded-2xl sm:rounded-3xl border shadow-2xl ${
               isDark
                 ? 'border-slate-800 bg-slate-950 text-slate-100'
                 : 'border-slate-200 bg-slate-900 text-slate-100'
@@ -2001,8 +2001,8 @@ export const JewelGame: React.FC<JewelGameProps> = ({
               handlePointerUp(e.changedTouches[0].clientX, e.changedTouches[0].clientY);
             }
           }}
-          className={`w-full h-full block cursor-pointer touch-none ${
-            isFullscreen ? 'h-full max-h-none' : 'h-[520px] max-h-[70vh]'
+          className={`block cursor-pointer touch-none ${
+            isFullscreen ? 'w-full h-full max-h-none' : 'w-auto h-full max-h-full aspect-square object-contain'
           }`}
         />
 

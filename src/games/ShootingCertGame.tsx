@@ -1882,18 +1882,18 @@ export const ShootingCertGame: React.FC<ShootingCertGameProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative flex flex-col items-center justify-center select-none w-full transition-colors ${
-        isFullscreen ? 'h-screen w-screen overflow-hidden p-0 m-0' : 'min-h-[85vh] p-2 sm:p-4'
+      className={`relative flex flex-col items-center justify-between select-none w-full transition-colors ${
+        isFullscreen ? 'h-screen w-screen overflow-hidden p-0 m-0' : 'h-[calc(100dvh-4rem)] max-h-screen p-1 sm:p-2 overflow-hidden'
       } ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-900 text-slate-100'}`}
     >
       {/* 画面上部コントロールバー */}
       {!isFullscreen && (
-        <div className="w-full max-w-[800px] flex items-center justify-end py-2 px-3 mb-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 shadow-lg">
+        <div className="w-full max-w-[800px] flex items-center justify-end py-1 sm:py-2 px-3 mb-1 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 shadow-lg">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold font-mono px-2.5 py-1 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30">
+            <span className="text-[10px] sm:text-xs font-bold font-mono px-2 py-0.5 sm:py-1 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30">
               BEST AGE: {bestAge > 0 ? `${bestAge}歳` : '--'}
             </span>
-            <span className="text-xs font-bold font-mono px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30">
+            <span className="text-[10px] sm:text-xs font-bold font-mono px-2 py-0.5 sm:py-1 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/30">
               HIGH: {highScore > 0 ? `${highScore} pts` : '--'}
             </span>
             <button
@@ -1901,7 +1901,7 @@ export const ShootingCertGame: React.FC<ShootingCertGameProps> = ({
               className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"
               title={isMuted ? 'ミュート解除' : '消音'}
             >
-              {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
             </button>
           </div>
         </div>
@@ -1912,7 +1912,7 @@ export const ShootingCertGame: React.FC<ShootingCertGameProps> = ({
         className={`relative flex items-center justify-center rounded-2xl overflow-hidden shadow-2xl border border-slate-800 ${
           isFullscreen
             ? 'w-full h-full max-w-none max-h-none rounded-none border-none'
-            : 'w-full max-w-[760px] aspect-[760/900] max-h-[85vh]'
+            : 'w-full max-w-[760px] aspect-[760/900] max-h-[calc(100dvh-8rem)] flex-1 min-h-0'
         }`}
       >
         <canvas
@@ -2220,7 +2220,7 @@ export const ShootingCertGame: React.FC<ShootingCertGameProps> = ({
 
       {/* フッター情報 */}
       {!isFullscreen && (
-        <div className="mt-2 text-center text-[11px] text-slate-500">
+        <div className="mt-1 text-center text-[11px] text-slate-500 hidden sm:block">
           Shooting Love &middot; Skill Examination System &copy; 2026 Web Edition
         </div>
       )}

@@ -78,6 +78,7 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
   isFullscreen = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
 
   const [gameState, setGameState] = useState<'title' | 'ready' | 'playing' | 'dying' | 'paused' | 'gameover' | 'cleared'>('title');
   const [score, setScore] = useState(0);
@@ -607,8 +608,6 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
   }, [gameState]);
 
   // タッチスワイプ
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
-
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -1053,13 +1052,32 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
         } ${
           isFullscreen
             ? 'w-[min(96vw,calc(100vh-110px))] h-[min(96vw,calc(100vh-110px))] aspect-square my-auto'
-            : 'w-full max-w-[460px] aspect-square'
+            : 'w-[min(92vw,calc(100dvh-200px),460px)] h-[min(92vw,calc(100dvh-200px),460px)] aspect-square'
         }`}
       >
         <canvas
           ref={canvasRef}
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
+          onTouchStart={(e) => {
+            if (e.touches[0]) {
+              touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+          }}
+          onTouchEnd={(e) => {
+            if (touchStartRef.current && e.changedTouches[0]) {
+              const dx = e.changedTouches[0].clientX - touchStartRef.current.x;
+              const dy = e.changedTouches[0].clientY - touchStartRef.current.y;
+              if (Math.abs(dx) > 20 || Math.abs(dy) > 20) {
+                if (Math.abs(dx) > Math.abs(dy)) {
+                  setDirection(dx > 0 ? 'RIGHT' : 'LEFT');
+                } else {
+                  setDirection(dy > 0 ? 'DOWN' : 'UP');
+                }
+              }
+              touchStartRef.current = null;
+            }
+          }}
           className="w-full h-full block touch-none image-rendering-pixelated"
         />
 
@@ -1144,30 +1162,30 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
       </div>
 
       {/* スマホ用操作十字キー (D-Pad) */}
-      <div className={`w-full max-w-[280px] grid grid-cols-3 gap-1.5 mt-2 sm:hidden ${isFullscreen ? 'mb-1' : ''}`}>
+      <div className={`w-full max-w-[260px] grid grid-cols-3 gap-1.5 mt-1 sm:mt-2 sm:hidden ${isFullscreen ? 'mb-1' : ''}`}>
         <div />
         <button
           onClick={() => setDirection('UP')}
-          className="py-3 bg-slate-800/90 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 shadow flex items-center justify-center"
+          className="py-2 sm:py-3 bg-slate-800/90 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 shadow flex items-center justify-center active:scale-95 transition"
         >
           ▲
         </button>
         <div />
         <button
           onClick={() => setDirection('LEFT')}
-          className="py-3 bg-slate-800/90 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 shadow flex items-center justify-center"
+          className="py-2 sm:py-3 bg-slate-800/90 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 shadow flex items-center justify-center active:scale-95 transition"
         >
           ◀
         </button>
         <button
           onClick={() => setDirection('DOWN')}
-          className="py-3 bg-slate-800/90 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 shadow flex items-center justify-center"
+          className="py-2 sm:py-3 bg-slate-800/90 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 shadow flex items-center justify-center active:scale-95 transition"
         >
           ▼
         </button>
         <button
           onClick={() => setDirection('RIGHT')}
-          className="py-3 bg-slate-800/90 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 shadow flex items-center justify-center"
+          className="py-2 sm:py-3 bg-slate-800/90 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 shadow flex items-center justify-center active:scale-95 transition"
         >
           ▶
         </button>

@@ -558,7 +558,7 @@ export const ExcitebikeGame: React.FC<ExcitebikeGameProps> = ({
         className={`relative overflow-hidden rounded-2xl border border-slate-800 bg-slate-950 shadow-2xl ${
           isFullscreen
             ? 'w-full flex-1 flex items-center justify-center'
-            : 'w-full aspect-[16/9] max-h-[580px]'
+            : 'w-full aspect-[16/9] max-h-[calc(100dvh-14rem)]'
         }`}
       >
         <canvas

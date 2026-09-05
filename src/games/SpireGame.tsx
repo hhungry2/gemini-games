@@ -1065,7 +1065,7 @@ export const SpireGame: React.FC<SpireGameProps> = ({
   return (
     <div
       className={`w-full flex flex-col items-center select-none transition-all duration-300 ${
-        isFullscreen ? 'h-screen w-screen max-w-none p-0 overflow-hidden' : 'max-w-5xl my-2'
+        isFullscreen ? 'h-screen w-screen max-w-none p-0 overflow-hidden' : 'max-w-5xl my-0 sm:my-2 h-[calc(100dvh-4.5rem)] max-h-[820px] overflow-hidden'
       } ${
         isDark
           ? 'bg-slate-950 text-slate-100'
@@ -1163,7 +1163,7 @@ export const SpireGame: React.FC<SpireGameProps> = ({
       </header>
 
       {/* メインビューエリア */}
-      <div className={`w-full flex-1 flex flex-col relative overflow-hidden ${isFullscreen ? 'h-full' : 'min-h-[580px]'}`}>
+      <div className="w-full flex-1 min-h-0 flex flex-col relative overflow-hidden">
         {/* ---------------- 1. クラス選択フェーズ ---------------- */}
         {phase === 'class_select' && (
           <div className="w-full flex-1 flex flex-col items-center justify-center p-6 text-center animate-in fade-in duration-300">
@@ -1662,7 +1662,7 @@ export const SpireGame: React.FC<SpireGameProps> = ({
               </div>
 
               {/* 手札カードトレイ */}
-              <div className="flex items-end justify-center gap-2 overflow-x-auto max-w-full pb-2 px-4 scrollbar-none min-h-[160px]">
+              <div className="flex items-end justify-center gap-1.5 sm:gap-2 overflow-x-auto max-w-full pb-1 sm:pb-2 px-2 sm:px-4 scrollbar-none min-h-[130px] sm:min-h-[160px]">
                 {hand.map((card) => {
                   const isSelected = selectedCard?.id === card.id;
                   const canAfford = energy >= card.cost;
@@ -1687,9 +1687,9 @@ export const SpireGame: React.FC<SpireGameProps> = ({
                       onClick={() => handleCardClick(card)}
                       className={`relative ${
                         isFullscreen
-                          ? 'w-32 sm:w-36 h-44 sm:h-52 text-xs'
-                          : 'w-28 sm:w-32 h-40 sm:h-44 text-[11px]'
-                      } rounded-2xl border-2 p-2.5 flex flex-col justify-between transition-all duration-200 cursor-pointer select-none shrink-0 ${
+                          ? 'w-28 sm:w-36 h-38 sm:h-52 text-[10px] sm:text-xs'
+                          : 'w-24 sm:w-32 h-34 sm:h-44 text-[9px] sm:text-[11px]'
+                      } rounded-2xl border-2 p-2 sm:p-2.5 flex flex-col justify-between transition-all duration-200 cursor-pointer select-none shrink-0 ${
                         isSelected
                           ? '-translate-y-6 scale-110 shadow-2xl ring-4 ring-amber-400 z-30'
                           : 'hover:-translate-y-4 hover:scale-105 hover:z-20'

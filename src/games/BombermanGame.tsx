@@ -2330,7 +2330,7 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
         } ${
           isFullscreen
             ? 'w-[min(98vw,calc((100vh-90px)*15/13))] aspect-[15/13] my-auto'
-            : 'w-full max-w-4xl aspect-[15/13]'
+            : 'w-full max-w-4xl aspect-[15/13] max-h-[calc(100dvh-15rem)]'
         }`}
       >
         <canvas

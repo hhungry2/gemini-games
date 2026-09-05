@@ -101,7 +101,7 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
 
   return (
     <div
-      className={`relative border-2 rounded-3xl p-3 sm:p-5 transition-all duration-200 ${
+      className={`relative border-2 rounded-2xl sm:rounded-3xl p-1.5 sm:p-5 transition-all duration-200 ${
         isDark
           ? 'bg-slate-950/90 border-indigo-500/40 shadow-[0_0_40px_rgba(99,102,241,0.15)]'
           : 'bg-white border-indigo-200 shadow-2xl'
@@ -134,7 +134,7 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
 
       {/* 20x10 グリッド */}
       <div
-        className={`grid grid-cols-10 gap-[2px] sm:gap-1.5 p-2 sm:p-3 rounded-2xl border transition-colors ${
+        className={`grid grid-cols-10 gap-[2px] sm:gap-1.5 p-1 sm:p-3 rounded-xl sm:rounded-2xl border transition-colors ${
           isDark
             ? 'bg-slate-900/90 border-slate-800'
             : 'bg-slate-100 border-slate-200'
@@ -162,7 +162,7 @@ export const TetrisBoard: React.FC<TetrisBoardProps> = ({
             return (
               <div
                 key={`${rIdx}-${cIdx}`}
-                className={`w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 rounded-[5px] sm:rounded-md transition-colors duration-75 ${cellStyle}`}
+                className={`w-[min(6.5vw,calc((100dvh-270px)/20),28px)] h-[min(6.5vw,calc((100dvh-270px)/20),28px)] sm:w-8 sm:h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 rounded-[3px] sm:rounded-md transition-colors duration-75 ${cellStyle}`}
               />
             );
           })

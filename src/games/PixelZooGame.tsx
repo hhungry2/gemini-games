@@ -925,7 +925,7 @@ export const PixelZooGame: React.FC<PixelZooGameProps> = ({
     <div
       className={`w-full h-full flex flex-col select-none overflow-hidden ${
         isDark ? 'bg-zinc-950 text-zinc-100' : 'bg-emerald-950 text-zinc-800'
-      } ${isFullscreen ? 'fixed inset-0 z-50 p-0 m-0' : 'relative'}`}
+      } ${isFullscreen ? 'fixed inset-0 z-50 p-0 m-0' : 'relative h-[calc(100dvh-4.5rem)] rounded-2xl border border-emerald-500/20'}`}
     >
       {/* トップナビゲーションバー */}
       <div className="h-14 bg-white/95 dark:bg-zinc-900/95 backdrop-blur border-b border-emerald-500/20 px-4 flex items-center justify-between shrink-0 z-20">

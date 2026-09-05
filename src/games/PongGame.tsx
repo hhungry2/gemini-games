@@ -429,7 +429,7 @@ export const PongGame: React.FC<PongGameProps> = ({
         } ${
           isFullscreen
             ? 'w-[min(96vw,calc((100vh-110px)*800/500))] aspect-[16/10] my-auto'
-            : 'w-full max-w-[620px] aspect-[16/10]'
+            : 'w-[min(96vw,calc((100dvh-10rem)*800/500),620px)] aspect-[16/10]'
         }`}
       >
         <canvas
@@ -437,6 +437,7 @@ export const PongGame: React.FC<PongGameProps> = ({
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
           onMouseMove={handleCanvasMouseMove}
+          onTouchStart={handleCanvasTouchMove}
           onTouchMove={handleCanvasTouchMove}
           className="w-full h-full block touch-none cursor-none"
         />

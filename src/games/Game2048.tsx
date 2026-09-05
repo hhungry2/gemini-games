@@ -752,7 +752,7 @@ export const Game2048: React.FC<Game2048Props> = ({
         } ${
           isFullscreen
             ? 'w-[min(94vw,calc(100vh-140px))] max-w-[560px] aspect-square my-auto'
-            : 'w-full max-w-[460px] aspect-square'
+            : 'w-[min(92vw,calc(100dvh-270px),460px)] aspect-square'
         }`}
       >
         {/* 背景空グリッドセル */}
@@ -885,30 +885,30 @@ export const Game2048: React.FC<Game2048Props> = ({
       </div>
 
       {/* スマホ用操作補助 D-Pad */}
-      <div className="w-full max-w-[320px] grid grid-cols-3 gap-2 mt-4 sm:hidden">
+      <div className="w-full max-w-[260px] grid grid-cols-3 gap-1.5 mt-1 sm:mt-4 sm:hidden">
         <div />
         <button
           onClick={() => move('up')}
-          className="py-3 bg-slate-800 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700"
+          className="py-2 sm:py-3 bg-slate-800 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 active:scale-95 transition flex items-center justify-center"
         >
           ▲
         </button>
         <div />
         <button
           onClick={() => move('left')}
-          className="py-3 bg-slate-800 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700"
+          className="py-2 sm:py-3 bg-slate-800 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 active:scale-95 transition flex items-center justify-center"
         >
           ◀
         </button>
         <button
           onClick={() => move('down')}
-          className="py-3 bg-slate-800 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700"
+          className="py-2 sm:py-3 bg-slate-800 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 active:scale-95 transition flex items-center justify-center"
         >
           ▼
         </button>
         <button
           onClick={() => move('right')}
-          className="py-3 bg-slate-800 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700"
+          className="py-2 sm:py-3 bg-slate-800 active:bg-indigo-600 text-white font-bold rounded-xl border border-slate-700 active:scale-95 transition flex items-center justify-center"
         >
           ▶
         </button>

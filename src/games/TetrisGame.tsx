@@ -380,13 +380,39 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
         </div>
       </div>
 
+      {/* モバイル表示専用：コンパクト上部情報バー (HOLD / SCORE / LEVEL / NEXT) */}
+      <div className="w-full max-w-sm flex md:hidden items-center justify-between gap-1.5 px-3 py-1.5 mb-1.5 rounded-2xl bg-slate-900/80 border border-slate-800 text-xs backdrop-blur-xs">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-400 font-bold">HOLD:</span>
+          <div className="w-7 h-7 bg-slate-950 rounded-lg flex items-center justify-center border border-slate-800 text-[11px] font-black font-mono text-indigo-400">
+            {holdPiece || '-'}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] text-slate-400 font-bold leading-none">SCORE</span>
+            <span className="font-mono font-black text-amber-400 text-sm leading-tight">{score}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-[9px] text-slate-400 font-bold leading-none">LV</span>
+            <span className="font-mono font-black text-indigo-400 text-sm leading-tight">{level}</span>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] text-slate-400 font-bold">NEXT:</span>
+          <div className="w-7 h-7 bg-slate-950 rounded-lg flex items-center justify-center border border-slate-800 text-[11px] font-black font-mono text-cyan-400">
+            {pieceQueue[0] || '-'}
+          </div>
+        </div>
+      </div>
+
       <div
-        className={`w-full flex flex-col md:flex-row items-center justify-center gap-6 lg:gap-8 transition-transform duration-300 relative z-10 ${
-          isFullscreen ? 'scale-105 sm:scale-115 lg:scale-125 xl:scale-135 my-4 sm:my-6' : ''
+        className={`w-full flex flex-col md:flex-row items-center justify-center gap-4 lg:gap-8 transition-transform duration-300 relative z-10 ${
+          isFullscreen ? 'scale-105 sm:scale-115 lg:scale-125 xl:scale-135 my-2 sm:my-6' : ''
         }`}
       >
-        {/* 左サイドパネル: HOLD & STATS */}
-        <div className="w-full md:w-auto flex md:flex-col justify-between md:justify-start gap-3 order-2 md:order-1">
+        {/* 左サイドパネル: HOLD & STATS (PC向け) */}
+        <div className="hidden md:flex flex-col justify-start gap-3 order-1">
           <PiecePreview
             type={holdPiece}
             label="HOLD"
@@ -395,7 +421,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
           />
 
           <div
-            className={`flex-1 md:flex-none border rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-sm min-w-[130px] sm:min-w-[160px] space-y-4 ${
+            className={`border rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-sm min-w-[130px] sm:min-w-[160px] space-y-4 ${
               isDark
                 ? 'bg-slate-900/90 border-slate-800 text-white'
                 : 'bg-white border-slate-200 text-slate-900 shadow-sm'
@@ -435,8 +461,8 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
           </div>
         </div>
 
-        {/* 中央: テトリスボード */}
-        <div className="order-1 md:order-2 flex flex-col items-center">
+        {/* 中央: テトリスボード & スマホ操作ボタン */}
+        <div className="order-2 flex flex-col items-center">
           <TetrisBoard
             board={board}
             currentPiece={currentPiece}
@@ -454,10 +480,24 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
             onRestart={startGame}
             onResume={() => setIsPaused(false)}
           />
+
+          {/* モバイル操作ボタン (スマホ時はボード直下に配置して1画面完結) */}
+          <div className="w-full mt-1.5 md:hidden">
+            <MobileControls
+              onMoveLeft={moveLeft}
+              onMoveRight={moveRight}
+              onSoftDrop={dropPiece}
+              onHardDrop={hardDrop}
+              onRotate={rotate}
+              onHold={hold}
+              disabled={!isPlaying || isPaused || isGameOver}
+              isDark={isDark}
+            />
+          </div>
         </div>
 
-        {/* 右サイドパネル: NEXT (3個連続プレビュー) & LEVEL/LINES */}
-        <div className="w-full md:w-auto flex md:flex-col justify-between md:justify-start gap-3 order-3">
+        {/* 右サイドパネル: NEXT (3個連続プレビュー) & LEVEL/LINES (PC向け) */}
+        <div className="hidden md:flex flex-col justify-start gap-3 order-3">
           <NextQueuePreview
             queue={pieceQueue}
             isDark={isDark}
@@ -465,7 +505,7 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
           />
 
           <div
-            className={`flex-1 md:flex-none border rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-sm min-w-[130px] sm:min-w-[160px] space-y-4 ${
+            className={`border rounded-2xl p-4 sm:p-5 shadow-lg backdrop-blur-sm min-w-[130px] sm:min-w-[160px] space-y-4 ${
               isDark
                 ? 'bg-slate-900/90 border-slate-800 text-white'
                 : 'bg-white border-slate-200 text-slate-900 shadow-sm'
@@ -503,20 +543,6 @@ export const TetrisGame: React.FC<TetrisGameProps> = ({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* モバイル操作ボタン (スマホ・タッチデバイス用) */}
-      <div className="w-full mt-4 md:hidden">
-        <MobileControls
-          onMoveLeft={moveLeft}
-          onMoveRight={moveRight}
-          onSoftDrop={dropPiece}
-          onHardDrop={hardDrop}
-          onRotate={rotate}
-          onHold={hold}
-          disabled={!isPlaying || isPaused || isGameOver}
-          isDark={isDark}
-        />
       </div>
     </div>
   );

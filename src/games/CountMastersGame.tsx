@@ -26,6 +26,7 @@ import {
   Zap,
   ShieldAlert,
   Swords,
+  ChevronLeft,
   ChevronRight,
   Pause,
 } from 'lucide-react';
@@ -206,6 +207,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
   const isDraggingRef = useRef<boolean>(false);
   const lastTouchXRef = useRef<number | null>(null);
   const isStageClearingRef = useRef<boolean>(false);
+  const keysPressedRef = useRef<{ left: boolean; right: boolean }>({ left: false, right: false });
 
   // 現在のスキン取得
   const currentSkin = skins.find((s) => s.id === selectedSkinId) || skins[0];
@@ -398,6 +400,9 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       highestStepRef.current = -1;
       forwardSpeedRef.current = 5.0;
       isStageClearingRef.current = false;
+      keysPressedRef.current = { left: false, right: false };
+      isDraggingRef.current = false;
+      lastTouchXRef.current = null;
 
       particlesRef.current = [];
 
@@ -438,7 +443,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
     [upgrades.startCrowdLevel, currentSkin.color, isMuted]
   );
 
-  // マウス＆タッチ操作リスナー
+  // マウス＆タッチ（ポインター）操作リスナー
   const handlePointerDown = (clientX: number) => {
     if (gameState !== 'RUNNING' && gameState !== 'BOSS_BATTLE') return;
     isDraggingRef.current = true;
@@ -450,8 +455,8 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
     const dx = clientX - lastTouchXRef.current;
     lastTouchXRef.current = clientX;
 
-    // スケーリング感度 (幅220に合わせて快適にドラッグ)
-    const sensitivity = 0.42;
+    // スケーリング感度 (幅220に合わせて快適かつ素直に追従)
+    const sensitivity = 0.45;
     targetPlayerXRef.current = Math.max(
       -ROAD_WIDTH / 2 + 18,
       Math.min(ROAD_WIDTH / 2 - 18, targetPlayerXRef.current + dx * sensitivity)
@@ -463,20 +468,62 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
     lastTouchXRef.current = null;
   };
 
-  // キーボード操作
+  // キーボード操作リスナー (連続長押し検知・スムーズステアリング・OSリピート遅延完全解消)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (gameState !== 'RUNNING' && gameState !== 'BOSS_BATTLE') return;
-      const step = 8;
-      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-        targetPlayerXRef.current = Math.max(-ROAD_WIDTH / 2 + 18, targetPlayerXRef.current - step);
-      } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-        targetPlayerXRef.current = Math.min(ROAD_WIDTH / 2 - 18, targetPlayerXRef.current + step);
+      if (isPaused) return;
+
+      const isLeft = e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' || e.code === 'KeyA';
+      const isRight = e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.code === 'KeyD';
+
+      if (isLeft) {
+        if (!keysPressedRef.current.left) {
+          // 単発キー押し時の初速インパルス（素早いタップでもキビキビ即座に動く）
+          targetPlayerXRef.current = Math.max(-ROAD_WIDTH / 2 + 18, targetPlayerXRef.current - 8);
+        }
+        keysPressedRef.current.left = true;
+        e.preventDefault();
+      } else if (isRight) {
+        if (!keysPressedRef.current.right) {
+          // 単発キー押し時の初速インパルス（素早いタップでもキビキビ即座に動く）
+          targetPlayerXRef.current = Math.min(ROAD_WIDTH / 2 - 18, targetPlayerXRef.current + 8);
+        }
+        keysPressedRef.current.right = true;
+        e.preventDefault();
       }
     };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const isLeft = e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A' || e.code === 'KeyA';
+      const isRight = e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D' || e.code === 'KeyD';
+
+      if (isLeft) {
+        keysPressedRef.current.left = false;
+      }
+      if (isRight) {
+        keysPressedRef.current.right = false;
+      }
+    };
+
+    const handleBlur = () => {
+      keysPressedRef.current.left = false;
+      keysPressedRef.current.right = false;
+      isDraggingRef.current = false;
+      lastTouchXRef.current = null;
+    };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState]);
+    window.addEventListener('keyup', handleKeyUp);
+    window.addEventListener('blur', handleBlur);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+      window.removeEventListener('blur', handleBlur);
+      keysPressedRef.current.left = false;
+      keysPressedRef.current.right = false;
+    };
+  }, [gameState, isPaused]);
 
   // メインゲームループ (requestAnimationFrame)
   useEffect(() => {
@@ -562,8 +609,18 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
   // ゲームロジック更新処理
   const updateGameLogic = (stage: StageData) => {
-    // 1. プレイヤー位置のスムージング
-    playerXRef.current += (targetPlayerXRef.current - playerXRef.current) * 0.25;
+    // 0. キーボード長押し・バーチャルボタン押下によるスムーズ連続ステアリング
+    if (gameState === 'RUNNING' || gameState === 'BOSS_BATTLE') {
+      const KEY_STEER_SPEED = 4.8; // 毎フレームの移動量（レスポンシブかつスムーズ）
+      if (keysPressedRef.current.left && !keysPressedRef.current.right) {
+        targetPlayerXRef.current = Math.max(-ROAD_WIDTH / 2 + 18, targetPlayerXRef.current - KEY_STEER_SPEED);
+      } else if (keysPressedRef.current.right && !keysPressedRef.current.left) {
+        targetPlayerXRef.current = Math.min(ROAD_WIDTH / 2 - 18, targetPlayerXRef.current + KEY_STEER_SPEED);
+      }
+    }
+
+    // 1. プレイヤー位置のスムージング (Lerp)
+    playerXRef.current += (targetPlayerXRef.current - playerXRef.current) * 0.30;
 
     // 2. 状態別進行
     if (gameState === 'RUNNING') {
@@ -966,21 +1023,30 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative flex flex-col items-center justify-center select-none overflow-hidden ${
+      className={`relative flex flex-col items-center justify-center select-none overflow-hidden touch-none ${
         isFullscreen
           ? 'w-full h-full max-w-none max-h-none flex-1 p-0 m-0'
-          : 'w-full max-w-4xl h-[700px] rounded-2xl shadow-2xl border border-slate-700/50 my-2'
+          : 'w-full max-w-4xl h-[min(700px,calc(100dvh-4.5rem))] rounded-2xl shadow-2xl border border-slate-700/50 my-1 sm:my-2'
       } ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'}`}
-      onMouseDown={(e) => handlePointerDown(e.clientX)}
-      onMouseMove={(e) => handlePointerMove(e.clientX)}
-      onMouseUp={handlePointerUp}
-      onTouchStart={(e) => {
-        if (e.touches.length > 0) handlePointerDown(e.touches[0].clientX);
+      onPointerDown={(e) => {
+        try {
+          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+        } catch {}
+        handlePointerDown(e.clientX);
       }}
-      onTouchMove={(e) => {
-        if (e.touches.length > 0) handlePointerMove(e.touches[0].clientX);
+      onPointerMove={(e) => handlePointerMove(e.clientX)}
+      onPointerUp={(e) => {
+        try {
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        } catch {}
+        handlePointerUp();
       }}
-      onTouchEnd={handlePointerUp}
+      onPointerCancel={(e) => {
+        try {
+          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+        } catch {}
+        handlePointerUp();
+      }}
     >
       {/* メインゲームCanvas */}
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing" />
@@ -1034,12 +1100,59 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
         </div>
       </div>
 
-      {/* 操作ガイド（走行中の画面下部） */}
-      {gameState === 'RUNNING' && (
-        <div className="absolute bottom-4 pointer-events-none z-10 text-center animate-pulse">
-          <span className="px-4 py-1.5 rounded-full bg-slate-900/80 border border-slate-700/60 text-xs text-slate-300 font-bold backdrop-blur shadow-lg">
-            左右スワイプ / ドラッグ / [A][D]キーで操作
-          </span>
+      {/* 左右バーチャルステアリングボタン (スマホ・タブレット・マウス操作用) */}
+      {(gameState === 'RUNNING' || gameState === 'BOSS_BATTLE') && !isPaused && (
+        <div className="absolute inset-x-0 bottom-3 px-3 sm:px-6 flex justify-between items-end pointer-events-none z-20">
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              targetPlayerXRef.current = Math.max(-ROAD_WIDTH / 2 + 18, targetPlayerXRef.current - 8);
+              keysPressedRef.current.left = true;
+            }}
+            onPointerUp={() => {
+              keysPressedRef.current.left = false;
+            }}
+            onPointerLeave={() => {
+              keysPressedRef.current.left = false;
+            }}
+            onPointerCancel={() => {
+              keysPressedRef.current.left = false;
+            }}
+            className="pointer-events-auto w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-900/70 hover:bg-slate-800 active:bg-blue-600/80 border border-slate-700/60 active:border-blue-400 text-white flex items-center justify-center backdrop-blur shadow-xl transition active:scale-90 select-none cursor-pointer"
+            title="左へ移動 [←] または [A]"
+          >
+            <ChevronLeft className="w-7 h-7 sm:w-8 sm:h-8 text-slate-100" />
+          </button>
+
+          {/* 中央の操作ガイド */}
+          <div className="pointer-events-none pb-2 text-center animate-pulse">
+            <span className="px-3.5 py-1.5 rounded-full bg-slate-900/85 border border-slate-700/70 text-[11px] sm:text-xs text-slate-200 font-bold backdrop-blur shadow-lg whitespace-nowrap">
+              スワイプ / ドラッグ / [←][→] / [A][D]
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              targetPlayerXRef.current = Math.min(ROAD_WIDTH / 2 - 18, targetPlayerXRef.current + 8);
+              keysPressedRef.current.right = true;
+            }}
+            onPointerUp={() => {
+              keysPressedRef.current.right = false;
+            }}
+            onPointerLeave={() => {
+              keysPressedRef.current.right = false;
+            }}
+            onPointerCancel={() => {
+              keysPressedRef.current.right = false;
+            }}
+            className="pointer-events-auto w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-900/70 hover:bg-slate-800 active:bg-blue-600/80 border border-slate-700/60 active:border-blue-400 text-white flex items-center justify-center backdrop-blur shadow-xl transition active:scale-90 select-none cursor-pointer"
+            title="右へ移動 [→] または [D]"
+          >
+            <ChevronRight className="w-7 h-7 sm:w-8 sm:h-8 text-slate-100" />
+          </button>
         </div>
       )}
 

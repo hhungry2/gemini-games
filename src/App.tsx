@@ -1203,8 +1203,10 @@ export function App() {
         className={`flex-1 w-full flex flex-col items-center justify-center transition-all duration-300 ${
           isFullscreen
             ? activeGame
-              ? 'max-w-none p-1 sm:p-2'
+              ? 'max-w-none p-0 sm:p-1'
               : 'max-w-none px-2 sm:px-4 py-2'
+            : activeGame
+            ? 'w-full max-w-6xl mx-auto p-1 sm:p-2 h-[calc(100dvh-3.5rem)] sm:h-[calc(100dvh-4rem)] overflow-hidden'
             : 'max-w-6xl mx-auto px-4 py-4 sm:py-6'
         }`}
       >
@@ -1645,7 +1647,7 @@ export function App() {
         )}
       </main>
 
-      {(!isFullscreen || !activeGame) && (
+      {!activeGame && (
         <footer
           className={`py-6 border-t text-center text-xs transition-colors ${
             isDark
