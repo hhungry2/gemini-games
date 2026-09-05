@@ -43,7 +43,7 @@ export interface RenderContext {
 }
 
 export class CountMastersRenderer {
-  private fov = 380; // 焦点距離
+  private fov = 280; // 焦点距離
 
   // 3D座標 (wx, wy, wz) をスクリーン座標 (sx, sy, scale) に投影
   public project(
@@ -62,10 +62,12 @@ export class CountMastersRenderer {
     const ry = wy - camY;
     const rz = wz - camZ;
 
-    if (rz <= 4) return null; // カメラ後方クリッピング
+    // カメラ後方および極端な至近距離（40未満）・超遠距離（1600超）を安全にカリング
+    if (rz < 40 || rz > 1600) return null;
 
-    const scale = this.fov / rz;
-    const horizonY = height * 0.38; // 地平線の高さ
+    // スケールを安全な範囲 (0.08 ~ 2.4) にクランプして巨大化爆発を根本防止
+    const scale = Math.min(2.4, Math.max(0.08, this.fov / rz));
+    const horizonY = height * 0.32; // 地平線の高さ (画面上部32%位置)
     const sx = width / 2 + rx * scale + shakeX;
     const sy = horizonY - ry * scale + shakeY;
 
@@ -82,14 +84,13 @@ export class CountMastersRenderer {
     // 1. 背景描画 (空・地平線・遠景都市)
     this.renderSkyAndHorizon(ctx, width, height, theme, camX);
 
-    // 2. コース道路の描画 (手前から奥へのポリゴン)
+    // 2. コース道路の描画 (奥から手前へ重ねて描画)
     this.renderRoad(ctx, width, height, camX, camY, camZ, shakeX, shakeY, theme);
 
     // 3. 階段タワーの描画 (Multiplier Stairs)
     this.renderStairs(ctx, width, height, camX, camY, camZ, shakeX, shakeY, rc.stairs, rc.highestStepReached);
 
     // 描画深度ソート（奥にあるものから順に描画するZソート）
-    // 各オブジェクトを (depth, renderFn) のペアにして一括ソート描画
     type RenderItem = { depth: number; draw: () => void };
     const items: RenderItem[] = [];
 
@@ -108,7 +109,7 @@ export class CountMastersRenderer {
     // 障害物
     rc.obstacles.forEach((obs) => {
       const p = this.project(obs.x, 0, obs.z, camX, camY, camZ, width, height, shakeX, shakeY);
-      if (p && p.depth < 1200) {
+      if (p && p.depth < 1400) {
         items.push({
           depth: p.depth,
           draw: () => this.drawObstacle(ctx, p.sx, p.sy, p.scale, obs),
@@ -119,7 +120,7 @@ export class CountMastersRenderer {
     // 計算ゲート
     rc.gates.forEach((gate) => {
       const p = this.project(0, 0, gate.z, camX, camY, camZ, width, height, shakeX, shakeY);
-      if (p && p.depth > 0 && p.depth < 1400) {
+      if (p && p.depth > 0 && p.depth < 1500) {
         items.push({
           depth: p.depth,
           draw: () => this.drawGate(ctx, gate, camX, camY, camZ, width, height, shakeX, shakeY),
@@ -135,7 +136,7 @@ export class CountMastersRenderer {
         const wx = mob.x + sm.offsetX;
         const wz = mob.z + sm.offsetZ;
         const p = this.project(wx, 0, wz, camX, camY, camZ, width, height, shakeX, shakeY);
-        if (p && p.depth < 1000) {
+        if (p && p.depth < 1200) {
           items.push({
             depth: p.depth,
             draw: () => this.drawStickman(ctx, p.sx, p.sy, p.scale, mob.color, '#b91c1c', 'running', Math.random() * 5, 'none'),
@@ -147,7 +148,7 @@ export class CountMastersRenderer {
     // ボス
     if (rc.boss && rc.boss.hp > 0) {
       const p = this.project(0, 0, rc.boss.z, camX, camY, camZ, width, height, shakeX, shakeY);
-      if (p && p.depth < 1500) {
+      if (p && p.depth < 1600) {
         items.push({
           depth: p.depth,
           draw: () => this.drawBoss(ctx, p.sx, p.sy, p.scale, rc.boss),
@@ -159,7 +160,7 @@ export class CountMastersRenderer {
     rc.stickmen.forEach((sm, index) => {
       if (!sm.isAlive) return;
       const p = this.project(sm.x, sm.y, sm.z, camX, camY, camZ, width, height, shakeX, shakeY);
-      if (p && p.depth > 0 && p.depth < 1200) {
+      if (p && p.depth > 0 && p.depth < 1400) {
         const isLeader = index === 0;
         const acc = isLeader ? (rc.skin.accessory === 'none' ? 'crown' : rc.skin.accessory) : 'none';
         items.push({
@@ -180,7 +181,7 @@ export class CountMastersRenderer {
       }
     });
 
-    // パーティクル (奥にあるもの)
+    // パーティクル
     rc.particles.forEach((pt) => {
       const p = this.project(pt.x, pt.y, pt.z, camX, camY, camZ, width, height, shakeX, shakeY);
       if (p && p.depth > 0) {
@@ -207,7 +208,7 @@ export class CountMastersRenderer {
     theme: StageTheme,
     camX: number
   ) {
-    const horizonY = height * 0.38;
+    const horizonY = height * 0.32;
 
     // 空のグラデーション
     const skyGrad = ctx.createLinearGradient(0, 0, 0, horizonY);
@@ -265,44 +266,32 @@ export class CountMastersRenderer {
     ctx.fillStyle = groundGrad;
     ctx.fillRect(0, horizonY, width, height - horizonY);
 
-    // 遠景の山やビル群シルエット
+    // 遠景のビル群シルエット
     ctx.save();
-    const cityOffset = (camX * 0.1) % 100;
+    const cityOffset = (camX * 0.08) % 80;
     ctx.fillStyle = theme === 'cyber' || theme === 'neon' ? 'rgba(30, 27, 75, 0.6)' : 'rgba(100, 116, 139, 0.25)';
 
     const numBuildings = 14;
     const bWidth = width / (numBuildings - 2);
     for (let i = -1; i <= numBuildings; i++) {
       const bx = i * bWidth - cityOffset;
-      const bh = 40 + ((Math.sin(i * 3.7) + 1) * 0.5) * 60;
+      const bh = 30 + ((Math.sin(i * 3.7) + 1) * 0.5) * 50;
       ctx.fillRect(bx, horizonY - bh, bWidth * 0.85, bh);
 
       // ビルの光る窓
       if (theme === 'cyber' || theme === 'neon') {
         ctx.fillStyle = (i % 2 === 0) ? 'rgba(56, 189, 248, 0.4)' : 'rgba(236, 72, 153, 0.4)';
-        for (let wy = horizonY - bh + 10; wy < horizonY - 10; wy += 14) {
-          ctx.fillRect(bx + 4, wy, 4, 6);
-          ctx.fillRect(bx + bWidth * 0.85 - 8, wy, 4, 6);
+        for (let wy = horizonY - bh + 8; wy < horizonY - 8; wy += 12) {
+          ctx.fillRect(bx + 4, wy, 3, 5);
+          ctx.fillRect(bx + bWidth * 0.85 - 7, wy, 3, 5);
         }
         ctx.fillStyle = 'rgba(30, 27, 75, 0.6)';
-      }
-    }
-
-    // サイバーグリッド背景ライン
-    if (theme === 'cyber' || theme === 'neon') {
-      ctx.strokeStyle = 'rgba(168, 85, 247, 0.15)';
-      ctx.lineWidth = 1;
-      for (let x = -width; x <= width * 2; x += 60) {
-        ctx.beginPath();
-        ctx.moveTo(width / 2 + (x - width / 2) * 0.1, horizonY);
-        ctx.lineTo(x, height);
-        ctx.stroke();
       }
     }
     ctx.restore();
   }
 
-  // 道路の描画
+  // 道路の描画 (奥から手前へセグメントを描画して前後関係を正しく保持)
   private renderRoad(
     ctx: CanvasRenderingContext2D,
     width: number,
@@ -315,11 +304,12 @@ export class CountMastersRenderer {
     theme: StageTheme
   ) {
     const halfW = ROAD_WIDTH / 2;
-    const segmentLength = 25; // 道路セグメントの長さ
-    const minZ = Math.max(0, Math.floor(camZ / segmentLength) * segmentLength);
-    const maxZ = minZ + 1200;
+    const segmentLength = 50;
+    const minZ = Math.max(0, Math.floor((camZ + 40) / segmentLength) * segmentLength);
+    const maxZ = minZ + 1400;
 
-    for (let z = minZ; z < maxZ; z += segmentLength) {
+    // 奥から手前へ描画
+    for (let z = maxZ - segmentLength; z >= minZ; z -= segmentLength) {
       const p1Left = this.project(-halfW, 0, z, camX, camY, camZ, width, height, shakeX, shakeY);
       const p1Right = this.project(halfW, 0, z, camX, camY, camZ, width, height, shakeX, shakeY);
       const p2Left = this.project(-halfW, 0, z + segmentLength, camX, camY, camZ, width, height, shakeX, shakeY);
@@ -346,9 +336,9 @@ export class CountMastersRenderer {
       }
       ctx.fill();
 
-      // サイドレール・縁石
-      const curbLeft1 = this.project(-halfW - 0.8, 1.2, z, camX, camY, camZ, width, height, shakeX, shakeY);
-      const curbLeft2 = this.project(-halfW - 0.8, 1.2, z + segmentLength, camX, camY, camZ, width, height, shakeX, shakeY);
+      // サイドレール・縁石 (左右の光る境界線)
+      const curbLeft1 = this.project(-halfW - 5, 4, z, camX, camY, camZ, width, height, shakeX, shakeY);
+      const curbLeft2 = this.project(-halfW - 5, 4, z + segmentLength, camX, camY, camZ, width, height, shakeX, shakeY);
       if (curbLeft1 && curbLeft2) {
         ctx.beginPath();
         ctx.moveTo(p1Left.sx, p1Left.sy);
@@ -361,8 +351,8 @@ export class CountMastersRenderer {
         ctx.fill();
       }
 
-      const curbRight1 = this.project(halfW + 0.8, 1.2, z, camX, camY, camZ, width, height, shakeX, shakeY);
-      const curbRight2 = this.project(halfW + 0.8, 1.2, z + segmentLength, camX, camY, camZ, width, height, shakeX, shakeY);
+      const curbRight1 = this.project(halfW + 5, 4, z, camX, camY, camZ, width, height, shakeX, shakeY);
+      const curbRight2 = this.project(halfW + 5, 4, z + segmentLength, camX, camY, camZ, width, height, shakeX, shakeY);
       if (curbRight1 && curbRight2) {
         ctx.beginPath();
         ctx.moveTo(p1Right.sx, p1Right.sy);
@@ -381,10 +371,10 @@ export class CountMastersRenderer {
         const c2 = this.project(0, 0, z + segmentLength, camX, camY, camZ, width, height, shakeX, shakeY);
         if (c1 && c2) {
           ctx.beginPath();
-          ctx.moveTo(c1.sx - 1.5 * c1.scale, c1.sy);
-          ctx.lineTo(c1.sx + 1.5 * c1.scale, c1.sy);
-          ctx.lineTo(c2.sx + 1.5 * c2.scale, c2.sy);
-          ctx.lineTo(c2.sx - 1.5 * c2.scale, c2.sy);
+          ctx.moveTo(c1.sx - 2 * c1.scale, c1.sy);
+          ctx.lineTo(c1.sx + 2 * c1.scale, c1.sy);
+          ctx.lineTo(c2.sx + 2 * c2.scale, c2.sy);
+          ctx.lineTo(c2.sx - 2 * c2.scale, c2.sy);
           ctx.closePath();
           ctx.fillStyle = theme === 'cyber' ? 'rgba(56, 189, 248, 0.7)' : 'rgba(203, 213, 225, 0.8)';
           ctx.fill();
@@ -410,8 +400,8 @@ export class CountMastersRenderer {
       const halfW = ROAD_WIDTH / 2;
       const p1L = this.project(-halfW, step.y, step.z, camX, camY, camZ, width, height, shakeX, shakeY);
       const p1R = this.project(halfW, step.y, step.z, camX, camY, camZ, width, height, shakeX, shakeY);
-      const p2L = this.project(-halfW, step.y, step.z + 60, camX, camY, camZ, width, height, shakeX, shakeY);
-      const p2R = this.project(halfW, step.y, step.z + 60, camX, camY, camZ, width, height, shakeX, shakeY);
+      const p2L = this.project(-halfW, step.y, step.z + 80, camX, camY, camZ, width, height, shakeX, shakeY);
+      const p2R = this.project(halfW, step.y, step.z + 80, camX, camY, camZ, width, height, shakeX, shakeY);
 
       if (!p1L || !p1R || !p2L || !p2R) return;
 
@@ -426,8 +416,8 @@ export class CountMastersRenderer {
       ctx.fill();
 
       // ステップ正面（立ち上がり面）
-      const pBottomL = this.project(-halfW, Math.max(0, step.y - 15), step.z, camX, camY, camZ, width, height, shakeX, shakeY);
-      const pBottomR = this.project(halfW, Math.max(0, step.y - 15), step.z, camX, camY, camZ, width, height, shakeX, shakeY);
+      const pBottomL = this.project(-halfW, Math.max(0, step.y - 16), step.z, camX, camY, camZ, width, height, shakeX, shakeY);
+      const pBottomR = this.project(halfW, Math.max(0, step.y - 16), step.z, camX, camY, camZ, width, height, shakeX, shakeY);
       if (pBottomL && pBottomR) {
         ctx.beginPath();
         ctx.moveTo(p1L.sx, p1L.sy);
@@ -435,27 +425,28 @@ export class CountMastersRenderer {
         ctx.lineTo(pBottomR.sx, pBottomR.sy);
         ctx.lineTo(pBottomL.sx, pBottomL.sy);
         ctx.closePath();
-        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.28)';
         ctx.fill();
       }
 
-      // 到達フラグがある場合は輝く枠線
+      // 到達済みステップのハイライト枠線
       if (step.stepIndex <= highestStepReached) {
         ctx.strokeStyle = '#fef08a';
-        ctx.lineWidth = 3 * p1L.scale;
+        ctx.lineWidth = Math.min(4, Math.max(1.5, 2.5 * p1L.scale));
         ctx.stroke();
       }
 
-      // 倍率テキスト (×1.5, ×2.0, ×10.0 など)
-      const centerP = this.project(0, step.y + 0.5, step.z + 30, camX, camY, camZ, width, height, shakeX, shakeY);
-      if (centerP && centerP.scale > 0.15) {
+      // 倍率テキスト
+      const centerP = this.project(0, step.y + 1, step.z + 40, camX, camY, camZ, width, height, shakeX, shakeY);
+      if (centerP && centerP.scale > 0.2) {
         ctx.save();
-        ctx.font = `900 ${Math.max(12, Math.floor(22 * centerP.scale))}px "Arial Black", sans-serif`;
+        const fontSize = Math.min(26, Math.max(11, Math.floor(16 * centerP.scale)));
+        ctx.font = `900 ${fontSize}px "Arial Black", sans-serif`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 4 * centerP.scale;
+        ctx.lineWidth = Math.min(4, Math.max(1, 2.5 * centerP.scale));
         const text = `×${step.multiplier.toFixed(1)}`;
         ctx.strokeText(text, centerP.sx, centerP.sy);
         ctx.fillText(text, centerP.sx, centerP.sy);
@@ -481,18 +472,18 @@ export class CountMastersRenderer {
     // 1. 足元のソフトシャドウ
     ctx.fillStyle = 'rgba(0, 0, 0, 0.22)';
     ctx.beginPath();
-    ctx.ellipse(sx, sy, 7 * scale, 3 * scale, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx, sy, 5 * scale, 2 * scale, 0, 0, Math.PI * 2);
     ctx.fill();
 
     // 走りのアニメーション計算
     const runCycle = Math.sin(animOffset * 8);
-    const bounceY = Math.abs(Math.sin(animOffset * 8)) * 3 * scale;
+    const bounceY = Math.abs(Math.sin(animOffset * 8)) * 2 * scale;
 
     const footY = sy;
-    const hipY = footY - 8 * scale - bounceY;
-    const neckY = hipY - 9 * scale;
-    const headY = neckY - 6 * scale;
-    const headRadius = 5.5 * scale;
+    const hipY = footY - 7 * scale - bounceY;
+    const neckY = hipY - 8 * scale;
+    const headY = neckY - 5 * scale;
+    const headRadius = 4.2 * scale;
 
     // 状態によるポーズ
     let leg1Angle = runCycle * 0.6;
@@ -506,7 +497,6 @@ export class CountMastersRenderer {
       arm1Angle = -1.2;
       arm2Angle = 1.2;
     } else if (state === 'climbing') {
-      // バンザイ勝利ポーズ！
       arm1Angle = -2.2;
       arm2Angle = -2.2;
       leg1Angle = 0.2;
@@ -514,41 +504,39 @@ export class CountMastersRenderer {
     }
 
     ctx.strokeStyle = bodyColor;
-    ctx.lineWidth = 2.8 * scale;
+    ctx.lineWidth = Math.min(3, Math.max(1.2, 2.0 * scale));
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // 2. 左脚
+    // 2. 脚
     ctx.beginPath();
     ctx.moveTo(sx, hipY);
-    ctx.lineTo(sx + Math.sin(leg1Angle) * 8 * scale, footY - bounceY + Math.max(0, -Math.cos(leg1Angle) * 3 * scale));
+    ctx.lineTo(sx + Math.sin(leg1Angle) * 6 * scale, footY - bounceY + Math.max(0, -Math.cos(leg1Angle) * 2 * scale));
     ctx.stroke();
 
-    // 3. 右脚
     ctx.beginPath();
     ctx.moveTo(sx, hipY);
-    ctx.lineTo(sx + Math.sin(leg2Angle) * 8 * scale, footY - bounceY + Math.max(0, -Math.cos(leg2Angle) * 3 * scale));
+    ctx.lineTo(sx + Math.sin(leg2Angle) * 6 * scale, footY - bounceY + Math.max(0, -Math.cos(leg2Angle) * 2 * scale));
     ctx.stroke();
 
-    // 4. 胴体
+    // 3. 胴体
     ctx.beginPath();
     ctx.moveTo(sx, hipY);
     ctx.lineTo(sx, neckY);
     ctx.stroke();
 
-    // 5. 左腕
+    // 4. 腕
     ctx.beginPath();
-    ctx.moveTo(sx, neckY + 2 * scale);
-    ctx.lineTo(sx + Math.sin(arm1Angle) * 7 * scale, neckY + 2 * scale + Math.cos(arm1Angle) * 7 * scale);
+    ctx.moveTo(sx, neckY + 1.5 * scale);
+    ctx.lineTo(sx + Math.sin(arm1Angle) * 5 * scale, neckY + 1.5 * scale + Math.cos(arm1Angle) * 5 * scale);
     ctx.stroke();
 
-    // 6. 右腕
     ctx.beginPath();
-    ctx.moveTo(sx, neckY + 2 * scale);
-    ctx.lineTo(sx + Math.sin(arm2Angle) * 7 * scale, neckY + 2 * scale + Math.cos(arm2Angle) * 7 * scale);
+    ctx.moveTo(sx, neckY + 1.5 * scale);
+    ctx.lineTo(sx + Math.sin(arm2Angle) * 5 * scale, neckY + 1.5 * scale + Math.cos(arm2Angle) * 5 * scale);
     ctx.stroke();
 
-    // 7. 頭
+    // 5. 頭
     ctx.beginPath();
     ctx.arc(sx, headY, headRadius, 0, Math.PI * 2);
     ctx.fillStyle = headColor;
@@ -556,65 +544,56 @@ export class CountMastersRenderer {
     ctx.stroke();
 
     // 顔（目）
-    ctx.fillStyle = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(sx - 1.5 * scale, headY - 0.5 * scale, 1.2 * scale, 0, Math.PI * 2);
-    ctx.arc(sx + 1.5 * scale, headY - 0.5 * scale, 1.2 * scale, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#0f172a';
-    ctx.beginPath();
-    ctx.arc(sx - 1.2 * scale, headY - 0.5 * scale, 0.6 * scale, 0, Math.PI * 2);
-    ctx.arc(sx + 1.8 * scale, headY - 0.5 * scale, 0.6 * scale, 0, Math.PI * 2);
-    ctx.fill();
+    if (headRadius > 3) {
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(sx - 1.2 * scale, headY - 0.4 * scale, 0.9 * scale, 0, Math.PI * 2);
+      ctx.arc(sx + 1.2 * scale, headY - 0.4 * scale, 0.9 * scale, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0f172a';
+      ctx.beginPath();
+      ctx.arc(sx - 1.0 * scale, headY - 0.4 * scale, 0.5 * scale, 0, Math.PI * 2);
+      ctx.arc(sx + 1.4 * scale, headY - 0.4 * scale, 0.5 * scale, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    // 8. アクセサリ
+    // 6. アクセサリ
     if (accessory === 'crown') {
-      // 金の王冠
       ctx.fillStyle = '#fbbf24';
       ctx.strokeStyle = '#b45309';
-      ctx.lineWidth = 1 * scale;
+      ctx.lineWidth = Math.min(2, Math.max(0.8, 1 * scale));
       ctx.beginPath();
       const cy = headY - headRadius - 1 * scale;
-      ctx.moveTo(sx - 4.5 * scale, cy);
-      ctx.lineTo(sx - 4.5 * scale, cy - 5 * scale);
-      ctx.lineTo(sx - 2.2 * scale, cy - 2.5 * scale);
-      ctx.lineTo(sx, cy - 6 * scale);
-      ctx.lineTo(sx + 2.2 * scale, cy - 2.5 * scale);
-      ctx.lineTo(sx + 4.5 * scale, cy - 5 * scale);
-      ctx.lineTo(sx + 4.5 * scale, cy);
+      ctx.moveTo(sx - 3.5 * scale, cy);
+      ctx.lineTo(sx - 3.5 * scale, cy - 4 * scale);
+      ctx.lineTo(sx - 1.8 * scale, cy - 2 * scale);
+      ctx.lineTo(sx, cy - 5 * scale);
+      ctx.lineTo(sx + 1.8 * scale, cy - 2 * scale);
+      ctx.lineTo(sx + 3.5 * scale, cy - 4 * scale);
+      ctx.lineTo(sx + 3.5 * scale, cy);
       ctx.closePath();
       ctx.fill();
       ctx.stroke();
     } else if (accessory === 'ninja') {
-      // 忍者はちまき
       ctx.fillStyle = '#ef4444';
-      ctx.fillRect(sx - headRadius - 1 * scale, headY - 1.5 * scale, (headRadius + 1 * scale) * 2, 2 * scale);
-      // はちまきの結び目・なびき
-      ctx.beginPath();
-      ctx.moveTo(sx - headRadius, headY - 1 * scale);
-      ctx.lineTo(sx - headRadius - 6 * scale, headY + runCycle * 3 * scale);
-      ctx.strokeStyle = '#ef4444';
-      ctx.lineWidth = 2 * scale;
-      ctx.stroke();
+      ctx.fillRect(sx - headRadius - 1 * scale, headY - 1.2 * scale, (headRadius + 1 * scale) * 2, 1.8 * scale);
     } else if (accessory === 'helmet') {
-      // ヘルメット
       ctx.fillStyle = '#f59e0b';
       ctx.beginPath();
-      ctx.arc(sx, headY - 1 * scale, headRadius + 1 * scale, Math.PI, 0);
+      ctx.arc(sx, headY - 0.8 * scale, headRadius + 0.8 * scale, Math.PI, 0);
       ctx.fill();
     } else if (accessory === 'cat') {
-      // 猫耳
       ctx.fillStyle = '#f43f5e';
       ctx.beginPath();
-      ctx.moveTo(sx - 4 * scale, headY - headRadius);
-      ctx.lineTo(sx - 6 * scale, headY - headRadius - 4 * scale);
-      ctx.lineTo(sx - 2 * scale, headY - headRadius - 2 * scale);
+      ctx.moveTo(sx - 3 * scale, headY - headRadius);
+      ctx.lineTo(sx - 4.5 * scale, headY - headRadius - 3 * scale);
+      ctx.lineTo(sx - 1.5 * scale, headY - headRadius - 1.5 * scale);
       ctx.closePath();
       ctx.fill();
       ctx.beginPath();
-      ctx.moveTo(sx + 4 * scale, headY - headRadius);
-      ctx.lineTo(sx + 6 * scale, headY - headRadius - 4 * scale);
-      ctx.lineTo(sx + 2 * scale, headY - headRadius - 2 * scale);
+      ctx.moveTo(sx + 3 * scale, headY - headRadius);
+      ctx.lineTo(sx + 4.5 * scale, headY - headRadius - 3 * scale);
+      ctx.lineTo(sx + 1.5 * scale, headY - headRadius - 1.5 * scale);
       ctx.closePath();
       ctx.fill();
     }
@@ -635,7 +614,7 @@ export class CountMastersRenderer {
     shakeY: number
   ) {
     const halfW = ROAD_WIDTH / 2;
-    const gateH = 26; // ゲートの高さ
+    const gateH = 65; // ゲートの高さ (ワールド座標)
     const offsetX = gate.offsetX || 0;
 
     // 左側パネルの4点 (3D)
@@ -661,12 +640,12 @@ export class CountMastersRenderer {
       opt: Gate['leftOption']
     ) => {
       const isPositive = opt.op === '+' || opt.op === '×';
-      const mainColor = isPositive ? 'rgba(6, 182, 212, 0.75)' : 'rgba(239, 68, 68, 0.75)';
+      const mainColor = isPositive ? 'rgba(6, 182, 212, 0.72)' : 'rgba(239, 68, 68, 0.72)';
       const glowColor = isPositive ? '#38bdf8' : '#f87171';
       const borderColor = isPositive ? '#22d3ee' : '#fca5a5';
 
       ctx.save();
-      // ガラス調半透明グラデーション
+      // ガラス調半透明
       ctx.beginPath();
       ctx.moveTo(tl.sx, tl.sy);
       ctx.lineTo(tr.sx, tr.sy);
@@ -679,29 +658,28 @@ export class CountMastersRenderer {
 
       // 枠線グロー
       ctx.strokeStyle = borderColor;
-      ctx.lineWidth = 3.5 * tl.scale;
+      ctx.lineWidth = Math.min(4, Math.max(1.5, 2.5 * tl.scale));
       ctx.stroke();
 
       // ピラー（支柱）
       ctx.fillStyle = '#0f172a';
-      const pillarW = 2.5 * tl.scale;
+      const pillarW = Math.min(5, Math.max(2, 2.5 * tl.scale));
       ctx.fillRect(tl.sx - pillarW / 2, tl.sy, pillarW, bl.sy - tl.sy);
       ctx.fillRect(tr.sx - pillarW / 2, tr.sy, pillarW, br.sy - tr.sy);
 
       // パネル中央の計算テキスト (+25, ×2 など)
       const centerSx = (tl.sx + tr.sx + bl.sx + br.sx) / 4;
       const centerSy = (tl.sy + tr.sy + bl.sy + br.sy) / 4;
-      const fontSize = Math.max(13, Math.floor(28 * tl.scale));
+      const fontSize = Math.min(26, Math.max(12, Math.floor(18 * tl.scale)));
 
       ctx.font = `900 ${fontSize}px "Arial Black", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#ffffff';
       ctx.shadowColor = glowColor;
-      ctx.shadowBlur = 12;
+      ctx.shadowBlur = 8;
       ctx.fillText(opt.label, centerSx, centerSy);
 
-      // 上部にサブアイコンまたは小さく「人型」
       if (fontSize > 16) {
         ctx.font = `bold ${Math.floor(fontSize * 0.45)}px sans-serif`;
         ctx.fillText(isPositive ? '👥 CROWD' : '⚠️ HAZARD', centerSx, centerSy - fontSize * 0.65);
@@ -725,27 +703,26 @@ export class CountMastersRenderer {
     ctx.save();
     switch (obs.type) {
       case 'saw': {
-        // 回転丸鋸
-        const r = obs.radius * scale * 1.8;
+        const r = Math.min(35, Math.max(8, obs.radius * scale));
         ctx.translate(sx, sy);
         ctx.rotate(obs.phase * 4);
 
         // 影
         ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
         ctx.beginPath();
-        ctx.ellipse(0, 4 * scale, r, r * 0.4, 0, 0, Math.PI * 2);
+        ctx.ellipse(0, 3 * scale, r, r * 0.4, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // ノコギリのギザギザ歯
+        // ギザギザ歯
         ctx.fillStyle = '#94a3b8';
         ctx.strokeStyle = '#e2e8f0';
-        ctx.lineWidth = 2 * scale;
+        ctx.lineWidth = Math.min(2, Math.max(1, 1.5 * scale));
         ctx.beginPath();
-        const teeth = 12;
+        const teeth = 10;
         for (let i = 0; i < teeth; i++) {
           const a = (i / teeth) * Math.PI * 2;
           const aMid = a + Math.PI / teeth;
-          const rInner = r * 0.7;
+          const rInner = r * 0.72;
           ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
           ctx.lineTo(Math.cos(aMid) * rInner, Math.sin(aMid) * rInner);
         }
@@ -753,7 +730,6 @@ export class CountMastersRenderer {
         ctx.fill();
         ctx.stroke();
 
-        // 中心ハブ
         ctx.fillStyle = '#dc2626';
         ctx.beginPath();
         ctx.arc(0, 0, r * 0.3, 0, Math.PI * 2);
@@ -762,13 +738,12 @@ export class CountMastersRenderer {
       }
 
       case 'pendulum': {
-        // 振り子ギロチン
         const swingAngle = Math.sin(obs.phase) * 0.8;
-        const armLength = 35 * scale;
-        const pivotY = sy - 40 * scale;
+        const armLength = 28 * scale;
+        const pivotY = sy - 35 * scale;
 
         ctx.strokeStyle = '#475569';
-        ctx.lineWidth = 4 * scale;
+        ctx.lineWidth = Math.min(4, Math.max(1.5, 3 * scale));
         ctx.beginPath();
         ctx.moveTo(sx, pivotY);
         const bladeX = sx + Math.sin(swingAngle) * armLength;
@@ -776,16 +751,16 @@ export class CountMastersRenderer {
         ctx.lineTo(bladeX, bladeY);
         ctx.stroke();
 
-        // 巨大な三日月状の刃
+        // 三日月状の刃
         ctx.save();
         ctx.translate(bladeX, bladeY);
         ctx.rotate(swingAngle);
         ctx.fillStyle = '#cbd5e1';
         ctx.strokeStyle = '#ef4444';
-        ctx.lineWidth = 2 * scale;
+        ctx.lineWidth = Math.min(2.5, Math.max(1, 1.5 * scale));
         ctx.beginPath();
-        ctx.arc(0, 0, 14 * scale, -Math.PI * 0.8, Math.PI * 0.8);
-        ctx.quadraticCurveTo(5 * scale, 0, 0, 0);
+        ctx.arc(0, 0, 11 * scale, -Math.PI * 0.8, Math.PI * 0.8);
+        ctx.quadraticCurveTo(4 * scale, 0, 0, 0);
         ctx.closePath();
         ctx.fill();
         ctx.stroke();
@@ -794,19 +769,16 @@ export class CountMastersRenderer {
       }
 
       case 'spikes': {
-        // トゲトゲ床
-        const sw = obs.width * scale * 2;
-        const spikeHeight = (Math.sin(obs.phase) > 0 ? Math.sin(obs.phase) : 0) * 12 * scale;
+        const sw = Math.min(70, obs.width * scale);
+        const spikeHeight = (Math.sin(obs.phase) > 0 ? Math.sin(obs.phase) : 0) * 10 * scale;
 
-        // ベース床
         ctx.fillStyle = '#475569';
-        ctx.fillRect(sx - sw / 2, sy - 2 * scale, sw, 4 * scale);
+        ctx.fillRect(sx - sw / 2, sy - 2 * scale, sw, 3 * scale);
 
-        // トゲの突き出し
         if (spikeHeight > 1) {
           ctx.fillStyle = '#ef4444';
           ctx.strokeStyle = '#991b1b';
-          ctx.lineWidth = 1 * scale;
+          ctx.lineWidth = 1;
           const count = 5;
           const step = sw / count;
           for (let i = 0; i < count; i++) {
@@ -824,23 +796,16 @@ export class CountMastersRenderer {
       }
 
       case 'smasher': {
-        // ピストン壁
-        const extend = (Math.sin(obs.phase) + 1) * 0.5; // 0 ~ 1
-        const pw = obs.width * scale * 2.5;
-        const ph = 24 * scale;
-        const currentW = pw * (0.3 + 0.7 * extend);
+        const extend = (Math.sin(obs.phase) + 1) * 0.5;
+        const pw = Math.min(60, obs.width * scale);
+        const ph = 20 * scale;
+        const currentW = pw * (0.35 + 0.65 * extend);
 
         ctx.fillStyle = '#334155';
         ctx.strokeStyle = '#f59e0b';
-        ctx.lineWidth = 2 * scale;
+        ctx.lineWidth = Math.min(2.5, Math.max(1, 1.5 * scale));
         ctx.fillRect(sx - currentW / 2, sy - ph, currentW, ph);
         ctx.strokeRect(sx - currentW / 2, sy - ph, currentW, ph);
-
-        // 警告ハザードストライプ
-        ctx.fillStyle = '#f59e0b';
-        for (let i = 0; i < 3; i++) {
-          ctx.fillRect(sx - currentW / 2 + 4 * scale + i * 8 * scale, sy - ph + 4 * scale, 4 * scale, ph - 8 * scale);
-        }
         break;
       }
     }
@@ -856,92 +821,92 @@ export class CountMastersRenderer {
     boss: Boss
   ) {
     ctx.save();
-    const bossScale = scale * boss.scale * 1.5;
+    const bossScale = Math.min(3.2, Math.max(0.6, scale * boss.scale * 0.65));
 
-    // 1. 巨大な影
+    // 巨大な影
     ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
     ctx.beginPath();
-    ctx.ellipse(sx, sy, 25 * bossScale, 10 * bossScale, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx, sy, 18 * bossScale, 8 * bossScale, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    const bounce = Math.sin(boss.animTimer * 5) * 4 * bossScale;
-    const bodyY = sy - 28 * bossScale - bounce;
-    const headY = bodyY - 24 * bossScale;
-    const headR = 14 * bossScale;
+    const bounce = Math.sin(boss.animTimer * 5) * 3 * bossScale;
+    const bodyY = sy - 22 * bossScale - bounce;
+    const headY = bodyY - 18 * bossScale;
+    const headR = 11 * bossScale;
 
-    // 2. 脚
+    // 脚
     ctx.strokeStyle = boss.color;
-    ctx.lineWidth = 9 * bossScale;
+    ctx.lineWidth = Math.min(7, Math.max(3, 7 * bossScale));
     ctx.lineCap = 'round';
     ctx.beginPath();
-    ctx.moveTo(sx - 10 * bossScale, sy - bounce);
-    ctx.lineTo(sx - 8 * bossScale, bodyY + 10 * bossScale);
+    ctx.moveTo(sx - 8 * bossScale, sy - bounce);
+    ctx.lineTo(sx - 6 * bossScale, bodyY + 8 * bossScale);
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.moveTo(sx + 10 * bossScale, sy - bounce);
-    ctx.lineTo(sx + 8 * bossScale, bodyY + 10 * bossScale);
+    ctx.moveTo(sx + 8 * bossScale, sy - bounce);
+    ctx.lineTo(sx + 6 * bossScale, bodyY + 8 * bossScale);
     ctx.stroke();
 
-    // 3. 胴体
+    // 胴体
     ctx.beginPath();
-    ctx.moveTo(sx, bodyY + 10 * bossScale);
-    ctx.lineTo(sx, bodyY - 10 * bossScale);
+    ctx.moveTo(sx, bodyY + 8 * bossScale);
+    ctx.lineTo(sx, bodyY - 8 * bossScale);
     ctx.stroke();
 
-    // 4. 腕 (威嚇ポーズまたはパンチ)
-    const armSwing = Math.sin(boss.animTimer * 8) * 8 * bossScale;
+    // 腕
+    const armSwing = Math.sin(boss.animTimer * 8) * 6 * bossScale;
     ctx.beginPath();
-    ctx.moveTo(sx - 10 * bossScale, bodyY - 8 * bossScale);
-    ctx.lineTo(sx - 24 * bossScale, bodyY + armSwing);
+    ctx.moveTo(sx - 8 * bossScale, bodyY - 6 * bossScale);
+    ctx.lineTo(sx - 18 * bossScale, bodyY + armSwing);
     ctx.stroke();
 
     ctx.beginPath();
-    ctx.moveTo(sx + 10 * bossScale, bodyY - 8 * bossScale);
-    ctx.lineTo(sx + 24 * bossScale, bodyY - armSwing);
+    ctx.moveTo(sx + 8 * bossScale, bodyY - 6 * bossScale);
+    ctx.lineTo(sx + 18 * bossScale, bodyY - armSwing);
     ctx.stroke();
 
-    // 5. 頭
+    // 頭
     ctx.fillStyle = boss.color;
     ctx.beginPath();
     ctx.arc(sx, headY, headR, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // 邪悪な目
+    // 目
     ctx.fillStyle = '#fef08a';
     ctx.beginPath();
-    ctx.arc(sx - 4 * bossScale, headY - 2 * bossScale, 3 * bossScale, 0, Math.PI * 2);
-    ctx.arc(sx + 4 * bossScale, headY - 2 * bossScale, 3 * bossScale, 0, Math.PI * 2);
+    ctx.arc(sx - 3 * bossScale, headY - 1.5 * bossScale, 2.2 * bossScale, 0, Math.PI * 2);
+    ctx.arc(sx + 3 * bossScale, headY - 1.5 * bossScale, 2.2 * bossScale, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = '#000000';
     ctx.beginPath();
-    ctx.arc(sx - 3.5 * bossScale, headY - 2 * bossScale, 1.5 * bossScale, 0, Math.PI * 2);
-    ctx.arc(sx + 4.5 * bossScale, headY - 2 * bossScale, 1.5 * bossScale, 0, Math.PI * 2);
+    ctx.arc(sx - 2.8 * bossScale, headY - 1.5 * bossScale, 1.2 * bossScale, 0, Math.PI * 2);
+    ctx.arc(sx + 3.2 * bossScale, headY - 1.5 * bossScale, 1.2 * bossScale, 0, Math.PI * 2);
     ctx.fill();
 
     // 巨大な王冠
     ctx.fillStyle = '#f59e0b';
     ctx.strokeStyle = '#78350f';
-    ctx.lineWidth = 2 * bossScale;
+    ctx.lineWidth = Math.min(2, Math.max(1, 1.5 * bossScale));
     ctx.beginPath();
-    const cTop = headY - headR - 2 * bossScale;
-    ctx.moveTo(sx - 12 * bossScale, cTop);
-    ctx.lineTo(sx - 12 * bossScale, cTop - 12 * bossScale);
-    ctx.lineTo(sx - 6 * bossScale, cTop - 6 * bossScale);
-    ctx.lineTo(sx, cTop - 15 * bossScale);
-    ctx.lineTo(sx + 6 * bossScale, cTop - 6 * bossScale);
-    ctx.lineTo(sx + 12 * bossScale, cTop - 12 * bossScale);
-    ctx.lineTo(sx + 12 * bossScale, cTop);
+    const cTop = headY - headR - 1.5 * bossScale;
+    ctx.moveTo(sx - 9 * bossScale, cTop);
+    ctx.lineTo(sx - 9 * bossScale, cTop - 9 * bossScale);
+    ctx.lineTo(sx - 4.5 * bossScale, cTop - 4.5 * bossScale);
+    ctx.lineTo(sx, cTop - 11 * bossScale);
+    ctx.lineTo(sx + 4.5 * bossScale, cTop - 4.5 * bossScale);
+    ctx.lineTo(sx + 9 * bossScale, cTop - 9 * bossScale);
+    ctx.lineTo(sx + 9 * bossScale, cTop);
     ctx.closePath();
     ctx.fill();
     ctx.stroke();
 
-    // 6. ボスHPバー (頭上)
-    const barW = Math.max(60, 110 * scale);
-    const barH = Math.max(8, 14 * scale);
+    // ボスHPバー (頭上)
+    const barW = Math.min(100, Math.max(50, 75 * scale));
+    const barH = Math.min(12, Math.max(6, 9 * scale));
     const barX = sx - barW / 2;
-    const barY = headY - headR - 35 * scale;
+    const barY = headY - headR - 25 * scale;
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     ctx.fillRect(barX - 2, barY - 2, barW + 4, barH + 4);
@@ -951,15 +916,14 @@ export class CountMastersRenderer {
     ctx.fillRect(barX, barY, barW * hpPercent, barH);
 
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = 1.2;
     ctx.strokeRect(barX, barY, barW, barH);
 
-    // HP数値 & 名前テキスト
-    ctx.font = `bold ${Math.max(10, Math.floor(12 * scale))}px sans-serif`;
+    ctx.font = `bold ${Math.min(13, Math.max(9, Math.floor(10 * scale)))}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
     ctx.fillStyle = '#ffffff';
-    ctx.fillText(`${boss.name} (${Math.ceil(boss.hp)}/${boss.maxHp})`, sx, barY - 3);
+    ctx.fillText(`${boss.name} (${Math.ceil(boss.hp)}/${boss.maxHp})`, sx, barY - 2);
 
     ctx.restore();
   }
@@ -973,31 +937,24 @@ export class CountMastersRenderer {
     rot: number
   ) {
     ctx.save();
-    const r = 8 * scale;
+    const r = Math.min(14, Math.max(4, 6 * scale));
     const rx = Math.abs(Math.cos(rot)) * r;
 
     // 影
     ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
     ctx.beginPath();
-    ctx.ellipse(sx, sy + 6 * scale, rx, 3 * scale, 0, 0, Math.PI * 2);
+    ctx.ellipse(sx, sy + 4 * scale, rx, 2 * scale, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 黄金コイン本体
+    // 黄金コイン
     ctx.fillStyle = '#fbbf24';
     ctx.strokeStyle = '#d97706';
-    ctx.lineWidth = 2 * scale;
+    ctx.lineWidth = Math.min(2, Math.max(1, 1.5 * scale));
     ctx.beginPath();
     ctx.ellipse(sx, sy, Math.max(1, rx), r, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
 
-    // 内側の輝き
-    if (rx > 3 * scale) {
-      ctx.fillStyle = '#fef08a';
-      ctx.beginPath();
-      ctx.ellipse(sx, sy, rx * 0.6, r * 0.6, 0, 0, Math.PI * 2);
-      ctx.fill();
-    }
     ctx.restore();
   }
 
@@ -1014,27 +971,30 @@ export class CountMastersRenderer {
     ctx.globalAlpha = alpha;
 
     if (pt.type === 'text' && pt.text) {
-      ctx.font = `900 ${Math.max(14, Math.floor(22 * scale))}px "Arial Black", sans-serif`;
+      const fontSize = Math.min(28, Math.max(12, Math.floor(18 * scale)));
+      ctx.font = `900 ${fontSize}px "Arial Black", sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = pt.color;
       ctx.strokeStyle = '#000000';
-      ctx.lineWidth = 3 * scale;
+      ctx.lineWidth = Math.min(3, Math.max(1, 2 * scale));
       ctx.strokeText(pt.text, sx, sy);
       ctx.fillText(pt.text, sx, sy);
     } else if (pt.type === 'confetti') {
+      const size = Math.min(8, Math.max(2, pt.size * scale));
       ctx.fillStyle = pt.color;
-      ctx.fillRect(sx - pt.size * scale, sy - pt.size * scale, pt.size * scale * 2, pt.size * scale * 2);
+      ctx.fillRect(sx - size, sy - size, size * 2, size * 2);
     } else if (pt.type === 'gateRing') {
       ctx.strokeStyle = pt.color;
-      ctx.lineWidth = 4 * scale;
+      ctx.lineWidth = Math.min(3, Math.max(1, 2 * scale));
       ctx.beginPath();
-      ctx.ellipse(sx, sy, pt.size * scale * 2, pt.size * scale, 0, 0, Math.PI * 2);
+      const r = Math.min(60, pt.size * scale * 2);
+      ctx.ellipse(sx, sy, r, r * 0.5, 0, 0, Math.PI * 2);
       ctx.stroke();
     } else {
       ctx.fillStyle = pt.color;
       ctx.beginPath();
-      ctx.arc(sx, sy, pt.size * scale, 0, Math.PI * 2);
+      ctx.arc(sx, sy, Math.min(6, Math.max(1.5, pt.size * scale)), 0, Math.PI * 2);
       ctx.fill();
     }
     ctx.restore();
@@ -1044,41 +1004,39 @@ export class CountMastersRenderer {
   private renderCrowdCounter(ctx: CanvasRenderingContext2D, rc: RenderContext) {
     if (rc.stickmen.length === 0 || rc.crowdCount <= 0) return;
     const leader = rc.stickmen[0];
-    const p = this.project(leader.x, leader.y + 12, leader.z, rc.camX, rc.camY, rc.camZ, rc.width, rc.height, rc.shakeX, rc.shakeY);
+    const p = this.project(leader.x, leader.y + 24, leader.z, rc.camX, rc.camY, rc.camZ, rc.width, rc.height, rc.shakeX, rc.shakeY);
     if (!p) return;
 
     ctx.save();
     const text = `${rc.crowdCount}`;
-    const fontSize = Math.max(14, Math.min(26, Math.floor(20 * p.scale)));
+    const fontSize = Math.min(20, Math.max(12, Math.floor(14 * p.scale)));
     ctx.font = `900 ${fontSize}px "Arial Black", sans-serif`;
 
     const textMetrics = ctx.measureText(text);
-    const padX = 12 * p.scale;
-    const padY = 6 * p.scale;
+    const padX = 8 * p.scale;
+    const padY = 4 * p.scale;
     const bw = textMetrics.width + padX * 2;
     const bh = fontSize + padY * 2;
     const bx = p.sx - bw / 2;
-    const by = p.sy - bh - 6 * p.scale;
+    const by = p.sy - bh - 4 * p.scale;
 
     // バブル背景
     ctx.fillStyle = '#2563eb';
     ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 2.5 * p.scale;
+    ctx.lineWidth = Math.min(2.5, Math.max(1, 2 * p.scale));
     ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-    ctx.shadowBlur = 8;
+    ctx.shadowBlur = 6;
 
-    // 角丸四角形
-    const radius = 8 * p.scale;
+    const radius = 6 * p.scale;
     ctx.beginPath();
     ctx.moveTo(bx + radius, by);
     ctx.lineTo(bx + bw - radius, by);
     ctx.arcTo(bx + bw, by, bx + bw, by + radius, radius);
     ctx.lineTo(bx + bw, by + bh - radius);
     ctx.arcTo(bx + bw, by + bh, bx + bw - radius, by + bh, radius);
-    // 吹き出しの三角
-    ctx.lineTo(bx + bw / 2 + 5 * p.scale, by + bh);
-    ctx.lineTo(bx + bw / 2, by + bh + 5 * p.scale);
-    ctx.lineTo(bx + bw / 2 - 5 * p.scale, by + bh);
+    ctx.lineTo(bx + bw / 2 + 4 * p.scale, by + bh);
+    ctx.lineTo(bx + bw / 2, by + bh + 4 * p.scale);
+    ctx.lineTo(bx + bw / 2 - 4 * p.scale, by + bh);
     ctx.lineTo(bx + radius, by + bh);
     ctx.arcTo(bx, by + bh, bx, by + bh - radius, radius);
     ctx.lineTo(bx, by + radius);
@@ -1087,12 +1045,11 @@ export class CountMastersRenderer {
     ctx.fill();
     ctx.stroke();
 
-    // 人数テキスト
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#ffffff';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, bx + bw / 2, by + bh / 2 - 1);
+    ctx.fillText(text, bx + bw / 2, by + bh / 2);
 
     ctx.restore();
   }

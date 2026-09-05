@@ -174,14 +174,31 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
   } | null>(null);
 
   // ゲーム内リアルタイムデータ (Ref管理で高速ループ)
-  const currentStageRef = useRef<StageData | null>(null);
+  const currentStageRef = useRef<StageData>(getStageData(1));
   const stairsRef = useRef<StairStep[]>([]);
-  const stickmenRef = useRef<Stickman[]>([]);
+  const stickmenRef = useRef<Stickman[]>([
+    {
+      id: 1,
+      x: 0,
+      y: 0,
+      z: 100,
+      targetOffsetX: 0,
+      targetOffsetZ: 0,
+      vx: 0,
+      vy: 0,
+      vz: 0,
+      color: '#3b82f6',
+      isAlive: true,
+      state: 'running',
+      animOffset: 0,
+      scale: 1,
+    },
+  ]);
   const particlesRef = useRef<Particle[]>([]);
   const playerXRef = useRef<number>(0);
   const targetPlayerXRef = useRef<number>(0);
-  const playerZRef = useRef<number>(0);
-  const forwardSpeedRef = useRef<number>(2.6);
+  const playerZRef = useRef<number>(100);
+  const forwardSpeedRef = useRef<number>(5.0);
   const stageCoinsRef = useRef<number>(0);
   const shakeTimerRef = useRef<number>(0);
   const highestStepRef = useRef<number>(-1);
@@ -231,7 +248,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
   // スティックマン群衆の整列・配置更新（フェルマー螺旋アルゴリズム）
   const updateStickmenPositions = useCallback((leaderX: number, leaderZ: number) => {
     const aliveStickmen = stickmenRef.current.filter((sm) => sm.isAlive);
-    const c = 1.25; // 密集係数
+    const c = 6.5; // 適度な群衆間隔
 
     aliveStickmen.forEach((sm, index) => {
       if (index === 0) {
@@ -242,11 +259,11 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
         const r = c * Math.sqrt(index);
         const theta = index * 2.399963;
         sm.targetOffsetX = Math.cos(theta) * r;
-        sm.targetOffsetZ = -Math.sin(theta) * r * 0.8;
+        sm.targetOffsetZ = -Math.sin(theta) * r * 0.65;
       }
 
-      // スムーズ追従
-      const targetWorldX = Math.max(-ROAD_WIDTH / 2 + 1.2, Math.min(ROAD_WIDTH / 2 - 1.2, leaderX + sm.targetOffsetX));
+      // スムーズ追従 (道幅内に収める)
+      const targetWorldX = Math.max(-ROAD_WIDTH / 2 + 15, Math.min(ROAD_WIDTH / 2 - 15, leaderX + sm.targetOffsetX));
       const targetWorldZ = leaderZ + sm.targetOffsetZ;
 
       sm.x += (targetWorldX - sm.x) * 0.28;
@@ -265,13 +282,13 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       // パーティクル & テキスト
       particlesRef.current.push({
         x: originX,
-        y: 12,
+        y: 25,
         z: originZ,
         vx: 0,
-        vy: 2.5,
+        vy: 3,
         vz: 0,
         color: '#38bdf8',
-        size: 2,
+        size: 3,
         life: 45,
         maxLife: 45,
         type: 'text',
@@ -287,7 +304,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
         vy: 0,
         vz: 0,
         color: 'rgba(56, 189, 248, 0.8)',
-        size: 5,
+        size: 25,
         life: 25,
         maxLife: 25,
         type: 'gateRing',
@@ -297,9 +314,9 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
         const id = Math.random();
         stickmenRef.current.push({
           id,
-          x: originX + (Math.random() - 0.5) * 4,
+          x: originX + (Math.random() - 0.5) * 20,
           y: 0,
-          z: originZ - Math.random() * 8,
+          z: originZ - Math.random() * 25,
           targetOffsetX: 0,
           targetOffsetZ: 0,
           vx: 0,
@@ -327,13 +344,13 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
     // テキスト
     particlesRef.current.push({
       x: originX,
-      y: 12,
+      y: 25,
       z: originZ,
       vx: 0,
-      vy: 2.5,
+      vy: 3,
       vz: 0,
       color: '#ef4444',
-      size: 2,
+      size: 3,
       life: 45,
       maxLife: 45,
       type: 'text',
@@ -349,13 +366,13 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
         // 吹き飛びパーティクル
         particlesRef.current.push({
           x: sm.x,
-          y: 6,
+          y: 8,
           z: sm.z,
-          vx: (Math.random() - 0.5) * 6,
-          vy: 6 + Math.random() * 4,
-          vz: -2 + Math.random() * 4,
+          vx: (Math.random() - 0.5) * 12,
+          vy: 8 + Math.random() * 6,
+          vz: -4 + Math.random() * 8,
           color: sm.color,
-          size: 4,
+          size: 5,
           life: 30,
           maxLife: 30,
           type: 'spark',
@@ -375,11 +392,11 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
       playerXRef.current = 0;
       targetPlayerXRef.current = 0;
-      playerZRef.current = 40;
+      playerZRef.current = 100;
       stageCoinsRef.current = 0;
       shakeTimerRef.current = 0;
       highestStepRef.current = -1;
-      forwardSpeedRef.current = 2.8;
+      forwardSpeedRef.current = 5.0;
       isStageClearingRef.current = false;
 
       particlesRef.current = [];
@@ -394,7 +411,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
           id: Math.random(),
           x: 0,
           y: 0,
-          z: 40 - i * 1.5,
+          z: 100 - i * 6,
           targetOffsetX: 0,
           targetOffsetZ: 0,
           vx: 0,
@@ -433,11 +450,11 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
     const dx = clientX - lastTouchXRef.current;
     lastTouchXRef.current = clientX;
 
-    // スケーリング感度
-    const sensitivity = 0.055;
+    // スケーリング感度 (幅220に合わせて快適にドラッグ)
+    const sensitivity = 0.42;
     targetPlayerXRef.current = Math.max(
-      -ROAD_WIDTH / 2 + 1.5,
-      Math.min(ROAD_WIDTH / 2 - 1.5, targetPlayerXRef.current + dx * sensitivity)
+      -ROAD_WIDTH / 2 + 18,
+      Math.min(ROAD_WIDTH / 2 - 18, targetPlayerXRef.current + dx * sensitivity)
     );
   };
 
@@ -450,11 +467,11 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (gameState !== 'RUNNING' && gameState !== 'BOSS_BATTLE') return;
-      const step = 1.2;
+      const step = 8;
       if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-        targetPlayerXRef.current = Math.max(-ROAD_WIDTH / 2 + 1.5, targetPlayerXRef.current - step);
+        targetPlayerXRef.current = Math.max(-ROAD_WIDTH / 2 + 18, targetPlayerXRef.current - step);
       } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-        targetPlayerXRef.current = Math.min(ROAD_WIDTH / 2 - 1.5, targetPlayerXRef.current + step);
+        targetPlayerXRef.current = Math.min(ROAD_WIDTH / 2 - 18, targetPlayerXRef.current + step);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -500,10 +517,10 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
             shakeY = (Math.random() - 0.5) * 8;
           }
 
-          // カメラ座標計算 (三人称背後見下ろし)
-          const camX = playerXRef.current * 0.45;
-          const camY = 38;
-          const camZ = playerZRef.current - 65;
+          // カメラ座標計算 (三人称背後見下ろし - 高い視点からゆったり見渡す)
+          const camX = playerXRef.current * 0.35;
+          const camY = 150;
+          const camZ = playerZRef.current - 180;
 
           // レンダリング実行
           rendererRef.current.render({
@@ -515,18 +532,18 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
             camZ,
             shakeX,
             shakeY,
-            theme: stage ? stage.theme : 'city',
+            theme: stage.theme,
             skin: currentSkin,
             stickmen: stickmenRef.current,
-            gates: stage ? stage.gates : [],
-            obstacles: stage ? stage.obstacles : [],
-            mobs: stage ? stage.mobs : [],
-            boss: stage ? stage.boss : ({} as any),
+            gates: stage.gates,
+            obstacles: stage.obstacles,
+            mobs: stage.mobs,
+            boss: stage.boss,
             stairs: stairsRef.current,
-            coins: stage ? stage.coins : [],
+            coins: stage.coins,
             particles: particlesRef.current,
             crowdCount: crowdCountRef.current,
-            courseLength: stage ? stage.courseLength : 2000,
+            courseLength: stage.courseLength,
             isGameOver: gameState === 'GAME_OVER',
             isStageClear: gameState === 'STAGE_CLEAR',
             highestStepReached: highestStepRef.current,
@@ -561,7 +578,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
         coin.rot += 0.08;
         const dz = Math.abs(playerZRef.current - coin.z);
         const dx = Math.abs(playerXRef.current - coin.x);
-        if (dz < 15 && dx < 3.5) {
+        if (dz < 35 && dx < 28) {
           coin.collected = true;
           const coinBonus = 1 + (upgrades.coinBonusLevel - 1) * 0.25;
           const earned = Math.round(1 * coinBonus);
@@ -572,11 +589,11 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
             x: coin.x,
             y: coin.y,
             z: coin.z,
-            vx: (Math.random() - 0.5) * 2,
-            vy: 3,
+            vx: (Math.random() - 0.5) * 4,
+            vy: 4,
             vz: 0,
             color: '#fbbf24',
-            size: 3,
+            size: 4,
             life: 20,
             maxLife: 20,
             type: 'spark',
@@ -589,8 +606,8 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
         // スライドゲートの移動
         if (gate.isMoving) {
           gate.moveSpeed = gate.moveSpeed || 2;
-          gate.moveRange = gate.moveRange || 4;
-          gate.offsetX = Math.sin(playerZRef.current * 0.015) * gate.moveRange;
+          gate.moveRange = gate.moveRange || 45;
+          gate.offsetX = Math.sin(playerZRef.current * 0.006) * gate.moveRange;
         }
 
         // ルーレットゲートの数値変動
@@ -608,7 +625,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
         // 通過判定
         const distZ = gate.z - playerZRef.current;
-        if (distZ <= 0 && distZ > -forwardSpeedRef.current * 1.5) {
+        if (distZ <= 0 && distZ > -forwardSpeedRef.current * 2) {
           const offsetX = gate.offsetX || 0;
           const isLeft = playerXRef.current < offsetX;
           const chosen = isLeft ? gate.leftOption : gate.rightOption;
@@ -664,11 +681,11 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
         }
 
         const dz = Math.abs(playerZRef.current - obs.z);
-        if (dz < obs.length + 8) {
+        if (dz < obs.length + 20) {
           stickmenRef.current.forEach((sm) => {
             if (!sm.isAlive) return;
             const dist = Math.hypot(sm.x - obs.x, sm.z - obs.z);
-            if (dist < obs.radius + 1.2) {
+            if (dist < obs.radius + 12) {
               sm.isAlive = false;
               sm.state = 'flying';
               crowdCountRef.current = Math.max(0, crowdCountRef.current - 1);
@@ -677,13 +694,13 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
               particlesRef.current.push({
                 x: sm.x,
-                y: 5,
+                y: 10,
                 z: sm.z,
-                vx: (Math.random() - 0.5) * 8,
-                vy: 8,
-                vz: (Math.random() - 0.5) * 6,
+                vx: (Math.random() - 0.5) * 16,
+                vy: 10 + Math.random() * 6,
+                vz: (Math.random() - 0.5) * 12,
                 color: sm.color,
-                size: 3.5,
+                size: 5,
                 life: 30,
                 maxLife: 30,
                 type: 'spark',
@@ -702,7 +719,8 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       stage.mobs.forEach((mob) => {
         if (mob.currentCount <= 0) return;
         const dz = Math.abs(playerZRef.current - mob.z);
-        if (dz < 22) {
+        const dx = Math.abs(playerXRef.current - mob.x);
+        if (dz < 35 && dx < 45) {
           // プレイヤーの攻撃力レベル (1で1体相打ち、2で1.3倍相打ち...)
           const playerAtkRate = 1 + (upgrades.attackPowerLevel - 1) * 0.4;
           const alivePlayers = stickmenRef.current.filter((sm) => sm.isAlive);
@@ -727,14 +745,14 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
             }
 
             particlesRef.current.push({
-              x: mob.x + (Math.random() - 0.5) * 6,
-              y: 6,
-              z: mob.z + (Math.random() - 0.5) * 6,
-              vx: (Math.random() - 0.5) * 6,
-              vy: 5,
-              vz: (Math.random() - 0.5) * 6,
+              x: mob.x + (Math.random() - 0.5) * 20,
+              y: 8,
+              z: mob.z + (Math.random() - 0.5) * 20,
+              vx: (Math.random() - 0.5) * 10,
+              vy: 7,
+              vz: (Math.random() - 0.5) * 10,
               color: '#ef4444',
-              size: 3,
+              size: 4,
               life: 25,
               maxLife: 25,
               type: 'spark',
@@ -749,7 +767,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       });
 
       // ボスエリア進入判定
-      if (playerZRef.current >= stage.boss.z - 75) {
+      if (playerZRef.current >= stage.boss.z - 180) {
         setGameState('BOSS_BATTLE');
         stage.boss.state = 'fighting';
         countAudio.playBossRoar();
@@ -759,7 +777,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       boss.animTimer += 0.05;
 
       // ボスへ向かって群衆が包囲突撃
-      playerZRef.current += forwardSpeedRef.current * 0.4;
+      playerZRef.current += forwardSpeedRef.current * 0.25;
       updateStickmenPositions(playerXRef.current, playerZRef.current);
 
       const aliveStickmen = stickmenRef.current.filter((sm) => sm.isAlive);
@@ -794,14 +812,14 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
         // 大爆発パーティクル
         for (let i = 0; i < 40; i++) {
           particlesRef.current.push({
-            x: (Math.random() - 0.5) * 15,
-            y: 10 + Math.random() * 20,
-            z: boss.z + (Math.random() - 0.5) * 15,
-            vx: (Math.random() - 0.5) * 12,
-            vy: 5 + Math.random() * 10,
-            vz: (Math.random() - 0.5) * 12,
+            x: (Math.random() - 0.5) * 60,
+            y: 15 + Math.random() * 40,
+            z: boss.z + (Math.random() - 0.5) * 40,
+            vx: (Math.random() - 0.5) * 20,
+            vy: 8 + Math.random() * 15,
+            vz: (Math.random() - 0.5) * 20,
             color: Math.random() > 0.5 ? '#ef4444' : '#f59e0b',
-            size: 5,
+            size: 6,
             life: 50,
             maxLife: 50,
             type: 'spark',
@@ -810,7 +828,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
         // 階段タワー登攀へ移行
         setGameState('STAIRS_CLIMB');
-        forwardSpeedRef.current = 3.5;
+        forwardSpeedRef.current = 6.0;
       }
     } else if (gameState === 'STAIRS_CLIMB') {
       // 階段タワー登攀ロジック
