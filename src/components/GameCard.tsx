@@ -163,6 +163,43 @@ export const GameCard: React.FC<GameCardProps> = ({
         );
       case 'zoo':
         return <span className="text-2xl leading-none select-none">🐼</span>;
+      case 'shooting_cert':
+        return (
+          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {/* シューティング技能検定アイコン：照準＆戦闘機 */}
+            <circle cx="12" cy="12" r="9" stroke="#f43f5e" strokeWidth="2" />
+            <line x1="12" y1="3" x2="12" y2="7" stroke="#f43f5e" />
+            <line x1="12" y1="17" x2="12" y2="21" stroke="#f43f5e" />
+            <line x1="3" y1="12" x2="7" y2="12" stroke="#f43f5e" />
+            <line x1="17" y1="12" x2="21" y2="12" stroke="#f43f5e" />
+            <polygon points="12,8 15,16 12,14 9,16" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1" />
+          </svg>
+        );
+      case 'lofi':
+        return (
+          <svg className="w-6 h-6 text-amber-300" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 18v-6a9 9 0 0 1 18 0v6" />
+            <path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z" />
+            <circle cx="12" cy="12" r="2" fill="#f59e0b" />
+          </svg>
+        );
+      case 'countmasters':
+        return (
+          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {/* Count Masters アイコン：リーダー(王冠付き青スティックマン)と群衆・増殖 */}
+            {/* リーダー (中央) */}
+            <circle cx="12" cy="7" r="3" fill="#60a5fa" stroke="#3b82f6" strokeWidth="1.5" />
+            <path d="M12 10v6M9 13l3-1 3 1M10 20l2-4 2 4" stroke="#60a5fa" strokeWidth="2" />
+            {/* 王冠 */}
+            <path d="M10 4l1 1.5 1-1.5 1 1.5 1-1.5v1.5h-4z" fill="#fbbf24" stroke="#f59e0b" strokeWidth="0.8" />
+            {/* 左の仲間 */}
+            <circle cx="5" cy="10" r="2.2" fill="#38bdf8" stroke="#0284c7" strokeWidth="1.2" />
+            <path d="M5 12.2v4.5M3 14l2-0.8 2 0.8M3.5 19.5l1.5-2.8 1.5 2.8" stroke="#38bdf8" strokeWidth="1.5" />
+            {/* 右の仲間 */}
+            <circle cx="19" cy="10" r="2.2" fill="#38bdf8" stroke="#0284c7" strokeWidth="1.2" />
+            <path d="M19 12.2v4.5M17 14l2-0.8 2 0.8M17.5 19.5l1.5-2.8 1.5 2.8" stroke="#38bdf8" strokeWidth="1.5" />
+          </svg>
+        );
       default:
         return <LayoutGrid className="w-6 h-6 text-white" />;
     }

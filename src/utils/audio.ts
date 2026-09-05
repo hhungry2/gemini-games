@@ -2847,6 +2847,406 @@ class SoundEngine {
       starOsc.stop(t + 0.3);
     }
   }
+
+  // ==========================================
+  // シューティング技能検定 (Shooting Skill Test) サウンド
+  // ==========================================
+  private isCertBgmRunning: boolean = false;
+  private certBgmTimer: number | null = null;
+  private certBgmStep: number = 0;
+
+  // 疾走感あふれるサイバーアーケードBGM (BPM 150)
+  public startShootingCertBgm() {
+    if (this.isCertBgmRunning || this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+
+    this.isCertBgmRunning = true;
+    this.certBgmStep = 0;
+
+    const bassNotes = [
+      110, 110, 130.81, 110, 146.83, 110, 164.81, 146.83,
+      110, 110, 130.81, 110, 98.0, 98.0, 123.47, 98.0,
+      110, 110, 130.81, 110, 146.83, 110, 164.81, 146.83,
+      174.61, 174.61, 164.81, 164.81, 146.83, 130.81, 123.47, 110,
+    ];
+
+    const leadNotes = [
+      440, 0, 523.25, 0, 587.33, 0, 659.25, 587.33,
+      0, 523.25, 0, 440, 392, 0, 493.88, 0,
+      440, 0, 523.25, 0, 587.33, 0, 659.25, 783.99,
+      880, 0, 783.99, 0, 659.25, 587.33, 523.25, 493.88,
+    ];
+
+    const stepInterval = (60 / 150) / 4 * 1000; // 16分音符 (100ms)
+
+    const schedule = () => {
+      if (!this.isCertBgmRunning || !this.ctx) return;
+      const now = this.ctx.currentTime;
+      const bNote = bassNotes[this.certBgmStep % bassNotes.length];
+      const lNote = leadNotes[this.certBgmStep % leadNotes.length];
+
+      // ベース
+      if (bNote > 0) {
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        const filter = this.ctx.createBiquadFilter();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(bNote, now);
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(450, now);
+        filter.frequency.exponentialRampToValueAtTime(150, now + 0.08);
+
+        gain.gain.setValueAtTime(0.12, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.09);
+
+        osc.connect(filter);
+        filter.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.09);
+      }
+
+      // ドラム (キック & スネア & ハイハット)
+      if (this.certBgmStep % 4 === 0) {
+        // キック
+        const kOsc = this.ctx.createOscillator();
+        const kGain = this.ctx.createGain();
+        kOsc.type = 'sine';
+        kOsc.frequency.setValueAtTime(150, now);
+        kOsc.frequency.exponentialRampToValueAtTime(40, now + 0.08);
+        kGain.gain.setValueAtTime(0.25, now);
+        kGain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+        kOsc.connect(kGain);
+        kGain.connect(this.ctx.destination);
+        kOsc.start(now);
+        kOsc.stop(now + 0.08);
+      } else if (this.certBgmStep % 4 === 2) {
+        // スネアノイズ
+        const buf = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.05), this.ctx.sampleRate);
+        const data = buf.getChannelData(0);
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+        const src = this.ctx.createBufferSource();
+        src.buffer = buf;
+        const nGain = this.ctx.createGain();
+        nGain.gain.setValueAtTime(0.09, now);
+        nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+        src.connect(nGain);
+        nGain.connect(this.ctx.destination);
+        src.start(now);
+      }
+
+      // リードメロディ
+      if (lNote > 0 && Math.random() > 0.1) {
+        const lOsc = this.ctx.createOscillator();
+        const lGain = this.ctx.createGain();
+        lOsc.type = 'square';
+        lOsc.frequency.setValueAtTime(lNote, now);
+        lGain.gain.setValueAtTime(0.08, now);
+        lGain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
+        lOsc.connect(lGain);
+        lGain.connect(this.ctx.destination);
+        lOsc.start(now);
+        lOsc.stop(now + 0.12);
+      }
+
+      this.certBgmStep++;
+      this.certBgmTimer = window.setTimeout(schedule, stepInterval);
+    };
+
+    schedule();
+  }
+
+  public stopShootingCertBgm() {
+    this.isCertBgmRunning = false;
+    if (this.certBgmTimer !== null) {
+      clearTimeout(this.certBgmTimer);
+      this.certBgmTimer = null;
+    }
+  }
+
+  // 検定スタート / Ready GO! 音
+  public playCertStart() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    // 上昇アルペジオ + ピッピッピッポーン
+    const notes = [
+      { f: 523.25, t: 0, dur: 0.08 },
+      { f: 659.25, t: 0.09, dur: 0.08 },
+      { f: 783.99, t: 0.18, dur: 0.08 },
+      { f: 1046.5, t: 0.28, dur: 0.35 },
+    ];
+    notes.forEach((n) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      const st = now + n.t;
+      osc.frequency.setValueAtTime(n.f, st);
+      gain.gain.setValueAtTime(0.2, st);
+      gain.gain.exponentialRampToValueAtTime(0.001, st + n.dur);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(st);
+      osc.stop(st + n.dur);
+    });
+  }
+
+  // プレイヤー連射ショット音
+  public playCertShot() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(880 + Math.random() * 60, now);
+    osc.frequency.exponentialRampToValueAtTime(220, now + 0.05);
+
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.05);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.05);
+  }
+
+  // 命中ヒット音 (カキーン)
+  public playCertHit() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1400, now);
+    osc.frequency.exponentialRampToValueAtTime(700, now + 0.04);
+
+    gain.gain.setValueAtTime(0.14, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.04);
+  }
+
+  // 爆発音 (ズドーン)
+  public playCertExplode(isBig: boolean = false) {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+    const dur = isBig ? 0.45 : 0.22;
+
+    const buf = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * dur), this.ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (data.length * 0.4));
+    }
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(600, now);
+    filter.frequency.exponentialRampToValueAtTime(100, now + dur);
+
+    const gain = this.ctx.createGain();
+    gain.gain.setValueAtTime(isBig ? 0.35 : 0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.ctx.destination);
+    src.start(now);
+
+    // 重低音インパクト
+    const sub = this.ctx.createOscillator();
+    const subGain = this.ctx.createGain();
+    sub.type = 'sine';
+    sub.frequency.setValueAtTime(isBig ? 120 : 90, now);
+    sub.frequency.exponentialRampToValueAtTime(30, now + dur);
+    subGain.gain.setValueAtTime(isBig ? 0.3 : 0.15, now);
+    subGain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+    sub.connect(subGain);
+    subGain.connect(this.ctx.destination);
+    sub.start(now);
+    sub.stop(now + dur);
+  }
+
+  // 寸止めブレーキ音 (キキーッ)
+  public playCertBrake() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(1600, now);
+    osc.frequency.linearRampToValueAtTime(800, now + 0.15);
+
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.15);
+  }
+
+  // 警告アラート音 (ピピッ！ピピッ！)
+  public playCertWarning() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    [0, 0.08, 0.16].forEach((offset) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(880, now + offset);
+      gain.gain.setValueAtTime(0.18, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + offset + 0.05);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.05);
+    });
+  }
+
+  // グレイズ（弾かすり）音
+  public playCertGraze() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1200 + Math.random() * 300, now);
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.06);
+  }
+
+  // 種目クリア・判定合格ジングル
+  public playCertSuccess() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const chord = [523.25, 659.25, 783.99, 1046.5];
+    chord.forEach((freq, idx) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      const st = now + idx * 0.06;
+      osc.frequency.setValueAtTime(freq, st);
+      gain.gain.setValueAtTime(0.2, st);
+      gain.gain.exponentialRampToValueAtTime(0.001, st + 0.3);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(st);
+      osc.stop(st + 0.3);
+    });
+  }
+
+  // 失敗・クラッシュ・減点音
+  public playCertFail() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.linearRampToValueAtTime(90, now + 0.25);
+    gain.gain.setValueAtTime(0.25, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.25);
+  }
+
+  // 総合発表前ドラムロール
+  public playCertDrumRoll() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    for (let i = 0; i < 20; i++) {
+      const t = now + i * 0.06;
+      const buf = this.ctx.createBuffer(1, Math.floor(this.ctx.sampleRate * 0.03), this.ctx.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let j = 0; j < data.length; j++) data[j] = Math.random() * 2 - 1;
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.08 + (i / 20) * 0.12, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.03);
+      src.connect(g);
+      g.connect(this.ctx.destination);
+      src.start(t);
+    }
+  }
+
+  // シューター年齢決定グランドファンファーレ
+  public playCertGrandFanfare() {
+    if (this.isMuted) return;
+    this.initCtx();
+    if (!this.ctx) return;
+    const now = this.ctx.currentTime;
+
+    const melody = [
+      { f: 523.25, d: 0, l: 0.1 },
+      { f: 523.25, d: 0.1, l: 0.1 },
+      { f: 523.25, d: 0.2, l: 0.1 },
+      { f: 659.25, d: 0.3, l: 0.25 },
+      { f: 587.33, d: 0.55, l: 0.1 },
+      { f: 659.25, d: 0.65, l: 0.1 },
+      { f: 783.99, d: 0.75, l: 0.6 },
+    ];
+
+    melody.forEach((m) => {
+      if (!this.ctx) return;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sawtooth';
+      const t = now + m.d;
+      osc.frequency.setValueAtTime(m.f, t);
+      gain.gain.setValueAtTime(0.24, t);
+      gain.gain.exponentialRampToValueAtTime(0.001, t + m.l);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(t);
+      osc.stop(t + m.l);
+    });
+  }
 }
 
 export const sound = new SoundEngine();

@@ -19,7 +19,10 @@ export type GameId =
   | 'suika'
   | 'wario'
   | 'sonic'
-  | 'zoo';
+  | 'zoo'
+  | 'lofi'
+  | 'shooting_cert'
+  | 'countmasters';
 
 export type GameGenre = 'action' | 'puzzle' | 'arcade' | 'racing' | 'io';
 

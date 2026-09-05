@@ -22,10 +22,27 @@ import { SuikaGame } from './games/SuikaGame';
 import { WarioGame } from './games/WarioGame';
 import { SonicGame, SONIC_HIGH_SCORE_KEY, SONIC_BEST_TIME_KEY, SONIC_MAX_RINGS_KEY } from './games/SonicGame';
 import { PixelZooGame } from './games/PixelZooGame';
+import {
+  ShootingCertGame,
+  SHOOTING_CERT_HIGH_SCORE_KEY,
+  SHOOTING_CERT_BEST_AGE_KEY,
+  SHOOTING_CERT_BEST_RANK_KEY,
+} from './games/ShootingCertGame';
+import { LofiGame, LOFI_LISTEN_TIME_KEY } from './games/LofiGame';
+import {
+  CountMastersGame,
+  COUNT_MASTERS_HIGH_SCORE_KEY,
+  COUNT_MASTERS_MAX_CROWD_KEY,
+  COUNT_MASTERS_STAGE_KEY,
+} from './games/CountMastersGame';
 import { GameInfo, GameId, GameGenre } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck, Search, X } from 'lucide-react';
 
 const THEME_KEY = 'games_hub_theme';
+const LOFI_LISTEN_KEY = LOFI_LISTEN_TIME_KEY;
+const SHOOTING_CERT_HIGH_KEY = SHOOTING_CERT_HIGH_SCORE_KEY;
+const SHOOTING_CERT_AGE_KEY = SHOOTING_CERT_BEST_AGE_KEY;
+const SHOOTING_CERT_RANK_KEY = SHOOTING_CERT_BEST_RANK_KEY;
 const SONIC_HIGH_KEY = SONIC_HIGH_SCORE_KEY;
 const SONIC_TIME_KEY = SONIC_BEST_TIME_KEY;
 const SONIC_RINGS_KEY = SONIC_MAX_RINGS_KEY;
@@ -70,6 +87,45 @@ const GENRES: { id: GameGenre | 'all'; label: string; icon: string }[] = [
 ];
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'countmasters',
+    title: 'カウントマスターズ (Count Masters)',
+    titleEn: 'Count Masters: Crowd Runner 3D',
+    description:
+      '大人気ハイパーカジュアル群衆ランナーゲームを完全再現！計算ゲート（+15, ×3等）をくぐって仲間を大増殖させ、回転丸鋸や振り子罠を突破せよ！敵軍団との激突相打ちバトル＆最奥のジャイアントキング討伐！マルチプライヤータワー（階段）を駆け登り最高スコアを目指せ！スキン＆スキル強化完備！',
+    badge: '🔥 最新作！爽快大増殖',
+    iconName: 'countmasters',
+    color: 'from-blue-600 via-indigo-600 to-purple-600',
+    genre: 'action',
+    genres: ['action', 'arcade', 'io'],
+    tags: ['カウントマスターズ', '群衆ランナー', '計算ゲート', '仲間増殖', 'ボスバトル', '3Dランナー', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'lofi',
+    title: 'Lo-fi カバー再現スタジオ (Lo-fi Studio)',
+    titleEn: 'Lo-fi Hip-hop Beat & Cover Studio',
+    description:
+      'Web Audio APIリアルタイム波形合成による本格Lo-Fi音楽スタジオ！『丸の内サディスティック』『夜に駆ける』『Fly Me to the Moon』『あの夏へ』等の名曲コード＆メロディ完全再現！6トラックミキサー・テープピッチ揺らぎ・FFTビジュアライザー・作業用BGM完備！',
+    badge: '🎧 新登場！名曲Lo-Fiカバー',
+    iconName: 'lofi',
+    color: 'from-amber-600 via-orange-500 to-amber-700',
+    genre: 'arcade',
+    genres: ['arcade', 'puzzle'],
+    tags: ['音楽', 'Lo-Fi', '名曲カバー', '丸の内サディスティック', '夜に駆ける', 'ジブリ', '作業用BGM', 'Web Audio', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'shooting_cert',
+    title: 'シューティング技能検定 (Shooting Skill Test)',
+    titleEn: 'Shooting Love: Official Skill Examination',
+    description:
+      '伝説の名作アーケード検定を完全再現！「撃ちまくれ！連射」「ギリギリで止まれ！寸止め」「突如現れる標的を即撃破！反射」「狂乱の弾幕を掻い潜れ！回避」「敵味方を識別せよ！判断」「ボス討伐タイムアタック」の全6種目を突破し、あなたのシューティング技能年齢（18歳〜80歳）と5角形レーダーチャートを判定！',
+    badge: '🔥 最新作！神技検定',
+    iconName: 'shooting_cert',
+    color: 'from-red-600 via-rose-600 to-amber-500',
+    genre: 'arcade',
+    genres: ['arcade', 'action'],
+    tags: ['シューティング技能検定', '連射測定', 'チキンレース寸止め', '弾幕回避', '反射神経', 'シューター年齢', 'レーダーチャート', 'スマホ・PC両対応'],
+  },
   {
     id: 'zoo',
     title: 'ぽかぽかドット動物園 (Pixel Zoo Sanctuary)',
@@ -406,10 +462,38 @@ export function App() {
   const [sonicHighScore, setSonicHighScore] = useState<number>(0);
   const [sonicBestTime, setSonicBestTime] = useState<number>(0);
   const [sonicMaxRings, setSonicMaxRings] = useState<number>(0);
+  const [shootingCertHighScore, setShootingCertHighScore] = useState<number>(0);
+  const [shootingCertAge, setShootingCertAge] = useState<number>(0);
+  const [shootingCertRank, setShootingCertRank] = useState<string>('--');
+  const [lofiListenSeconds, setLofiListenSeconds] = useState<number>(0);
+  const [countMastersHighScore, setCountMastersHighScore] = useState<number>(0);
+  const [countMastersMaxCrowd, setCountMastersMaxCrowd] = useState<number>(0);
+  const [countMastersClearedStage, setCountMastersClearedStage] = useState<number>(1);
 
   // レコードの読み込み
   const loadRecords = () => {
     if (typeof window === 'undefined') return;
+
+    const cmHigh = localStorage.getItem(COUNT_MASTERS_HIGH_SCORE_KEY);
+    if (cmHigh) setCountMastersHighScore(parseInt(cmHigh, 10) || 0);
+
+    const cmCrowd = localStorage.getItem(COUNT_MASTERS_MAX_CROWD_KEY);
+    if (cmCrowd) setCountMastersMaxCrowd(parseInt(cmCrowd, 10) || 0);
+
+    const cmStage = localStorage.getItem(COUNT_MASTERS_STAGE_KEY);
+    if (cmStage) setCountMastersClearedStage(parseInt(cmStage, 10) || 1);
+
+    const lofiTime = localStorage.getItem(LOFI_LISTEN_KEY);
+    if (lofiTime) setLofiListenSeconds(parseInt(lofiTime, 10) || 0);
+
+    const certHigh = localStorage.getItem(SHOOTING_CERT_HIGH_KEY);
+    if (certHigh) setShootingCertHighScore(parseInt(certHigh, 10) || 0);
+
+    const certAge = localStorage.getItem(SHOOTING_CERT_AGE_KEY);
+    if (certAge) setShootingCertAge(parseInt(certAge, 10) || 0);
+
+    const certRank = localStorage.getItem(SHOOTING_CERT_RANK_KEY);
+    if (certRank) setShootingCertRank(certRank);
 
     const snkScore = localStorage.getItem(SONIC_HIGH_KEY);
     if (snkScore) setSonicHighScore(parseInt(snkScore, 10) || 0);
@@ -580,7 +664,13 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'sonic') {
+    if (activeGame === 'countmasters') {
+      document.title = 'カウントマスターズ (Count Masters) | Games Hub';
+    } else if (activeGame === 'lofi') {
+      document.title = 'Lo-fi カバー再現スタジオ (Lo-fi Studio) | Games Hub';
+    } else if (activeGame === 'shooting_cert') {
+      document.title = 'シューティング技能検定 (Shooting Skill Test) | Games Hub';
+    } else if (activeGame === 'sonic') {
       document.title = 'ソニック・スピード・ラッシュ (Sonic Speed Rush) | Games Hub';
     } else if (activeGame === 'wario') {
       document.title = 'メイド イン ワリオ (WarioWare) | Games Hub';
@@ -627,6 +717,56 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'countmasters') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: countMastersHighScore > 0 ? `${countMastersHighScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: '最多仲間数',
+          value: countMastersMaxCrowd > 0 ? `${countMastersMaxCrowd} 人` : '--',
+        },
+        {
+          label: '制覇ステージ',
+          value: `Stage ${countMastersClearedStage} / 5`,
+        },
+      ];
+    }
+    if (gameId === 'lofi') {
+      const mins = Math.floor(lofiListenSeconds / 60);
+      const secs = lofiListenSeconds % 60;
+      return [
+        {
+          label: '総リスニング',
+          value: lofiListenSeconds > 0 ? `${mins}分${secs.toString().padStart(2, '0')}秒` : '未再生',
+        },
+        {
+          label: '収録カバー',
+          value: '5曲（丸サ・YOASOBI他）',
+        },
+        {
+          label: 'シンセ音源',
+          value: 'Web Audio DSP (無遅延)',
+        },
+      ];
+    }
+    if (gameId === 'shooting_cert') {
+      return [
+        {
+          label: 'シューター年齢',
+          value: shootingCertAge > 0 ? `${shootingCertAge} 歳` : '--',
+        },
+        {
+          label: '公式ランク',
+          value: shootingCertRank !== '--' ? shootingCertRank : '--',
+        },
+        {
+          label: 'HIGH SCORE',
+          value: shootingCertHighScore > 0 ? `${shootingCertHighScore.toLocaleString()} pts` : '--',
+        },
+      ];
+    }
     if (gameId === 'sonic') {
       return [
         {
@@ -1188,6 +1328,36 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'countmasters' && (
+              <CountMastersGame
+                onBackToHub={() => {
+                  setActiveGame(null);
+                  loadRecords();
+                }}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'lofi' && (
+              <LofiGame
+                onBackToHub={() => {
+                  setActiveGame(null);
+                  loadRecords();
+                }}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'shooting_cert' && (
+              <ShootingCertGame
+                onBackToHub={() => {
+                  setActiveGame(null);
+                  loadRecords();
+                }}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'zoo' && (
               <PixelZooGame
                 onBackToHub={() => {
