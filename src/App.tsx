@@ -36,7 +36,7 @@ import {
   COUNT_MASTERS_STAGE_KEY,
 } from './games/CountMastersGame';
 import { GameInfo, GameId, GameGenre } from './types';
-import { Gamepad2, Sparkles, Zap, ShieldCheck, Search, X, Check } from 'lucide-react';
+import { Gamepad2, Sparkles, Zap, ShieldCheck, Search, X, Check, ArrowLeft } from 'lucide-react';
 import { getGameIdFromUrl, syncUrlWithGame, copyGameUrl } from './utils/urlRouter';
 
 const THEME_KEY = 'games_hub_theme';
@@ -405,6 +405,7 @@ const GAMES: GameInfo[] = [
 export function App() {
   const [activeGame, setActiveGame] = useState<GameId | null>(() => getGameIdFromUrl());
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [showExitConfirm, setShowExitConfirm] = useState<boolean>(false);
   const [isDark, setIsDark] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(THEME_KEY);
@@ -671,12 +672,41 @@ export function App() {
     syncUrlWithGame(gameId);
   };
 
-  // トップ画面（一覧）に戻るハンドラー
-  const handleGoHome = () => {
+  // ゲーム一覧に戻る要求ハンドラー（ゲームプレイ中の場合は確認ダイアログを表示）
+  const requestGoHome = () => {
+    if (activeGame) {
+      setShowExitConfirm(true);
+    } else {
+      confirmGoHome();
+    }
+  };
+
+  // 実際にトップ画面（一覧）に戻る処理
+  const confirmGoHome = () => {
+    setShowExitConfirm(false);
     setActiveGame(null);
     syncUrlWithGame(null);
     loadRecords();
   };
+
+  // 一覧へ戻る操作のキャンセル
+  const cancelGoHome = () => {
+    setShowExitConfirm(false);
+  };
+
+  // 確認モーダル表示中のキーボード操作 (Escapeでキャンセル, Enterで戻る)
+  useEffect(() => {
+    if (!showExitConfirm) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        cancelGoHome();
+      } else if (e.key === 'Enter') {
+        confirmGoHome();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showExitConfirm]);
 
   // ゲーム直接URLコピーハンドラー
   const handleCopyGameUrl = async (gameId: GameId) => {
@@ -1102,13 +1132,62 @@ export function App() {
     >
       <Header
         activeGame={activeGame}
-        onGoHome={handleGoHome}
+        onGoHome={requestGoHome}
         isDark={isDark}
         onToggleTheme={toggleTheme}
         isFullscreen={isFullscreen}
         onToggleFullscreen={toggleFullscreen}
         onCopyUrl={activeGame ? () => handleCopyGameUrl(activeGame) : undefined}
       />
+
+      {/* ゲーム一覧に戻る確認モーダル */}
+      {showExitConfirm && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
+          onClick={cancelGoHome}
+        >
+          <div
+            className={`border rounded-3xl max-w-sm w-full p-6 shadow-2xl relative animate-in zoom-in-95 duration-200 text-center ${
+              isDark
+                ? 'bg-slate-900 border-slate-700 text-slate-100'
+                : 'bg-white border-slate-200 text-slate-800'
+            }`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-500 flex items-center justify-center mx-auto mb-4">
+              <ArrowLeft className="w-6 h-6" />
+            </div>
+
+            <h3 className="text-lg font-black tracking-tight mb-2">
+              ゲーム一覧に戻りますか？
+            </h3>
+            <p className={`text-xs mb-6 leading-relaxed ${isDark ? 'text-slate-400' : 'text-slate-500'}`}>
+              現在のプレイ状況や進行データは終了されます。
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={cancelGoHome}
+                className={`py-2.5 px-4 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                  isDark
+                    ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                }`}
+              >
+                キャンセル
+              </button>
+              <button
+                type="button"
+                onClick={confirmGoHome}
+                className="py-2.5 px-4 rounded-xl text-xs font-bold transition cursor-pointer bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white shadow-md shadow-indigo-500/20"
+              >
+                一覧に戻る
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* URLコピー完了トースト通知 */}
       {toastMessage && (
@@ -1396,168 +1475,168 @@ export function App() {
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
             {activeGame === 'countmasters' && (
               <CountMastersGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'lofi' && (
               <LofiGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'shooting_cert' && (
               <ShootingCertGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'zoo' && (
               <PixelZooGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'sonic' && (
               <SonicGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'wario' && (
               <WarioGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'suika' && (
               <SuikaGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'cookie' && (
               <CookieClickerGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'spire' && (
               <SpireGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'chiikawa' && (
               <ChiikawaGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'jewel' && (
               <JewelGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'holeio' && (
               <HoleIoGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'excitebike' && (
               <ExcitebikeGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'bomberman' && (
               <BombermanGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'angrybirds' && (
               <AngryBirdsGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'paperio' && (
               <PaperIoGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'breakout' && (
               <BreakoutGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'game2048' && (
               <Game2048
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'doteater' && (
               <DotEaterGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'pong' && (
               <PongGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'shooter' && (
               <SpaceShooterGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'bros' && (
               <GeminiBrosGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'tetris' && (
               <TetrisGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
             )}
             {activeGame === 'minesweeper' && (
               <MinesweeperGame
-                onBackToHub={handleGoHome}
+                onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
               />
