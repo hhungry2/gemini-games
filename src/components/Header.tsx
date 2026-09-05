@@ -70,15 +70,17 @@ export const Header: React.FC<HeaderProps> = ({
                 >
                   Games Hub
                 </span>
-                <span
-                  className={`text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full border ${
-                    isDark
-                      ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300'
-                      : 'bg-indigo-50 border-indigo-200 text-indigo-700'
-                  }`}
-                >
-                  Play
-                </span>
+                {!activeGame && (
+                  <span
+                    className={`text-[10px] uppercase font-bold tracking-widest px-2 py-0.5 rounded-full border ${
+                      isDark
+                        ? 'bg-indigo-500/20 border-indigo-500/30 text-indigo-300'
+                        : 'bg-indigo-50 border-indigo-200 text-indigo-700'
+                    }`}
+                  >
+                    Play
+                  </span>
+                )}
               </div>
             </div>
 
