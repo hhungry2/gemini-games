@@ -18,7 +18,8 @@ export type GameId =
   | 'cookie'
   | 'suika'
   | 'wario'
-  | 'sonic';
+  | 'sonic'
+  | 'zoo';
 
 export type GameGenre = 'action' | 'puzzle' | 'arcade' | 'racing' | 'io';
 

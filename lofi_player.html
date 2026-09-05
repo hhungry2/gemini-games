@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lo-fi Hip-hop Studio - Song Reproduction</title>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    @keyframes tape-spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .tape-reel {
+      animation: tape-spin 3.5s linear infinite;
+    }
+    .tape-reel.paused {
+      animation-play-state: paused;
+    }
+    input[type=range] {
+      accent-color: #f59e0b;
+    }
+  </style>
+</head>
+<body class="bg-transparent text-[var(--foreground)] antialiased p-2 sm:p-3 select-none">
+  <div class="bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] rounded-2xl p-4 shadow-xl max-w-md mx-auto">
+    
+    <!-- Top Bar: Song Reproduction Selector -->
+    <div class="mb-3 space-y-1.5">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2">
+          <span class="text-xl">🎵</span>
+          <div>
+            <h2 class="font-bold text-sm tracking-wide leading-tight">Lo-fi カバー再現スタジオ</h2>
+            <span id="currentChordText" class="text-[11px] font-mono text-amber-500 font-bold">Ready</span>
+          </div>
+        </div>
+        <div id="playingNoteBadge" class="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/15 text-amber-500 border border-amber-500/30">
+          ♪ -
+        </div>
+      </div>
+
+      <!-- Song Selector Dropdown -->
+      <div class="bg-[var(--secondary)]/50 p-2 rounded-xl border border-[var(--border)] flex items-center justify-between gap-2">
+        <span class="text-xs font-semibold text-[var(--foreground)] whitespace-nowrap">再現する曲:</span>
+        <select id="songSelect" class="flex-1 text-xs bg-[var(--card)] text-[var(--foreground)] border border-[var(--border)] rounded-lg px-2.5 py-1.5 cursor-pointer outline-none font-medium truncate">
+          <option value="marunouchi">🍸 丸の内サディスティック / Just the Two of Us</option>
+          <option value="flyme">🚀 Fly Me to the Moon (エヴァ / Jazz)</option>
+          <option value="summer">🍃 あの夏へ (千と千尋の神隠し / 久石譲)</option>
+          <option value="chillhop">☕ オリジナル Chillhop (Rainy)</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Cassette + Real-time FFT Audio Visualizer -->
+    <div class="relative bg-[var(--background)] border border-[var(--border)] rounded-xl p-2.5 mb-3 overflow-hidden shadow-inner">
+      <div class="flex items-center justify-between gap-3">
+        <!-- Left Reel -->
+        <div id="reelL" class="w-10 h-10 rounded-full border-2 border-dashed border-amber-500/70 flex items-center justify-center tape-reel paused flex-shrink-0">
+          <div class="w-3 h-3 rounded-full bg-[var(--foreground)] opacity-50"></div>
+        </div>
+
+        <!-- Real-time Canvas Visualizer -->
+        <div class="flex-1 flex flex-col items-center justify-center">
+          <canvas id="visCanvas" width="220" height="38" class="w-full h-[38px] rounded"></canvas>
+          <div class="flex items-center justify-between w-full mt-1 px-1 text-[10px] text-[var(--muted-foreground)] font-mono">
+            <span id="displayBpm">78 BPM</span>
+            <span id="displaySongName" class="truncate max-w-[130px]">丸の内サディスティック</span>
+            <span id="tapeWobbleBadge" class="text-amber-500 font-semibold">Tape: ON</span>
+          </div>
+        </div>
+
+        <!-- Right Reel -->
+        <div id="reelR" class="w-10 h-10 rounded-full border-2 border-dashed border-amber-500/70 flex items-center justify-center tape-reel paused flex-shrink-0">
+          <div class="w-3 h-3 rounded-full bg-[var(--foreground)] opacity-50"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Play / Action Bar -->
+    <div class="flex items-center gap-2 mb-3">
+      <button id="togglePlayBtn" class="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 active:scale-[0.98] text-white shadow transition cursor-pointer">
+        <svg id="playIcon" class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="pauseIcon" class="w-4 h-4 fill-current hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+        <span id="playBtnText">再生する (Play Test)</span>
+      </button>
+
+      <!-- Melody Mute Switch Shortcut -->
+      <button id="quickMelodyBtn" title="主旋律メロディのON/OFF" class="py-2.5 px-3 rounded-xl border border-amber-500/50 bg-amber-500/10 text-amber-500 text-xs font-semibold cursor-pointer transition flex items-center gap-1">
+        <span>✨</span> メロディ: <span id="quickMelodyStatus">ON</span>
+      </button>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="flex border-b border-[var(--border)] mb-3 text-xs font-semibold">
+      <button id="tabTracksBtn" class="tab-btn pb-1.5 px-3 border-b-2 border-amber-500 text-amber-500 cursor-pointer">
+        🎛️ トラック
+      </button>
+      <button id="tabFxBtn" class="tab-btn pb-1.5 px-3 border-b-2 border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] cursor-pointer">
+        📼 サウンドFX
+      </button>
+      <button id="tabInfoBtn" class="tab-btn pb-1.5 px-3 border-b-2 border-transparent text-[var(--muted-foreground)] hover:text-[var(--foreground)] cursor-pointer">
+        🌧️ 環境音
+      </button>
+    </div>
+
+    <!-- Tab 1: Track Mutes & Levels -->
+    <div id="tabTracks" class="tab-content grid grid-cols-3 gap-2">
+      <button id="toggleMelody" class="track-btn p-2 rounded-xl border border-amber-500/50 bg-amber-500/10 text-xs font-medium flex flex-col items-center gap-1 transition cursor-pointer">
+        <span class="text-base">✨</span>
+        <span>主旋律 (Melody)</span>
+        <span class="status-indicator text-[10px] text-amber-500 font-bold">ON</span>
+      </button>
+
+      <button id="toggleKeys" class="track-btn p-2 rounded-xl border border-amber-500/50 bg-amber-500/10 text-xs font-medium flex flex-col items-center gap-1 transition cursor-pointer">
+        <span class="text-base">🎹</span>
+        <span>和音 (Chords)</span>
+        <span class="status-indicator text-[10px] text-amber-500 font-bold">ON</span>
+      </button>
+
+      <button id="toggleBass" class="track-btn p-2 rounded-xl border border-amber-500/50 bg-amber-500/10 text-xs font-medium flex flex-col items-center gap-1 transition cursor-pointer">
+        <span class="text-base">🎸</span>
+        <span>ベース (Bass)</span>
+        <span class="status-indicator text-[10px] text-amber-500 font-bold">ON</span>
+      </button>
+
+      <button id="toggleDrums" class="track-btn p-2 rounded-xl border border-amber-500/50 bg-amber-500/10 text-xs font-medium flex flex-col items-center gap-1 transition cursor-pointer">
+        <span class="text-base">🥁</span>
+        <span>ドラム (Drums)</span>
+        <span class="status-indicator text-[10px] text-amber-500 font-bold">ON</span>
+      </button>
+
+      <button id="toggleVinyl" class="track-btn p-2 rounded-xl border border-amber-500/50 bg-amber-500/10 text-xs font-medium flex flex-col items-center gap-1 transition cursor-pointer">
+        <span class="text-base">📻</span>
+        <span>レコードノイズ</span>
+        <span class="status-indicator text-[10px] text-amber-500 font-bold">ON</span>
+      </button>
+
+      <button id="toggleRain" class="track-btn p-2 rounded-xl border border-amber-500/50 bg-amber-500/10 text-xs font-medium flex flex-col items-center gap-1 transition cursor-pointer">
+        <span class="text-base">🌧️</span>
+        <span>雨音 (Rain)</span>
+        <span class="status-indicator text-[10px] text-amber-500 font-bold">ON</span>
+      </button>
+    </div>
+
+    <!-- Tab 2: Lo-Fi Effects (Tape Wobble, Filter, BPM) -->
+    <div id="tabFx" class="tab-content hidden space-y-2.5 text-xs">
+      <div class="space-y-1 bg-[var(--secondary)]/40 p-2.5 rounded-xl border border-[var(--border)]">
+        <div class="flex justify-between items-center text-[var(--muted-foreground)]">
+          <span>📼 テープピッチ揺らぎ (Wow/Flutter)</span>
+          <span id="wobbleVal" class="font-mono text-amber-500">40%</span>
+        </div>
+        <input type="range" id="wobbleSlider" min="0" max="100" value="40" class="w-full cursor-pointer">
+      </div>
+
+      <div class="space-y-1 bg-[var(--secondary)]/40 p-2.5 rounded-xl border border-[var(--border)]">
+        <div class="flex justify-between items-center text-[var(--muted-foreground)]">
+          <span>📻 レトロフィルター (Tone)</span>
+          <span id="filterVal" class="font-mono text-amber-500">こもった暖かみ</span>
+        </div>
+        <input type="range" id="filterSlider" min="600" max="8000" value="3200" class="w-full cursor-pointer">
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div class="bg-[var(--secondary)]/40 p-2 rounded-xl border border-[var(--border)] space-y-1">
+          <div class="flex justify-between text-[11px] text-[var(--muted-foreground)]">
+            <span>⏱️ テンポ (BPM)</span>
+            <span id="bpmValText" class="font-mono text-amber-500">78</span>
+          </div>
+          <input type="range" id="bpmSlider" min="66" max="94" value="78" class="w-full cursor-pointer">
+        </div>
+        <div class="bg-[var(--secondary)]/40 p-2 rounded-xl border border-[var(--border)] space-y-1">
+          <div class="flex justify-between text-[11px] text-[var(--muted-foreground)]">
+            <span>🔊 マスター音量</span>
+            <span id="masterValText" class="font-mono text-amber-500">80%</span>
+          </div>
+          <input type="range" id="masterSlider" min="0" max="100" value="80" class="w-full cursor-pointer">
+        </div>
+      </div>
+    </div>
+
+    <!-- Tab 3: Ambience Mix -->
+    <div id="tabInfo" class="tab-content hidden space-y-2.5 text-xs">
+      <div class="bg-[var(--secondary)]/40 p-2.5 rounded-xl border border-[var(--border)] space-y-1.5">
+        <div class="flex justify-between text-[var(--muted-foreground)]">
+          <span>📻 レコードプチプチ音量</span>
+          <span id="vinylVolText" class="font-mono text-amber-500">45%</span>
+        </div>
+        <input type="range" id="vinylVolSlider" min="0" max="100" value="45" class="w-full cursor-pointer">
+      </div>
+
+      <div class="bg-[var(--secondary)]/40 p-2.5 rounded-xl border border-[var(--border)] space-y-1.5">
+        <div class="flex justify-between text-[var(--muted-foreground)]">
+          <span>🌧️ 雨音・アンビエンス音量</span>
+          <span id="rainVolText" class="font-mono text-amber-500">40%</span>
+        </div>
+        <input type="range" id="rainVolSlider" min="0" max="100" value="40" class="w-full cursor-pointer">
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // --- Audio Engine State ---
+    let audioCtx = null;
+    let isPlaying = false;
+    let currentStep = 0;
+    let timerId = null;
+    let bpm = 78;
+    let swingOffset = 0.036;
+
+    const tracks = {
+      melody: true,
+      keys: true,
+      bass: true,
+      drums: true,
+      vinyl: true,
+      rain: true
+    };
+
+    let masterGain = null;
+    let toneFilter = null;
+    let analyserNode = null;
+
+    let vinylGain = null;
+    let rainGain = null;
+    let vinylSource = null;
+    let rainSource = null;
+
+    let tapeWobbleDepth = 0.4;
+
+    function midiToFreq(m) {
+      return 440 * Math.pow(2, (m - 69) / 12);
+    }
+
+    // --- Reproducing Real Songs Data ---
+    const songs = {
+      marunouchi: {
+        title: "丸の内サディスティック",
+        bpm: 78,
+        totalSteps: 32, // 2 bars
+        chords: [
+          { step: 0,  name: "Fmaj7",  root: 41, notes: [53, 57, 60, 64] },
+          { step: 8,  name: "E7(#9)", root: 40, notes: [52, 56, 59, 63] },
+          { step: 16, name: "Am7",    root: 45, notes: [45, 57, 60, 64] },
+          { step: 24, name: "Gm7-C7", root: 43, notes: [46, 55, 58, 62] }
+        ],
+        melody: [
+          // Bar 1: Just the Two of Us / 丸の内サディスティック
+          { step: 0,  note: 72, name: "C5", dur: 0.28 },
+          { step: 2,  note: 71, name: "B4", dur: 0.20 },
+          { step: 4,  note: 69, name: "A4", dur: 0.28 },
+          { step: 6,  note: 67, name: "G4", dur: 0.28 },
+          { step: 8,  note: 64, name: "E4", dur: 0.28 },
+          { step: 10, note: 67, name: "G4", dur: 0.28 },
+          { step: 13, note: 68, name: "G#4", dur: 0.18 },
+          { step: 14, note: 69, name: "A4", dur: 0.35 },
+          // Bar 2:
+          { step: 16, note: 69, name: "A4", dur: 0.35 },
+          { step: 20, note: 67, name: "G4", dur: 0.28 },
+          { step: 22, note: 64, name: "E4", dur: 0.28 },
+          { step: 24, note: 62, name: "D4", dur: 0.20 },
+          { step: 26, note: 64, name: "E4", dur: 0.28 },
+          { step: 28, note: 60, name: "C4", dur: 0.55 }
+        ]
+      },
+      flyme: {
+        title: "Fly Me to the Moon",
+        bpm: 76,
+        totalSteps: 64, // 4 bars
+        chords: [
+          { step: 0,  name: "Am7",   root: 45, notes: [57, 60, 64, 67] },
+          { step: 16, name: "Dm7",   root: 38, notes: [50, 53, 57, 60] },
+          { step: 32, name: "G7",    root: 43, notes: [53, 55, 59, 62] },
+          { step: 48, name: "Cmaj7", root: 36, notes: [48, 52, 55, 59] }
+        ],
+        melody: [
+          // Bar 1: Fly me to the moon
+          { step: 0,  note: 72, name: "C5", dur: 0.38 },
+          { step: 4,  note: 71, name: "B4", dur: 0.38 },
+          { step: 8,  note: 69, name: "A4", dur: 0.38 },
+          { step: 12, note: 67, name: "G4", dur: 0.38 },
+          // Bar 2: and let me play among the stars
+          { step: 16, note: 65, name: "F4", dur: 0.55 },
+          { step: 22, note: 67, name: "G4", dur: 0.25 },
+          { step: 24, note: 69, name: "A4", dur: 0.45 },
+          { step: 28, note: 72, name: "C5", dur: 0.55 },
+          // Bar 3: let me see what spring is like
+          { step: 32, note: 71, name: "B4", dur: 0.38 },
+          { step: 36, note: 69, name: "A4", dur: 0.38 },
+          { step: 40, note: 67, name: "G4", dur: 0.38 },
+          { step: 44, note: 65, name: "F4", dur: 0.38 },
+          // Bar 4: on Jupiter and Mars
+          { step: 48, note: 64, name: "E4", dur: 0.75 },
+          { step: 56, note: 65, name: "F4", dur: 0.25 },
+          { step: 60, note: 67, name: "G4", dur: 0.38 }
+        ]
+      },
+      summer: {
+        title: "あの夏へ (千と千尋)",
+        bpm: 72,
+        totalSteps: 64, // 4 bars
+        chords: [
+          { step: 0,  name: "Fmaj7", root: 41, notes: [53, 57, 60, 64] },
+          { step: 16, name: "Em7",   root: 40, notes: [52, 55, 59, 62] },
+          { step: 32, name: "Dm7",   root: 38, notes: [50, 53, 57, 60] },
+          { step: 48, name: "Cmaj7", root: 36, notes: [48, 52, 55, 59] }
+        ],
+        melody: [
+          // Bar 1:
+          { step: 0,  note: 76, name: "E5", dur: 0.45 },
+          { step: 4,  note: 74, name: "D5", dur: 0.35 },
+          { step: 8,  note: 72, name: "C5", dur: 0.45 },
+          { step: 12, note: 69, name: "A4", dur: 0.35 },
+          // Bar 2:
+          { step: 16, note: 67, name: "G4", dur: 0.55 },
+          { step: 24, note: 69, name: "A4", dur: 0.25 },
+          { step: 28, note: 72, name: "C5", dur: 0.45 },
+          // Bar 3:
+          { step: 32, note: 74, name: "D5", dur: 0.45 },
+          { step: 40, note: 72, name: "C5", dur: 0.25 },
+          { step: 44, note: 71, name: "B4", dur: 0.35 },
+          // Bar 4:
+          { step: 48, note: 72, name: "C5", dur: 0.95 }
+        ]
+      },
+      chillhop: {
+        title: "Rainy Chillhop",
+        bpm: 78,
+        totalSteps: 64,
+        chords: [
+          { step: 0,  name: "Abmaj7", root: 44, notes: [56, 60, 63, 67] },
+          { step: 16, name: "Gm7",    root: 43, notes: [55, 58, 62, 65] },
+          { step: 32, name: "Fm9",    root: 41, notes: [53, 56, 60, 63, 67] },
+          { step: 48, name: "Ebmaj7", root: 39, notes: [51, 55, 58, 62] }
+        ],
+        melody: [
+          { step: 0,  note: 67, name: "G4", dur: 0.4 },
+          { step: 6,  note: 70, name: "Bb4", dur: 0.3 },
+          { step: 12, note: 72, name: "C5", dur: 0.4 },
+          { step: 20, note: 70, name: "Bb4", dur: 0.3 },
+          { step: 26, note: 67, name: "G4", dur: 0.4 },
+          { step: 34, note: 65, name: "F4", dur: 0.4 },
+          { step: 42, note: 63, name: "Eb4", dur: 0.5 },
+          { step: 52, note: 65, name: "F4", dur: 0.3 },
+          { step: 56, note: 67, name: "G4", dur: 0.6 }
+        ]
+      }
+    };
+
+    let currentSongKey = "marunouchi";
+
+    function initAudio() {
+      if (audioCtx) return;
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+      analyserNode = audioCtx.createAnalyser();
+      analyserNode.fftSize = 64;
+      analyserNode.smoothingTimeConstant = 0.8;
+
+      toneFilter = audioCtx.createBiquadFilter();
+      toneFilter.type = "lowpass";
+      toneFilter.frequency.value = 3200;
+
+      masterGain = audioCtx.createGain();
+      masterGain.gain.value = 0.8;
+
+      toneFilter.connect(masterGain);
+      masterGain.connect(analyserNode);
+      analyserNode.connect(audioCtx.destination);
+
+      initVinylNoise(masterGain);
+      initRainNoise(masterGain);
+      startVisualizer();
+    }
+
+    function initVinylNoise(dest) {
+      const bufferSize = audioCtx.sampleRate * 2;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        let val = (Math.random() * 2 - 1) * 0.015;
+        if (Math.random() < 0.0009) {
+          val += (Math.random() > 0.5 ? 1 : -1) * (0.08 + Math.random() * 0.16);
+        }
+        data[i] = val;
+      }
+      vinylSource = audioCtx.createBufferSource();
+      vinylSource.buffer = buffer;
+      vinylSource.loop = true;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.value = 1600;
+      filter.Q.value = 0.9;
+
+      vinylGain = audioCtx.createGain();
+      vinylGain.gain.value = tracks.vinyl ? 0.45 : 0.0;
+
+      vinylSource.connect(filter);
+      filter.connect(vinylGain);
+      vinylGain.connect(dest);
+      vinylSource.start();
+    }
+
+    function initRainNoise(dest) {
+      const bufferSize = audioCtx.sampleRate * 2;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      let lastOut = 0.0;
+      for (let i = 0; i < bufferSize; i++) {
+        const white = Math.random() * 2 - 1;
+        lastOut = (lastOut + 0.025 * white) / 1.025;
+        data[i] = lastOut * 0.45;
+      }
+      rainSource = audioCtx.createBufferSource();
+      rainSource.buffer = buffer;
+      rainSource.loop = true;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 750;
+
+      rainGain = audioCtx.createGain();
+      rainGain.gain.value = tracks.rain ? 0.4 : 0.0;
+
+      rainSource.connect(filter);
+      filter.connect(rainGain);
+      rainGain.connect(dest);
+      rainSource.start();
+    }
+
+    // Play Main Lead Melody Note
+    function playMelodyNote(midi, time, duration = 0.35) {
+      if (!tracks.melody) return;
+      const freq = midiToFreq(midi);
+
+      const osc = audioCtx.createOscillator();
+      const oscSub = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      const filter = audioCtx.createBiquadFilter();
+
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, time);
+
+      oscSub.type = "triangle";
+      oscSub.frequency.setValueAtTime(freq, time);
+
+      filter.type = "lowpass";
+      filter.frequency.setValueAtTime(2600, time);
+      filter.frequency.exponentialRampToValueAtTime(1000, time + duration);
+
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.linearRampToValueAtTime(0.18, time + 0.025);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+
+      osc.connect(filter);
+      oscSub.connect(filter);
+      filter.connect(gain);
+      gain.connect(toneFilter);
+
+      osc.start(time);
+      oscSub.start(time);
+      osc.stop(time + duration);
+      oscSub.stop(time + duration);
+    }
+
+    // Play Rhodes Chord with Tape Wow & Flutter
+    function playRhodesChord(notes, time, duration = 1.6) {
+      if (!tracks.keys) return;
+
+      notes.forEach((midi, index) => {
+        const freq = midiToFreq(midi);
+        const osc1 = audioCtx.createOscillator();
+        const osc2 = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        const filter = audioCtx.createBiquadFilter();
+
+        if (tapeWobbleDepth > 0) {
+          const lfo = audioCtx.createOscillator();
+          const lfoGain = audioCtx.createGain();
+          lfo.frequency.value = 1.3 + Math.random() * 0.5;
+          lfoGain.gain.value = freq * 0.012 * tapeWobbleDepth;
+          lfo.connect(osc1.frequency);
+          lfo.connect(osc2.frequency);
+          lfo.start(time);
+          lfo.stop(time + duration);
+        }
+
+        osc1.type = "sine";
+        osc1.frequency.setValueAtTime(freq, time);
+
+        osc2.type = "triangle";
+        osc2.frequency.setValueAtTime(freq * 1.002, time);
+
+        filter.type = "lowpass";
+        filter.frequency.setValueAtTime(1200 + index * 80, time);
+        filter.frequency.exponentialRampToValueAtTime(450, time + duration);
+
+        const strum = index * 0.022;
+        const noteStart = time + strum;
+        gain.gain.setValueAtTime(0.0001, noteStart);
+        gain.gain.linearRampToValueAtTime(0.09, noteStart + 0.035);
+        gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + duration);
+
+        osc1.connect(filter);
+        osc2.connect(filter);
+        filter.connect(gain);
+        gain.connect(toneFilter);
+
+        osc1.start(noteStart);
+        osc2.start(noteStart);
+        osc1.stop(noteStart + duration);
+        osc2.stop(noteStart + duration);
+      });
+    }
+
+    function playBass(midi, time, duration = 0.7) {
+      if (!tracks.bass) return;
+      const freq = midiToFreq(midi);
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.001, time);
+      gain.gain.linearRampToValueAtTime(0.24, time + 0.04);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+
+      osc.connect(gain);
+      gain.connect(toneFilter);
+
+      osc.start(time);
+      osc.stop(time + duration);
+    }
+
+    function playKick(time) {
+      if (!tracks.drums) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.frequency.setValueAtTime(115, time);
+      osc.frequency.exponentialRampToValueAtTime(42, time + 0.12);
+      gain.gain.setValueAtTime(0.38, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.28);
+      osc.connect(gain);
+      gain.connect(toneFilter);
+      osc.start(time);
+      osc.stop(time + 0.28);
+    }
+
+    function playSnare(time) {
+      if (!tracks.drums) return;
+      const bufferSize = audioCtx.sampleRate * 0.14;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.032));
+      }
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = "bandpass";
+      filter.frequency.value = 1350;
+
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(0.18, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.13);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(toneFilter);
+      noise.start(time);
+    }
+
+    function playHiHat(time, accent = false) {
+      if (!tracks.drums) return;
+      const bufferSize = audioCtx.sampleRate * 0.05;
+      const buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (audioCtx.sampleRate * 0.015));
+      }
+      const noise = audioCtx.createBufferSource();
+      noise.buffer = buffer;
+      const filter = audioCtx.createBiquadFilter();
+      filter.type = "highpass";
+      filter.frequency.value = 6200;
+      const gain = audioCtx.createGain();
+      gain.gain.setValueAtTime(accent ? 0.11 : 0.05, time);
+      gain.gain.exponentialRampToValueAtTime(0.001, time + 0.045);
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(toneFilter);
+      noise.start(time);
+    }
+
+    // Step Sequencer Engine
+    function stepTick() {
+      if (!isPlaying) return;
+
+      const currentSong = songs[currentSongKey];
+      const stepTime = (60 / bpm) / 4;
+      const now = audioCtx.currentTime;
+      const isSwing = (currentStep % 2 !== 0);
+      const triggerTime = now + (isSwing ? swingOffset : 0);
+
+      const barStep = currentStep % 16;
+
+      // Drums pattern
+      if (barStep === 0 || barStep === 6 || barStep === 10) playKick(triggerTime);
+      if (barStep === 4 || barStep === 12) playSnare(triggerTime);
+      if (barStep % 2 === 0 || barStep === 11) playHiHat(triggerTime, barStep === 4 || barStep === 12);
+
+      // Check Chords
+      currentSong.chords.forEach(ch => {
+        if (currentStep === ch.step) {
+          playRhodesChord(ch.notes, triggerTime, stepTime * 8);
+          playBass(ch.root, triggerTime, stepTime * 6);
+          document.getElementById("currentChordText").innerText = ch.name;
+        }
+      });
+
+      // Check Melody
+      currentSong.melody.forEach(m => {
+        if (currentStep === m.step) {
+          playMelodyNote(m.note, triggerTime, m.dur);
+          document.getElementById("playingNoteBadge").innerText = `♪ ${m.name}`;
+        }
+      });
+
+      currentStep = (currentStep + 1) % currentSong.totalSteps;
+      timerId = setTimeout(stepTick, stepTime * 1000);
+    }
+
+    function startVisualizer() {
+      const canvas = document.getElementById("visCanvas");
+      const ctx = canvas.getContext("2d");
+      const bufferLength = analyserNode.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      function draw() {
+        requestAnimationFrame(draw);
+        if (!isPlaying) {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          return;
+        }
+
+        analyserNode.getByteFrequencyData(dataArray);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const barWidth = (canvas.width / (bufferLength * 0.7)) * 1.5;
+        let x = 0;
+
+        for (let i = 0; i < bufferLength * 0.7; i++) {
+          const barHeight = (dataArray[i] / 255) * canvas.height * 0.85;
+          const alpha = 0.4 + (dataArray[i] / 255) * 0.6;
+          ctx.fillStyle = `rgba(245, 158, 11, ${alpha})`;
+          ctx.beginPath();
+          ctx.roundRect(x, canvas.height - barHeight, barWidth - 1.5, barHeight, 2);
+          ctx.fill();
+          x += barWidth;
+        }
+      }
+      draw();
+    }
+
+    function togglePlay() {
+      initAudio();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+
+      isPlaying = !isPlaying;
+
+      const playIcon = document.getElementById("playIcon");
+      const pauseIcon = document.getElementById("pauseIcon");
+      const playBtnText = document.getElementById("playBtnText");
+      const reelL = document.getElementById("reelL");
+      const reelR = document.getElementById("reelR");
+
+      if (isPlaying) {
+        playIcon.classList.add("hidden");
+        pauseIcon.classList.remove("hidden");
+        playBtnText.innerText = "一時停止 (Pause)";
+        reelL.classList.remove("paused");
+        reelR.classList.remove("paused");
+        stepTick();
+      } else {
+        playIcon.classList.remove("hidden");
+        pauseIcon.classList.add("hidden");
+        playBtnText.innerText = "再生する (Play Test)";
+        reelL.classList.add("paused");
+        reelR.classList.add("paused");
+        if (timerId) clearTimeout(timerId);
+      }
+    }
+
+    function switchSong(key) {
+      if (!songs[key]) return;
+      currentSongKey = key;
+      currentStep = 0;
+      const s = songs[key];
+      bpm = s.bpm;
+      document.getElementById("bpmSlider").value = s.bpm;
+      document.getElementById("bpmValText").innerText = s.bpm;
+      document.getElementById("displayBpm").innerText = s.bpm + " BPM";
+      document.getElementById("displaySongName").innerText = s.title;
+      document.getElementById("currentChordText").innerText = s.chords[0].name;
+      document.getElementById("playingNoteBadge").innerText = "♪ -";
+    }
+
+    function updateTrackBtnUI(trackKey) {
+      const btnMap = {
+        melody: "toggleMelody",
+        keys: "toggleKeys",
+        bass: "toggleBass",
+        drums: "toggleDrums",
+        vinyl: "toggleVinyl",
+        rain: "toggleRain"
+      };
+      const btn = document.getElementById(btnMap[trackKey]);
+      if (!btn) return;
+      const ind = btn.querySelector(".status-indicator");
+
+      if (tracks[trackKey]) {
+        btn.classList.add("border-amber-500/50", "bg-amber-500/10");
+        btn.classList.remove("opacity-40", "border-[var(--border)]", "bg-transparent");
+        ind.innerText = "ON";
+        ind.classList.add("text-amber-500");
+        ind.classList.remove("text-[var(--muted-foreground)]");
+      } else {
+        btn.classList.remove("border-amber-500/50", "bg-amber-500/10");
+        btn.classList.add("opacity-40", "border-[var(--border)]", "bg-transparent");
+        ind.innerText = "MUTE";
+        ind.classList.remove("text-amber-500");
+        ind.classList.add("text-[var(--muted-foreground)]");
+      }
+
+      if (trackKey === "melody") {
+        document.getElementById("quickMelodyStatus").innerText = tracks.melody ? "ON" : "OFF";
+      }
+    }
+
+    // UI Event Listeners
+    document.getElementById("togglePlayBtn").addEventListener("click", togglePlay);
+
+    document.getElementById("songSelect").addEventListener("change", (e) => {
+      switchSong(e.target.value);
+    });
+
+    // Quick Melody toggle
+    document.getElementById("quickMelodyBtn").addEventListener("click", () => {
+      tracks.melody = !tracks.melody;
+      updateTrackBtnUI("melody");
+    });
+
+    const trackButtons = [
+      { id: "toggleMelody", key: "melody" },
+      { id: "toggleKeys", key: "keys" },
+      { id: "toggleBass", key: "bass" },
+      { id: "toggleDrums", key: "drums" },
+      { id: "toggleVinyl", key: "vinyl" },
+      { id: "toggleRain", key: "rain" }
+    ];
+
+    trackButtons.forEach(({ id, key }) => {
+      document.getElementById(id).addEventListener("click", () => {
+        tracks[key] = !tracks[key];
+        if (key === "vinyl" && vinylGain) {
+          const vol = parseInt(document.getElementById("vinylVolSlider").value) / 100;
+          vinylGain.gain.value = tracks.vinyl ? vol * 0.7 : 0;
+        }
+        if (key === "rain" && rainGain) {
+          const vol = parseInt(document.getElementById("rainVolSlider").value) / 100;
+          rainGain.gain.value = tracks.rain ? vol * 0.7 : 0;
+        }
+        updateTrackBtnUI(key);
+      });
+    });
+
+    const tabs = [
+      { btn: "tabTracksBtn", content: "tabTracks" },
+      { btn: "tabFxBtn", content: "tabFx" },
+      { btn: "tabInfoBtn", content: "tabInfo" }
+    ];
+
+    tabs.forEach(({ btn, content }) => {
+      document.getElementById(btn).addEventListener("click", () => {
+        tabs.forEach(t => {
+          document.getElementById(t.content).classList.add("hidden");
+          const b = document.getElementById(t.btn);
+          b.classList.remove("border-amber-500", "text-amber-500");
+          b.classList.add("border-transparent", "text-[var(--muted-foreground)]");
+        });
+        document.getElementById(content).classList.remove("hidden");
+        const activeBtn = document.getElementById(btn);
+        activeBtn.classList.add("border-amber-500", "text-amber-500");
+        activeBtn.classList.remove("border-transparent", "text-[var(--muted-foreground)]");
+      });
+    });
+
+    document.getElementById("wobbleSlider").addEventListener("input", (e) => {
+      const val = parseInt(e.target.value);
+      tapeWobbleDepth = val / 100;
+      document.getElementById("wobbleVal").innerText = `${val}%`;
+    });
+
+    document.getElementById("filterSlider").addEventListener("input", (e) => {
+      const val = parseInt(e.target.value);
+      if (toneFilter) toneFilter.frequency.value = val;
+      let label = "クリア";
+      if (val < 1500) label = "極暖ラジオ";
+      else if (val < 3000) label = "こもった暖かみ";
+      document.getElementById("filterVal").innerText = label;
+    });
+
+    document.getElementById("bpmSlider").addEventListener("input", (e) => {
+      bpm = parseInt(e.target.value);
+      document.getElementById("bpmValText").innerText = bpm;
+      document.getElementById("displayBpm").innerText = bpm + " BPM";
+    });
+
+    document.getElementById("masterSlider").addEventListener("input", (e) => {
+      const val = parseInt(e.target.value);
+      document.getElementById("masterValText").innerText = `${val}%`;
+      if (masterGain) masterGain.gain.value = val / 100;
+    });
+
+    document.getElementById("vinylVolSlider").addEventListener("input", (e) => {
+      const val = parseInt(e.target.value);
+      document.getElementById("vinylVolText").innerText = `${val}%`;
+      if (vinylGain && tracks.vinyl) vinylGain.gain.value = (val / 100) * 0.7;
+    });
+
+    document.getElementById("rainVolSlider").addEventListener("input", (e) => {
+      const val = parseInt(e.target.value);
+      document.getElementById("rainVolText").innerText = `${val}%`;
+      if (rainGain && tracks.rain) rainGain.gain.value = (val / 100) * 0.7;
+    });
+  </script>
+</body>
+</html>

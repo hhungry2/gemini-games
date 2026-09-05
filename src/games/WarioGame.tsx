@@ -70,8 +70,6 @@ export const WarioGame: React.FC<WarioGameProps> = ({
     },
   });
 
-  // スケーリング
-  const [canvasScale, setCanvasScale] = useState<number>(1);
 
   // ハイスコア読み込み
   useEffect(() => {
@@ -107,42 +105,7 @@ export const WarioGame: React.FC<WarioGameProps> = ({
     });
   }, []);
 
-  // フルスクリーンおよび画面サイズに応じたダイナミックスケーリング（ルール1準拠）
-  useEffect(() => {
-    const updateScale = () => {
-      const targetEl = gameAreaRef.current || containerRef.current;
-      if (!targetEl) return;
-      const rect = targetEl.getBoundingClientRect();
-      const availWidth = rect.width - 16;
-      const availHeight = rect.height - 16;
 
-      if (availWidth <= 0 || availHeight <= 0) return;
-
-      const scaleX = availWidth / CANVAS_WIDTH;
-      const scaleY = availHeight / CANVAS_HEIGHT;
-      const scale = Math.min(scaleX, scaleY);
-
-      const targetScale = isFullscreen
-        ? Math.max(0.4, Math.min(scale, 3.2))
-        : Math.max(0.4, Math.min(scale, 1.35));
-
-      setCanvasScale(targetScale);
-    };
-
-    updateScale();
-    window.addEventListener('resize', updateScale);
-
-    let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined' && gameAreaRef.current) {
-      observer = new ResizeObserver(() => updateScale());
-      observer.observe(gameAreaRef.current);
-    }
-
-    return () => {
-      window.removeEventListener('resize', updateScale);
-      if (observer) observer.disconnect();
-    };
-  }, [isFullscreen]);
 
   // プチゲームの開始
   const startNextMicrogame = useCallback((isPractice = false) => {
@@ -428,12 +391,14 @@ export const WarioGame: React.FC<WarioGameProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`w-full h-full flex flex-col justify-between items-center select-none overflow-hidden transition-colors duration-300 ${
-        isFullscreen ? 'p-2 md:p-4' : 'max-w-4xl mx-auto py-3 px-4'
+      className={`w-full flex flex-col justify-between items-center select-none overflow-hidden transition-colors duration-300 ${
+        isFullscreen
+          ? 'h-[calc(100dvh-4.25rem)] p-1 sm:p-2'
+          : 'h-[calc(100dvh-5.5rem)] max-w-4xl mx-auto py-2 px-3'
       } ${isDark ? 'text-slate-100' : 'text-slate-800'}`}
     >
       {/* トップバー */}
-      <div className="w-full max-w-2xl flex items-center justify-between gap-2 px-2 py-1 mb-1">
+      <div className="w-full max-w-2xl flex items-center justify-between gap-2 px-2 py-1 shrink-0 mb-1">
         {/* 左: 戻る & ミュート & 図鑑 */}
         <div className="flex items-center gap-1.5">
           <button
@@ -531,23 +496,52 @@ export const WarioGame: React.FC<WarioGameProps> = ({
       {/* ゲームメイン領域 */}
       <div
         ref={gameAreaRef}
-        className="flex-1 w-full flex items-center justify-center relative overflow-hidden my-auto"
+        className="flex-1 min-h-0 w-full flex items-center justify-center relative overflow-hidden py-1"
       >
         <div
+          className={`relative flex items-center justify-center transition-all duration-150 ${
+            isFullscreen
+              ? 'h-full max-h-full max-w-full'
+              : 'h-full max-h-[540px] max-w-[720px]'
+          }`}
           style={{
-            width: CANVAS_WIDTH * canvasScale,
-            height: CANVAS_HEIGHT * canvasScale,
+            aspectRatio: '480 / 360',
+            height: '100%',
+            maxHeight: '100%',
+            maxWidth: '100%',
+            width: 'auto',
           }}
-          className="relative transition-all duration-150 flex items-center justify-center"
         >
           <canvas
             ref={canvasRef}
             width={CANVAS_WIDTH}
             height={CANVAS_HEIGHT}
-            onPointerDown={(e) => handlePointerDown(e.clientX, e.clientY)}
+            onPointerDown={(e) => {
+              try {
+                (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+              } catch {
+                // ignore
+              }
+              handlePointerDown(e.clientX, e.clientY);
+            }}
             onPointerMove={(e) => handlePointerMove(e.clientX, e.clientY)}
-            onPointerUp={handlePointerUp}
-            className="w-full h-full rounded-3xl touch-none cursor-pointer shadow-2xl transition-shadow"
+            onPointerUp={(e) => {
+              try {
+                (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+              } catch {
+                // ignore
+              }
+              handlePointerUp();
+            }}
+            onPointerCancel={(e) => {
+              try {
+                (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+              } catch {
+                // ignore
+              }
+              handlePointerUp();
+            }}
+            className="w-full h-full rounded-3xl touch-none cursor-pointer shadow-2xl transition-shadow block"
             style={{
               backgroundColor: isDark ? '#090d16' : '#f1f5f9',
             }}
@@ -692,7 +686,7 @@ export const WarioGame: React.FC<WarioGameProps> = ({
       </div>
 
       {/* フッター操作ガイド */}
-      <div className="w-full max-w-2xl flex items-center justify-between text-[11px] text-slate-400 px-2 py-1">
+      <div className="w-full max-w-2xl flex items-center justify-between text-[11px] text-slate-400 px-2 py-1 shrink-0">
         <div className="flex items-center gap-3">
           <span>💡 操作: 画面タップ / クリック / [Space] / [←][→]</span>
           <span>制限時間: 約4秒の瞬間アクション！</span>

@@ -72,9 +72,6 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({
   const lastMergeTimeRef = useRef<number>(0);
   const animFrameIdRef = useRef<number | null>(null);
 
-  // 画面スケーリング（フルスクリーン時の拡大対応）
-  const [canvasScale, setCanvasScale] = useState<number>(1);
-
   // ハイスコア読み込み
   useEffect(() => {
     try {
@@ -101,46 +98,6 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({
       return prev;
     });
   }, []);
-
-  // フルスクリーンおよび画面サイズに応じたダイナミックスケーリング（ルール1準拠）
-  useEffect(() => {
-    const updateScale = () => {
-      const targetEl = gameAreaRef.current || containerRef.current;
-      if (!targetEl) return;
-      const rect = targetEl.getBoundingClientRect();
-      const availWidth = rect.width - 16;
-      const availHeight = rect.height - 16;
-
-      if (availWidth <= 0 || availHeight <= 0) return;
-
-      const scaleX = availWidth / CANVAS_WIDTH;
-      const scaleY = availHeight / CANVAS_HEIGHT;
-      const scale = Math.min(scaleX, scaleY);
-
-      // 通常時は最大1.15倍程度、フルスクリーン時は画面いっぱいまでダイナミックに拡大！
-      const targetScale = isFullscreen
-        ? Math.max(0.4, Math.min(scale, 3.0))
-        : Math.max(0.4, Math.min(scale, 1.25));
-
-      setCanvasScale(targetScale);
-    };
-
-    updateScale();
-    window.addEventListener('resize', updateScale);
-
-    let observer: ResizeObserver | null = null;
-    if (typeof ResizeObserver !== 'undefined' && gameAreaRef.current) {
-      observer = new ResizeObserver(() => {
-        updateScale();
-      });
-      observer.observe(gameAreaRef.current);
-    }
-
-    return () => {
-      window.removeEventListener('resize', updateScale);
-      if (observer) observer.disconnect();
-    };
-  }, [isFullscreen]);
 
   // パーティクル生成
   const spawnMergeParticles = (x: number, y: number, color: string, isBig: boolean = false) => {
@@ -1031,14 +988,14 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`w-full h-full flex flex-col justify-between items-center select-none overflow-hidden transition-colors duration-300 ${
+      className={`w-full flex flex-col justify-between items-center select-none overflow-hidden transition-colors duration-300 ${
         isFullscreen
-          ? 'p-2 md:p-4'
-          : 'max-w-4xl mx-auto py-3 px-4'
+          ? 'h-[calc(100dvh-4.25rem)] p-1 sm:p-2'
+          : 'h-[calc(100dvh-5.5rem)] max-w-4xl mx-auto py-2 px-3'
       } ${isDark ? 'text-slate-100' : 'text-slate-800'}`}
     >
       {/* トップバー（戻る、スコア、NEXT、コントロール） */}
-      <div className="w-full max-w-2xl flex items-center justify-between gap-2 px-2 py-1 mb-1">
+      <div className="w-full max-w-2xl flex items-center justify-between gap-2 px-2 py-1 shrink-0 mb-1">
         {/* 左: 戻る & ミュート & 進化ツリー案内 */}
         <div className="flex items-center gap-1.5">
           <button
@@ -1157,20 +1114,32 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({
       {/* ゲームメイン領域（Canvas & スケーリングラッパー） */}
       <div
         ref={gameAreaRef}
-        className="flex-1 w-full flex items-center justify-center relative overflow-hidden my-auto"
+        className="flex-1 min-h-0 w-full flex items-center justify-center relative overflow-hidden py-1"
       >
         <div
+          className={`relative flex items-center justify-center transition-all duration-150 ${
+            isFullscreen
+              ? 'h-full max-h-full max-w-full'
+              : 'h-full max-h-[680px] max-w-[480px]'
+          }`}
           style={{
-            width: CANVAS_WIDTH * canvasScale,
-            height: CANVAS_HEIGHT * canvasScale,
+            aspectRatio: '480 / 680',
+            height: '100%',
+            maxHeight: '100%',
+            maxWidth: '100%',
+            width: 'auto',
           }}
-          className="relative transition-all duration-150 flex items-center justify-center"
         >
           <canvas
             ref={canvasRef}
             width={CANVAS_WIDTH}
             height={CANVAS_HEIGHT}
             onPointerDown={(e) => {
+              try {
+                (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+              } catch {
+                // ignore
+              }
               handlePointerMove(e.clientX);
               if (e.pointerType === 'mouse') {
                 handleDrop();
@@ -1180,11 +1149,23 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({
               handlePointerMove(e.clientX);
             }}
             onPointerUp={(e) => {
+              try {
+                (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+              } catch {
+                // ignore
+              }
               if (e.pointerType === 'touch' || e.pointerType === 'pen') {
                 handleDrop();
               }
             }}
-            className="w-full h-full rounded-3xl touch-none cursor-pointer shadow-2xl transition-shadow"
+            onPointerCancel={(e) => {
+              try {
+                (e.currentTarget as HTMLElement).releasePointerCapture?.(e.pointerId);
+              } catch {
+                // ignore
+              }
+            }}
+            className="w-full h-full rounded-3xl touch-none cursor-pointer shadow-2xl transition-shadow block"
             style={{
               backgroundColor: isDark ? '#090d16' : '#f1f5f9',
               boxShadow: isWarning
@@ -1240,7 +1221,7 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({
       </div>
 
       {/* フッター操作ガイド */}
-      <div className="w-full max-w-2xl flex items-center justify-between text-[11px] text-slate-400 px-2 py-1">
+      <div className="w-full max-w-2xl flex items-center justify-between text-[11px] text-slate-400 px-2 py-1 shrink-0">
         <div className="flex items-center gap-2">
           <span>💡 左右移動: マウス / タッチ / [←][→]</span>
           <span>投下: クリック / [Space]</span>

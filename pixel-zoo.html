@@ -1,0 +1,1827 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>ぽかぽかドット動物園 (Pixel Zoo Sanctuary) - 癒やしの箱庭ゲーム＆仕様書</title>
+  <meta name="description" content="プログラムで描かれたかわいいドット絵の動物たちと触れ合って癒やされる、ブラウザ＆スマホ対応の動物園箱庭ゲーム。" />
+  <style>
+    :root {
+      --bg-color: #e8f5e9;
+      --panel-bg: rgba(255, 255, 255, 0.94);
+      --panel-border: #81c784;
+      --text-main: #1b4332;
+      --text-muted: #40916c;
+      --primary: #2d6a4f;
+      --primary-hover: #1b4332;
+      --accent-heart: #ff4d6d;
+      --shadow: 0 4px 18px rgba(27, 67, 50, 0.15);
+      --font-pixel: 'Courier New', 'DotGothic16', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1b2e20;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+      color: var(--text-main);
+    }
+
+    #app-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: #2a3c2e;
+      position: relative;
+    }
+
+    header {
+      height: 52px;
+      background: #ffffff;
+      border-bottom: 2px solid #81c784;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 16px;
+      z-index: 50;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      flex-shrink: 0;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 800;
+      font-size: 1.05rem;
+      color: #2e7d32;
+    }
+
+    .brand-icon {
+      font-size: 1.3rem;
+      animation: bounce 2s infinite ease-in-out;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-3px); }
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      background: #e8f5e9;
+      padding: 3px;
+      border-radius: 20px;
+    }
+
+    .tab-btn {
+      border: none;
+      background: transparent;
+      padding: 6px 14px;
+      border-radius: 16px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #388e3c;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      background: #2e7d32;
+      color: #ffffff;
+      box-shadow: 0 2px 6px rgba(46, 125, 50, 0.4);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      background: #f1f8e9;
+      border: 1px solid #c8e6c9;
+      color: #2e7d32;
+      border-radius: 50%;
+      width: 36px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 1.1rem;
+      transition: all 0.2s;
+    }
+
+    .btn-icon:hover {
+      background: #c8e6c9;
+      transform: scale(1.05);
+    }
+
+    .view-content {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      height: calc(100% - 52px);
+    }
+
+    /* ゲームビュー */
+    #game-view {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      display: flex;
+      flex-direction: column;
+      background: #79a86a;
+    }
+
+    #canvas-wrap {
+      flex: 1;
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      cursor: grab;
+      touch-action: none;
+    }
+
+    #canvas-wrap:active {
+      cursor: grabbing;
+    }
+
+    canvas#zoo-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    .game-hud {
+      position: absolute;
+      pointer-events: none;
+      inset: 0;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .hud-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      pointer-events: auto;
+    }
+
+    .stats-card {
+      background: var(--panel-bg);
+      backdrop-filter: blur(8px);
+      border: 2px solid #81c784;
+      border-radius: 16px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #1b5e20;
+    }
+
+    .stat-item.hearts {
+      color: #d81b60;
+    }
+
+    .time-weather-badge {
+      background: var(--panel-bg);
+      backdrop-filter: blur(8px);
+      border: 2px solid #81c784;
+      border-radius: 16px;
+      padding: 6px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #2e7d32;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+    }
+
+    .hud-bottom {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: auto;
+      margin-bottom: 6px;
+    }
+
+    .tool-bar {
+      background: var(--panel-bg);
+      backdrop-filter: blur(8px);
+      border: 2px solid #81c784;
+      border-radius: 26px;
+      padding: 6px 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: var(--shadow);
+      max-width: 95vw;
+      overflow-x: auto;
+    }
+
+    .tool-btn {
+      border: 2px solid transparent;
+      background: #f1f8e9;
+      padding: 7px 14px;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #2e7d32;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      white-space: nowrap;
+    }
+
+    .tool-btn:hover {
+      background: #dcedc8;
+    }
+
+    .tool-btn.active {
+      background: #2e7d32;
+      color: #ffffff;
+      border-color: #1b5e20;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(46, 125, 50, 0.3);
+    }
+
+    .pop-tip {
+      background: rgba(27, 67, 50, 0.92);
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 600;
+      padding: 5px 16px;
+      border-radius: 20px;
+      pointer-events: none;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+    }
+
+    /* モーダル */
+    .modal-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+      backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+
+    .modal-card {
+      background: #ffffff;
+      width: 100%;
+      max-width: 480px;
+      max-height: 85vh;
+      border-radius: 20px;
+      border: 3px solid #81c784;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+
+    @keyframes popIn {
+      from { transform: scale(0.88); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 14px 18px;
+      background: #e8f5e9;
+      border-bottom: 2px solid #c8e6c9;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-title {
+      font-size: 1.1rem;
+      font-weight: 800;
+      color: #1b5e20;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-body {
+      padding: 16px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 12px;
+    }
+
+    .unlock-card {
+      background: #f9fbf9;
+      border: 2px solid #e0e0e0;
+      border-radius: 14px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .unlock-card.unlocked {
+      border-color: #81c784;
+      background: #f1f8e9;
+    }
+
+    .unlock-icon-wrap {
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 6px;
+    }
+
+    .unlock-name {
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: #2e4a35;
+      margin-bottom: 4px;
+    }
+
+    .unlock-cost {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #d81b60;
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-bottom: 8px;
+    }
+
+    .unlock-btn {
+      width: 100%;
+      border: none;
+      background: #2e7d32;
+      color: #fff;
+      padding: 6px 0;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .unlock-btn:hover:not(:disabled) {
+      background: #1b5e20;
+    }
+
+    .unlock-btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    /* 仕様書ビュー */
+    #doc-view {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      background: #f8faf8;
+      overflow-y: auto;
+      padding: 24px;
+      display: none;
+    }
+
+    .doc-container {
+      max-width: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+      padding: 32px 40px;
+      border-radius: 16px;
+      border: 1px solid #e0e0e0;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+      line-height: 1.7;
+    }
+
+    .doc-header {
+      border-bottom: 3px solid #81c784;
+      padding-bottom: 18px;
+      margin-bottom: 28px;
+    }
+
+    .doc-tag {
+      display: inline-block;
+      background: #e8f5e9;
+      color: #2e7d32;
+      font-weight: 700;
+      font-size: 0.8rem;
+      padding: 3px 10px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+    }
+
+    .doc-title {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: #1b5e20;
+      margin-bottom: 6px;
+    }
+
+    .doc-sub {
+      color: #5c7f66;
+      font-size: 0.95rem;
+    }
+
+    .doc-section {
+      margin-bottom: 36px;
+    }
+
+    .doc-h2 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #2e7d32;
+      border-left: 5px solid #43a047;
+      padding-left: 12px;
+      margin-bottom: 16px;
+    }
+
+    .doc-p {
+      margin-bottom: 12px;
+      font-size: 0.92rem;
+      color: #333;
+    }
+
+    .doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 0.88rem;
+    }
+
+    .doc-table th, .doc-table td {
+      border: 1px solid #e0e0e0;
+      padding: 10px 14px;
+      text-align: left;
+    }
+
+    .doc-table th {
+      background: #f1f8e9;
+      color: #1b5e20;
+      font-weight: 700;
+    }
+
+    .preview-canvas-card {
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      background: #f9fbf9;
+      border: 1px solid #c8e6c9;
+      border-radius: 12px;
+      padding: 12px;
+      margin: 6px;
+      text-align: center;
+    }
+
+    .preview-canvas {
+      width: 64px;
+      height: 64px;
+      image-rendering: pixelated;
+      background: #e8f5e9;
+      border-radius: 8px;
+      margin-bottom: 6px;
+    }
+
+    @media (max-width: 640px) {
+      header {
+        padding: 0 8px;
+      }
+      .brand span {
+        display: none;
+      }
+      .doc-container {
+        padding: 18px 16px;
+      }
+      .doc-title {
+        font-size: 1.35rem;
+      }
+      .tool-btn {
+        padding: 5px 10px;
+        font-size: 0.78rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<div id="app-container">
+  <header>
+    <div class="brand">
+      <span class="brand-icon">🐼</span>
+      <span>ぽかぽかドット動物園</span>
+    </div>
+
+    <div class="nav-tabs">
+      <button class="tab-btn active" id="btn-tab-game" onclick="switchView('game')">
+        🎮 ゲームを遊ぶ
+      </button>
+      <button class="tab-btn" id="btn-tab-doc" onclick="switchView('doc')">
+        📋 開発仕様書
+      </button>
+    </div>
+
+    <div class="header-actions">
+      <button class="btn-icon" id="btn-sound" onclick="toggleSound()" title="サウンドON/OFF">
+        🔊
+      </button>
+      <button class="btn-icon" id="btn-weather" onclick="cycleTimeWeather()" title="時間帯・天候変更">
+        ☀️
+      </button>
+      <button class="btn-icon" id="btn-fullscreen" onclick="toggleFullscreen()" title="フルスクリーン">
+        ⛶
+      </button>
+    </div>
+  </header>
+
+  <div class="view-content">
+    <div id="game-view">
+      <div id="canvas-wrap">
+        <canvas id="zoo-canvas"></canvas>
+      </div>
+
+      <div class="game-hud">
+        <div class="hud-top">
+          <div class="stats-card">
+            <div class="stat-item hearts">
+              <span>💖</span>
+              <span id="txt-hearts">30</span>
+            </div>
+            <div class="stat-item">
+              <span>🐾</span>
+              <span id="txt-animals-count">3匹</span>
+            </div>
+          </div>
+
+          <div class="time-weather-badge" onclick="cycleTimeWeather()" id="txt-weather-badge">
+            ☀️ 昼 (ぽかぽか)
+          </div>
+        </div>
+
+        <div class="hud-bottom">
+          <div class="tool-bar">
+            <button class="tool-btn active" id="tool-pet" onclick="selectTool('pet')">
+              ✋ なでる
+            </button>
+            <button class="tool-btn" id="tool-feed" onclick="selectTool('feed')">
+              🍎 エサやり
+            </button>
+            <button class="tool-btn" id="tool-ball" onclick="selectTool('ball')">
+              ⚽ ボール
+            </button>
+            <button class="tool-btn" id="tool-shop" onclick="openShopModal()">
+              🎁 なかま・施設
+            </button>
+          </div>
+          <div class="pop-tip" id="hud-tip">
+            動物をタップすると「なでなで」してハートが出るよ！
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="doc-view">
+      <div class="doc-container">
+        <div class="doc-header">
+          <span class="doc-tag">Game Design Document / v1.0.0</span>
+          <h1 class="doc-title">『ぽかぽかドット動物園 (Pixel Zoo Sanctuary)』 開発仕様書</h1>
+          <div class="doc-sub">プログラム描画ピクセルアートによる癒やしのブラウザ＆スマートフォン対応動物園ゲーム</div>
+        </div>
+
+        <div class="doc-section">
+          <h2 class="doc-h2">1. ゲーム概要・企画コンセプト</h2>
+          <p class="doc-p">
+            <strong>コンセプト：</strong>「かわいい動物たちを眺めて、触れ合って、心がふんわり癒やされるドット絵動物園」<br/>
+            外部画像アセットに依存せず、すべての動物・植物・施設を<strong>プログラム内のカラーパレットとドットマトリクス（Canvas 2D）</strong>で描画します。
+          </p>
+          <table class="doc-table">
+            <tr>
+              <th>項目</th>
+              <th>仕様内容</th>
+            </tr>
+            <tr>
+              <td>対象プラットフォーム</td>
+              <td>PC / スマホ / タブレットのモダンブラウザ（Chrome, Safari, Edge, Firefox等）</td>
+            </tr>
+            <tr>
+              <td>描画エンジン</td>
+              <td>HTML5 Canvas 2D Context（<code>image-rendering: pixelated</code> によるピクセルアート拡大）</td>
+            </tr>
+            <tr>
+              <td>サウンドエンジン</td>
+              <td>Web Audio API によるローファイ・オルゴール音＆環境音シンセ（外部mp3不要）</td>
+            </tr>
+            <tr>
+              <td>主なゲームプレイ</td>
+              <td>触れ合い（なでなで）、エサやり、おもちゃ遊び、温泉観察、放置ハート収集、仲間・施設解放</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="doc-section">
+          <h2 class="doc-h2">2. 動物キャラクター設計＆プログラム描画仕様</h2>
+          <p class="doc-p">
+            各動物は16×16ピクセルの厳密な1文字1ピクセル形式で定義されています。実行時に拡大スケーリングを行い、歩行・睡眠・リアクション等のアニメーションを合成します。
+          </p>
+          <div id="doc-animal-previews" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+
+          <table class="doc-table">
+            <tr>
+              <th>動物</th>
+              <th>特徴・アニメーション</th>
+              <th>固有アクション</th>
+            </tr>
+            <tr>
+              <td>🐼 パンダ</td>
+              <td>白黒の丸いフォルム。笹を両手で持って食べる。</td>
+              <td>ご機嫌になるとゴロゴロ転がる。</td>
+            </tr>
+            <tr>
+              <td>🦫 カピバラ</td>
+              <td>のんびりした表情。頭にゆずを乗せる。</td>
+              <td>温泉に入って目を細めて湯気を出す。</td>
+            </tr>
+            <tr>
+              <td>🦊 レッサーパンダ</td>
+              <td>鮮やかな赤茶色とふさふさの縞々しっぽ。</td>
+              <td>両手をバンザイして可愛い「威嚇ポーズ」。</td>
+            </tr>
+            <tr>
+              <td>🐧 ペンギン</td>
+              <td>よちよち歩き、黄色いくちばしと足。</td>
+              <td>たまにお腹でシューッと滑る。</td>
+            </tr>
+            <tr>
+              <td>🐕 シバイヌ</td>
+              <td>巻尾とピンとした耳、白い麿眉。</td>
+              <td>しっぽを激しく振ってボールを追いかける。</td>
+            </tr>
+            <tr>
+              <td>🐱 ミケネコ</td>
+              <td>オレンジと茶色の三毛模様。</td>
+              <td>座って毛づくろい、丸まってすやすや眠る。</td>
+            </tr>
+            <tr>
+              <td>🐰 ウサギ</td>
+              <td>長い耳とピンクの目、丸いしっぽ。</td>
+              <td>ぴょんぴょん軽快に跳ねる、人参もぐもぐ。</td>
+            </tr>
+            <tr>
+              <td>🦙 アルパカ</td>
+              <td>もこもこのアフロ毛並みと長い首。</td>
+              <td>てくてく歩いて時折首をかしげる。</td>
+            </tr>
+          </table>
+        </div>
+
+        <div class="doc-section">
+          <h2 class="doc-h2">3. ゲームシステム＆コア・ゲームループ</h2>
+          <ul style="margin-left: 20px; font-size: 0.9rem; line-height: 1.8;">
+            <li><strong>なでなで：</strong>動物をタップ・撫でるとハートがポロロンと湧き出てご機嫌になります。</li>
+            <li><strong>エサやり：</strong>地面をタップして美味しいごはんを投げると、近くの動物が集まってモグモグ食べます。</li>
+            <li><strong>ボール遊び：</strong>ボールを転がすと動物たちが追いかけて遊びます。</li>
+            <li><strong>温泉＆昼夜サイクル：</strong>カピバラ温泉や桜の木を設置でき、時間帯（昼・夕・夜・雨）に応じて動物たちが眠ったり活発に行動します。</li>
+          </ul>
+        </div>
+
+        <div class="doc-section">
+          <h2 class="doc-h2">4. 操作系＆スマホ・フルスクリーン最適化仕様</h2>
+          <p class="doc-p">
+            スワイプでのパークスクロール、ピンチズーム、タップ操作に対応。フルスクリーン時はビューポート限界までダイナミックに拡大表示されます（AGENTS.md ルール1遵守）。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="shop-modal" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>🎁</span> なかま・施設をふやす
+        </div>
+        <button class="btn-icon" onclick="closeShopModal()" style="width: 28px; height: 28px; font-size: 0.9rem;">✕</button>
+      </div>
+      <div class="modal-body" id="shop-items-container"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// --- 1. 厳密な1文字カラーパレット定義 ---
+const PAL = {
+  _: null,          // 透明
+  W: '#FFFFFF',     // 白
+  K: '#1E232A',     // 黒・濃炭
+  G: '#64748B',     // グレー
+  P: '#FFAAA6',     // ほっぺピンク
+  H: '#FF4081',     // 赤ピンク
+  B: '#C48D58',     // カピバラ薄茶
+  D: '#8C5528',     // カピバラ濃茶
+  C: '#4A2810',     // 焦げ茶
+  O: '#F97316',     // オレンジ
+  R: '#D95D39',     // レッサー赤茶
+  Y: '#FEE440',     // レモン黄色
+  U: '#F59E0B',     // 濃黄・くちばし
+  N: '#4ADE80',     // 若草緑
+  M: '#16A34A',     // 濃緑・笹
+  A: '#FDF0D5',     // アルパカクリーム
+  E: '#D4A373',     // ベージュ
+};
+
+// --- 2. 厳密な1文字16x16グリッド定義 ---
+const ANIMAL_TEMPLATES = {
+  panda: {
+    id: 'panda',
+    name: 'パンダ',
+    icon: '🐼',
+    desc: '笹をもぐもぐ、のんびりゴロゴロ。',
+    cost: 0,
+    w: 16, h: 16,
+    grid: [
+      "____KK____KK____",
+      "___KKKK__KKKK___",
+      "__KKWWWWWWWWKK__",
+      "__KWWWWWWWWWWK__",
+      "_WWWWWWWWWWWWWW_",
+      "_WWKKWWWWWWKKWW_",
+      "_WWKKWWWWWWKKWW_",
+      "_WWWWWWKKWWWWWW_",
+      "_WWPWWWKKWWWPWW_",
+      "__WWWWKKKKWWWW__",
+      "___KKWWWWWWKK___",
+      "__KKKKWWWWKKKK__",
+      "__KKKKWWWWKKKK__",
+      "___KKWWWWWWKK___",
+      "___KKKK__KKKK___",
+      "____KK____KK____"
+    ]
+  },
+  capybara: {
+    id: 'capybara',
+    name: 'カピバラ',
+    icon: '🦫',
+    desc: '温泉とゆずが大好き。見ているだけで平和。',
+    cost: 15,
+    w: 16, h: 16,
+    grid: [
+      "______YYYY______",
+      "_____YYNYY______",
+      "____BBBBBBBB____",
+      "___BBBBBBBBBB___",
+      "__BBBBBBBBBBBB__",
+      "_BBBBBBBBBBBBBB_",
+      "_BBCBBBBBBCBBB__",
+      "_BBBBBBBBBBBB___",
+      "_DDDDDDDDDDDD___",
+      "_BBBBBBBBBBBB___",
+      "_BBBBBBBBBBBB___",
+      "BBBBBBBBBBBBBBBB",
+      "BBBBBBBBBBBBBBBB",
+      "_DDDDDDDDDDDDDD_",
+      "__CC______CC____",
+      "__CC______CC____"
+    ]
+  },
+  redpanda: {
+    id: 'redpanda',
+    name: 'レッサーパンダ',
+    icon: '🦊',
+    desc: '両手を挙げてかわいい威嚇。しっぽふさふさ。',
+    cost: 35,
+    w: 16, h: 16,
+    grid: [
+      "___WW______WW___",
+      "__WWRR____RRWW__",
+      "_WWRRRRRRRRRRWW_",
+      "_RRRRRRRRRRRRRR_",
+      "RRWWWRRRRRWWWRRR",
+      "RRKWWWRRRKWWWRRR",
+      "RRRRRRWWWRRRRRRR",
+      "WWRRRKCCWPWWWRR_",
+      "_WWRRWWWWWRRWW__",
+      "___CCCCCCCCCC___",
+      "__CCCCCCCCCCRO__",
+      "__CCCCCCCCCCOR__",
+      "__CCCCCCCCCCRO__",
+      "___CC____CC_OR__",
+      "___CC____CC_____",
+      "___KK____KK_____"
+    ]
+  },
+  penguin: {
+    id: 'penguin',
+    name: 'ペンギン',
+    icon: '🐧',
+    desc: 'よちよち歩き。ときどきお腹で滑るよ。',
+    cost: 60,
+    w: 16, h: 16,
+    grid: [
+      "______KKKK______",
+      "____KKKKKKKK____",
+      "___KKKWWWWKKK___",
+      "___KKKWWWWKKK___",
+      "___KKKWKKWKKK___",
+      "___KKPPUUPPKK___",
+      "____KKUUUUKK____",
+      "____KWWWWWWK____",
+      "___KKWWWWWWKK___",
+      "__KKKWWWWWWKKK__",
+      "__KKKWWWWWWKKK__",
+      "__KKKWWWWWWKKK__",
+      "___KKWWWWWWKK___",
+      "____KWWWWWWK____",
+      "_____UUUUUU_____",
+      "_____UU__UU_____"
+    ]
+  },
+  shiba: {
+    id: 'shiba',
+    name: 'シバイヌ',
+    icon: '🐕',
+    desc: 'しっぽフリフリ。ボールを投げると大喜び！',
+    cost: 100,
+    w: 16, h: 16,
+    grid: [
+      "__OO______OO____",
+      "_OOOO____OOOO___",
+      "_OOOOOOOOOOOO___",
+      "_OWW_OOOO_WWO___",
+      "_OK__OOOO__KO___",
+      "_OWWWWWWWWWWO___",
+      "__WWWWKKWWWW____",
+      "___WWWWWWWW_____",
+      "__OOOOOOOOOO____",
+      "_OOOOOOOOOOOO___",
+      "_OOOOOOOOOOOOO__",
+      "_OOOOOOOOOOOOO__",
+      "__OOOOOOOOOOO___",
+      "___WW____WW_____",
+      "___WW____WW_____",
+      "___WW____WW_____"
+    ]
+  },
+  cat: {
+    id: 'cat',
+    name: 'ミケネコ',
+    icon: '🐱',
+    desc: '丸くなってすやすや。毛づくろいが日課。',
+    cost: 150,
+    w: 16, h: 16,
+    grid: [
+      "_OP________PC___",
+      "_OO________CC___",
+      "_WOOWWWWWWCCW___",
+      "_WWWWWWWWWWWW___",
+      "_WKWWWWWWWWKW___",
+      "_WWWWWPWWWWWW___",
+      "_WWWWWWWWWWWW___",
+      "__WWWWWWWWWW____",
+      "_WOOWWWWWWCCW___",
+      "_WOOWWWWWWCCW___",
+      "_WWWWWWWWWWWW___",
+      "_WWWWWWWWWWWW___",
+      "__WWWWWWWWWW____",
+      "___WW____WW_____",
+      "___WW____WW_____",
+      "___PP____PP_____"
+    ]
+  },
+  rabbit: {
+    id: 'rabbit',
+    name: 'ウサギ',
+    icon: '🐰',
+    desc: 'ぴょんぴょん跳ねる。人参をあげると大満足。',
+    cost: 220,
+    w: 16, h: 16,
+    grid: [
+      "_WW________WW___",
+      "_WPW______WPW___",
+      "_WPW______WPW___",
+      "_WPW______WPW___",
+      "_WWW______WWW___",
+      "__WWWWWWWWWW____",
+      "_WWWWWWWWWWWW___",
+      "_WWHWWWWWWHWW___",
+      "_WWPWWWWWWPWW___",
+      "__WWWWWWWWWW____",
+      "___WWWWWWWW_____",
+      "__WWWWWWWWWW____",
+      "_WWWWWWWWWWWW___",
+      "_WWWWWWWWWWWWWW_",
+      "__WW______WW____",
+      "__WW______WW____"
+    ]
+  },
+  alpaca: {
+    id: 'alpaca',
+    name: 'アルパカ',
+    icon: '🦙',
+    desc: 'もふもふの貴公子。のんびり首をかしげる。',
+    cost: 320,
+    w: 16, h: 16,
+    grid: [
+      "____AAAAAAAA____",
+      "___AAAAAAAAAA___",
+      "___AAKAAAAKAA___",
+      "___AAAAAAAAAA___",
+      "____AAAAAAAA____",
+      "_____AAAAAA_____",
+      "_____AAAAAA_____",
+      "_____AAAAAA_____",
+      "____AAAAAAAA____",
+      "__AAAAAAAAAAAA__",
+      "_AAAAAAAAAAAAAA_",
+      "_AAAAAAAAAAAAAA_",
+      "__AAAAAAAAAAAA__",
+      "___EE______EE___",
+      "___EE______EE___",
+      "___KK______KK___"
+    ]
+  }
+};
+
+const FACILITY_TEMPLATES = [
+  { id: 'hotspring', name: 'カピバラ温泉', icon: '♨️', desc: 'あったかい岩風呂。カピバラが温まる。', cost: 50, x: 180, y: 160, unlocked: false },
+  { id: 'cherry', name: '満開の桜の木', icon: '🌸', desc: '舞い散る花びらでハピネスUP！', cost: 120, x: 480, y: 130, unlocked: false },
+  { id: 'sunflower', name: 'ひまわり畑', icon: '🌻', desc: '太陽に向かって咲く元気なひまわり。', cost: 180, x: 620, y: 320, unlocked: false },
+  { id: 'fountain', name: '癒やしの噴水', icon: '⛲', desc: '涼しげな水しぶきと虹色のきらめき。', cost: 280, x: 320, y: 340, unlocked: false }
+];
+
+// --- 3. Web Audio API サウンドシンセ ---
+class SoundEngine {
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+    this.bgmTimer = null;
+    this.bgmNoteIndex = 0;
+    this.scale = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25];
+    this.bgmPattern = [0, 2, 4, 3, 1, 2, 5, 4, 2, 3, 1, 0, 4, 5, 7, 5];
+  }
+
+  init() {
+    if (!this.ctx) {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      this.ctx = new AudioContext();
+      this.startBgm();
+    } else if (this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+  }
+
+  playPetSound() {
+    if (this.muted) return;
+    this.init();
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(523.25, now);
+    osc.frequency.exponentialRampToValueAtTime(783.99, now + 0.15);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.35);
+  }
+
+  playEatSound() {
+    if (this.muted) return;
+    this.init();
+    const now = this.ctx.currentTime;
+    for (let i = 0; i < 2; i++) {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(320 + i * 80, now + i * 0.1);
+      gain.gain.setValueAtTime(0.18, now + i * 0.1);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + i * 0.1 + 0.08);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now + i * 0.1);
+      osc.stop(now + i * 0.1 + 0.09);
+    }
+  }
+
+  playBounceSound() {
+    if (this.muted) return;
+    this.init();
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(220, now);
+    osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
+    gain.gain.setValueAtTime(0.2, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+    osc.start(now);
+    osc.stop(now + 0.2);
+  }
+
+  playUnlockSound() {
+    if (this.muted) return;
+    this.init();
+    const notes = [523.25, 659.25, 783.99, 1046.50];
+    notes.forEach((freq, idx) => {
+      const now = this.ctx.currentTime + idx * 0.09;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(0.18, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.26);
+    });
+  }
+
+  startBgm() {
+    if (this.bgmTimer) return;
+    this.bgmTimer = setInterval(() => {
+      if (this.muted || !this.ctx || this.ctx.state !== 'running') return;
+      const noteIdx = this.bgmPattern[this.bgmNoteIndex % this.bgmPattern.length];
+      this.bgmNoteIndex++;
+      const freq = this.scale[noteIdx];
+      const now = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(0.05, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.8);
+    }, 450);
+  }
+}
+
+const sounds = new SoundEngine();
+
+// --- 4. ゲーム状態管理 ---
+const state = {
+  hearts: 30,
+  selectedTool: 'pet',
+  weatherIndex: 0,
+  weathers: [
+    { name: '☀️ 昼 (ぽかぽか)', ground: '#79a86a', tint: null, rain: false },
+    { name: '🌅 夕方 (エモい夕焼け)', ground: '#a67c52', tint: 'rgba(255, 120, 50, 0.15)', rain: false },
+    { name: '🌙 夜 (満天の星空)', ground: '#2e493a', tint: 'rgba(10, 20, 50, 0.45)', rain: false },
+    { name: '🌧️ 雨 (しとしと癒やし)', ground: '#547255', tint: null, rain: true }
+  ],
+  camera: { x: 0, y: 0, zoom: 1.3 },
+  worldWidth: 900,
+  worldHeight: 650,
+  animals: [],
+  foods: [],
+  balls: [],
+  particles: [],
+  unlockedAnimals: { panda: true, capybara: true, redpanda: true },
+  facilities: JSON.parse(JSON.stringify(FACILITY_TEMPLATES))
+};
+
+function initAnimals() {
+  const defaults = [
+    { type: 'panda', x: 220, y: 260 },
+    { type: 'capybara', x: 380, y: 240 },
+    { type: 'redpanda', x: 500, y: 280 }
+  ];
+  state.animals = defaults.map((d, i) => createAnimalInstance(d.type, d.x, d.y, i));
+}
+
+function createAnimalInstance(type, x, y, id) {
+  const tmpl = ANIMAL_TEMPLATES[type];
+  return {
+    id: id !== undefined ? id : Date.now() + Math.random(),
+    type: type,
+    name: tmpl.name,
+    x: x,
+    y: y,
+    vx: 0,
+    vy: 0,
+    targetX: x,
+    targetY: y,
+    speed: 0.6 + Math.random() * 0.4,
+    direction: Math.random() > 0.5 ? 1 : -1,
+    animTimer: 0,
+    state: 'idle',
+    stateTimer: 60 + Math.floor(Math.random() * 120)
+  };
+}
+
+// --- 5. レンダリングエンジン ---
+const canvas = document.getElementById('zoo-canvas');
+const ctx = canvas.getContext('2d');
+let animFrameId = null;
+
+function resizeCanvas() {
+  const wrap = document.getElementById('canvas-wrap');
+  const dpr = window.devicePixelRatio || 1;
+  const w = wrap.clientWidth;
+  const h = wrap.clientHeight;
+
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.scale(dpr, dpr);
+}
+
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  centerCamera();
+});
+
+document.addEventListener('fullscreenchange', () => {
+  setTimeout(() => {
+    resizeCanvas();
+    centerCamera();
+  }, 100);
+});
+
+function centerCamera() {
+  const wrap = document.getElementById('canvas-wrap');
+  state.camera.x = (wrap.clientWidth - state.worldWidth * state.camera.zoom) / 2;
+  state.camera.y = (wrap.clientHeight - state.worldHeight * state.camera.zoom) / 2;
+}
+
+// ドット絵描画
+function drawPixelMatrix(ctx, tmpl, x, y, scale = 2.5, flipX = false, animFrame = 0, actionState = 'idle') {
+  const grid = tmpl.grid;
+  const w = tmpl.w;
+  const h = tmpl.h;
+
+  ctx.save();
+  ctx.translate(Math.round(x), Math.round(y));
+
+  if (flipX) {
+    ctx.scale(-1, 1);
+    ctx.translate(-w * scale, 0);
+  }
+
+  let offsetY = 0;
+  let stretchY = 1;
+
+  if (actionState === 'walk') {
+    offsetY = Math.sin(animFrame * 0.4) * 2;
+  } else if (actionState === 'happy') {
+    offsetY = -Math.abs(Math.sin(animFrame * 0.5)) * 6;
+  } else if (actionState === 'sleep') {
+    stretchY = 0.9 + Math.sin(animFrame * 0.1) * 0.05;
+    offsetY = 2;
+  }
+
+  ctx.translate(0, offsetY);
+  ctx.scale(1, stretchY);
+
+  for (let r = 0; r < h; r++) {
+    const row = grid[r];
+    for (let c = 0; c < w; c++) {
+      const code = row[c];
+      if (code === '_') continue;
+      const color = PAL[code];
+      if (!color) continue;
+
+      ctx.fillStyle = color;
+      ctx.fillRect(Math.round(c * scale), Math.round(r * scale), Math.ceil(scale), Math.ceil(scale));
+    }
+  }
+
+  if (actionState === 'sleep') {
+    ctx.fillStyle = '#fff';
+    ctx.font = '10px monospace';
+    ctx.fillText('z', (w * scale) + 2, -2 - (animFrame % 20) * 0.5);
+    ctx.fillText('Z', (w * scale) + 6, -8 - (animFrame % 20) * 0.5);
+  }
+
+  ctx.restore();
+}
+
+function drawParkWorld(ctx) {
+  const curWeather = state.weathers[state.weatherIndex];
+
+  ctx.fillStyle = curWeather.ground;
+  ctx.fillRect(0, 0, state.worldWidth, state.worldHeight);
+
+  // 小道
+  ctx.fillStyle = '#c5a059';
+  ctx.fillRect(60, 290, state.worldWidth - 120, 48);
+  ctx.fillRect(290, 80, 44, state.worldHeight - 160);
+
+  ctx.fillStyle = '#b38d45';
+  for (let i = 80; i < state.worldWidth - 100; i += 36) {
+    ctx.fillRect(i, 305, 14, 18);
+  }
+
+  // 池
+  ctx.fillStyle = '#42a5f5';
+  ctx.beginPath();
+  ctx.ellipse(720, 200, 90, 60, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#29b6f6';
+  ctx.beginPath();
+  ctx.ellipse(720, 200, 80, 50, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // 柵
+  for (let x = 40; x < state.worldWidth - 40; x += 24) {
+    ctx.fillStyle = '#d7ccc8';
+    ctx.fillRect(x, 40, 8, 26);
+    ctx.fillStyle = '#a1887f';
+    ctx.fillRect(x - 2, 48, 28, 6);
+    ctx.fillStyle = '#d7ccc8';
+    ctx.fillRect(x, state.worldHeight - 56, 8, 26);
+    ctx.fillStyle = '#a1887f';
+    ctx.fillRect(x - 2, state.worldHeight - 48, 28, 6);
+  }
+
+  // 施設
+  state.facilities.forEach(fac => {
+    if (!fac.unlocked) return;
+
+    if (fac.id === 'hotspring') {
+      ctx.fillStyle = '#616161';
+      ctx.beginPath();
+      ctx.ellipse(fac.x, fac.y, 65, 45, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#4fc3f7';
+      ctx.beginPath();
+      ctx.ellipse(fac.x, fac.y, 55, 36, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fbc02d';
+      ctx.beginPath();
+      ctx.arc(fac.x - 15, fac.y - 5, 6, 0, Math.PI * 2);
+      ctx.arc(fac.x + 20, fac.y + 8, 7, 0, Math.PI * 2);
+      ctx.fill();
+      if (Math.random() < 0.15) {
+        state.particles.push({
+          x: fac.x + (Math.random() - 0.5) * 50,
+          y: fac.y + (Math.random() - 0.5) * 20,
+          vx: (Math.random() - 0.5) * 0.3,
+          vy: -0.6 - Math.random() * 0.5,
+          life: 60,
+          text: '♨️',
+          size: 14
+        });
+      }
+    } else if (fac.id === 'cherry') {
+      ctx.fillStyle = '#5d4037';
+      ctx.fillRect(fac.x - 8, fac.y, 16, 40);
+      ctx.fillStyle = '#f48fb1';
+      ctx.beginPath();
+      ctx.arc(fac.x, fac.y - 15, 38, 0, Math.PI * 2);
+      ctx.fill();
+      if (Math.random() < 0.2) {
+        state.particles.push({
+          x: fac.x + (Math.random() - 0.5) * 60,
+          y: fac.y - 10,
+          vx: 0.8 + Math.random() * 0.5,
+          vy: 0.5 + Math.random() * 0.5,
+          life: 80,
+          text: '🌸',
+          size: 11
+        });
+      }
+    } else if (fac.id === 'sunflower') {
+      for (let dx = -30; dx <= 30; dx += 20) {
+        ctx.fillStyle = '#388e3c';
+        ctx.fillRect(fac.x + dx - 2, fac.y, 4, 25);
+        ctx.fillStyle = '#fbc02d';
+        ctx.beginPath();
+        ctx.arc(fac.x + dx, fac.y - 6, 12, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else if (fac.id === 'fountain') {
+      ctx.fillStyle = '#b0bec5';
+      ctx.beginPath();
+      ctx.ellipse(fac.x, fac.y, 44, 30, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#0288d1';
+      ctx.beginPath();
+      ctx.ellipse(fac.x, fac.y, 36, 22, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  });
+}
+
+function gameLoop() {
+  const curWeather = state.weathers[state.weatherIndex];
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  ctx.save();
+  ctx.translate(state.camera.x, state.camera.y);
+  ctx.scale(state.camera.zoom, state.camera.zoom);
+
+  drawParkWorld(ctx);
+
+  // エサ
+  state.foods.forEach((food) => {
+    ctx.font = '16px serif';
+    ctx.fillText(food.icon, food.x - 8, food.y + 6);
+  });
+
+  // ボール
+  state.balls.forEach((b) => {
+    b.x += b.vx;
+    b.y += b.vy;
+    b.vx *= 0.97;
+    b.vy *= 0.97;
+
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(b.x, b.y, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#e53935';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    if (b.x < 50 || b.x > state.worldWidth - 50) b.vx *= -1;
+    if (b.y < 50 || b.y > state.worldHeight - 50) b.vy *= -1;
+  });
+
+  // 動物
+  state.animals.sort((a, b) => a.y - b.y);
+
+  state.animals.forEach(animal => {
+    animal.animTimer++;
+    animal.stateTimer--;
+
+    if (animal.stateTimer <= 0) {
+      const r = Math.random();
+      if (r < 0.45) {
+        animal.state = 'walk';
+        animal.targetX = Math.max(80, Math.min(state.worldWidth - 80, animal.x + (Math.random() - 0.5) * 200));
+        animal.targetY = Math.max(80, Math.min(state.worldHeight - 80, animal.y + (Math.random() - 0.5) * 160));
+        animal.stateTimer = 80 + Math.floor(Math.random() * 120);
+      } else if (r < 0.8) {
+        animal.state = 'idle';
+        animal.stateTimer = 60 + Math.floor(Math.random() * 90);
+      } else if (curWeather.name.includes('夜') || r < 0.92) {
+        animal.state = 'sleep';
+        animal.stateTimer = 180 + Math.floor(Math.random() * 200);
+      } else {
+        animal.state = 'happy';
+        animal.stateTimer = 45;
+        addHearts(1, animal.x, animal.y - 20, false);
+      }
+    }
+
+    if (state.foods.length > 0 && animal.state !== 'sleep') {
+      const closestFood = state.foods[0];
+      const dist = Math.hypot(closestFood.x - animal.x, closestFood.y - animal.y);
+      if (dist < 180) {
+        animal.targetX = closestFood.x;
+        animal.targetY = closestFood.y;
+        animal.state = 'walk';
+
+        if (dist < 20) {
+          animal.state = 'eat';
+          animal.stateTimer = 60;
+          sounds.playEatSound();
+          addHearts(3, animal.x, animal.y - 24);
+          state.foods.splice(0, 1);
+        }
+      }
+    }
+
+    if (animal.state === 'walk') {
+      const dx = animal.targetX - animal.x;
+      const dy = animal.targetY - animal.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > 4) {
+        animal.vx = (dx / dist) * animal.speed;
+        animal.vy = (dy / dist) * animal.speed;
+        animal.x += animal.vx;
+        animal.y += animal.vy;
+        animal.direction = animal.vx >= 0 ? 1 : -1;
+      } else {
+        animal.state = 'idle';
+      }
+    }
+
+    const tmpl = ANIMAL_TEMPLATES[animal.type];
+    if (tmpl) {
+      drawPixelMatrix(
+        ctx,
+        tmpl,
+        animal.x - (tmpl.w * 2.5) / 2,
+        animal.y - (tmpl.h * 2.5) / 2,
+        2.5,
+        animal.direction === -1,
+        animal.animTimer,
+        animal.state
+      );
+    }
+  });
+
+  // パーティクル
+  for (let i = state.particles.length - 1; i >= 0; i--) {
+    const p = state.particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.life--;
+
+    ctx.save();
+    ctx.font = `${p.size || 16}px sans-serif`;
+    ctx.globalAlpha = Math.max(0, p.life / 60);
+    ctx.fillText(p.text, p.x, p.y);
+    ctx.restore();
+
+    if (p.life <= 0) {
+      state.particles.splice(i, 1);
+    }
+  }
+
+  // 雨
+  if (curWeather.rain) {
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < 25; i++) {
+      const rx = Math.random() * state.worldWidth;
+      const ry = Math.random() * state.worldHeight;
+      ctx.beginPath();
+      ctx.moveTo(rx, ry);
+      ctx.lineTo(rx - 4, ry + 16);
+      ctx.stroke();
+    }
+  }
+
+  if (curWeather.tint) {
+    ctx.fillStyle = curWeather.tint;
+    ctx.fillRect(0, 0, state.worldWidth, state.worldHeight);
+  }
+
+  ctx.restore();
+  animFrameId = requestAnimationFrame(gameLoop);
+}
+
+// ツール選択
+function selectTool(tool) {
+  state.selectedTool = tool;
+  document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+  const btn = document.getElementById(`tool-${tool}`);
+  if (btn) btn.classList.add('active');
+
+  const tip = document.getElementById('hud-tip');
+  if (tool === 'pet') {
+    tip.textContent = '動物をタップすると「なでなで」してハートが出るよ！';
+  } else if (tool === 'feed') {
+    tip.textContent = '地面をタップして美味しいごはんをあげよう！';
+  } else if (tool === 'ball') {
+    tip.textContent = '地面をタップしてボールを転がし、みんなで遊ぼう！';
+  }
+}
+
+function addHearts(amount, x, y, playSound = true) {
+  state.hearts += amount;
+  document.getElementById('txt-hearts').textContent = state.hearts;
+
+  if (x !== undefined && y !== undefined) {
+    state.particles.push({
+      x: x + (Math.random() - 0.5) * 10,
+      y: y,
+      vx: (Math.random() - 0.5) * 0.6,
+      vy: -1.2,
+      life: 50,
+      text: '💖',
+      size: 18
+    });
+  }
+
+  if (playSound) sounds.playPetSound();
+}
+
+function getCanvasCoords(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const screenX = (clientX - rect.left);
+  const screenY = (clientY - rect.top);
+  const worldX = (screenX - state.camera.x) / state.camera.zoom;
+  const worldY = (screenY - state.camera.y) / state.camera.zoom;
+  return { worldX, worldY, screenX, screenY };
+}
+
+// ポインター＆スマホピンチズーム対応
+let isDragging = false;
+let dragStartX = 0;
+let dragStartY = 0;
+let hasMoved = false;
+
+const canvasWrap = document.getElementById('canvas-wrap');
+
+canvasWrap.addEventListener('pointerdown', (e) => {
+  isDragging = true;
+  dragStartX = e.clientX - state.camera.x;
+  dragStartY = e.clientY - state.camera.y;
+  hasMoved = false;
+  sounds.init();
+});
+
+window.addEventListener('pointermove', (e) => {
+  if (!isDragging) return;
+  const newX = e.clientX - dragStartX;
+  const newY = e.clientY - dragStartY;
+
+  if (Math.abs(newX - state.camera.x) > 4 || Math.abs(newY - state.camera.y) > 4) {
+    hasMoved = true;
+  }
+  state.camera.x = newX;
+  state.camera.y = newY;
+});
+
+window.addEventListener('pointerup', (e) => {
+  if (!isDragging) return;
+  isDragging = false;
+
+  if (!hasMoved) {
+    const coords = getCanvasCoords(e.clientX, e.clientY);
+    handleWorldTap(coords.worldX, coords.worldY);
+  }
+});
+
+// マウスホイールズーム
+canvasWrap.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
+  const newZoom = Math.min(2.5, Math.max(0.7, state.camera.zoom * zoomFactor));
+
+  const coords = getCanvasCoords(e.clientX, e.clientY);
+  state.camera.x = coords.screenX - coords.worldX * newZoom;
+  state.camera.y = coords.screenY - coords.worldY * newZoom;
+  state.camera.zoom = newZoom;
+}, { passive: false });
+
+// 2本指タッチピンチズーム対応
+let initialPinchDist = null;
+let initialZoom = 1.3;
+
+canvasWrap.addEventListener('touchstart', (e) => {
+  if (e.touches.length === 2) {
+    initialPinchDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    initialZoom = state.camera.zoom;
+  }
+}, { passive: true });
+
+canvasWrap.addEventListener('touchmove', (e) => {
+  if (e.touches.length === 2 && initialPinchDist) {
+    const currentDist = Math.hypot(
+      e.touches[0].clientX - e.touches[1].clientX,
+      e.touches[0].clientY - e.touches[1].clientY
+    );
+    const scale = currentDist / initialPinchDist;
+    state.camera.zoom = Math.min(2.5, Math.max(0.7, initialZoom * scale));
+  }
+}, { passive: true });
+
+canvasWrap.addEventListener('touchend', (e) => {
+  if (e.touches.length < 2) {
+    initialPinchDist = null;
+  }
+}, { passive: true });
+
+function handleWorldTap(wx, wy) {
+  let hitAnimal = null;
+  for (let i = state.animals.length - 1; i >= 0; i--) {
+    const a = state.animals[i];
+    if (Math.hypot(a.x - wx, a.y - wy) < 32) {
+      hitAnimal = a;
+      break;
+    }
+  }
+
+  if (hitAnimal) {
+    hitAnimal.state = 'happy';
+    hitAnimal.stateTimer = 60;
+    addHearts(2, hitAnimal.x, hitAnimal.y - 25);
+    return;
+  }
+
+  if (state.selectedTool === 'feed') {
+    state.foods.push({
+      x: wx,
+      y: wy,
+      icon: ['🍎', '🎋', '🥕', '🐟'][Math.floor(Math.random() * 4)]
+    });
+    sounds.playBounceSound();
+  } else if (state.selectedTool === 'ball') {
+    state.balls.push({
+      x: wx,
+      y: wy,
+      vx: (Math.random() - 0.5) * 4,
+      vy: (Math.random() - 0.5) * 4
+    });
+    sounds.playBounceSound();
+  }
+}
+
+function openShopModal() {
+  const container = document.getElementById('shop-items-container');
+  container.innerHTML = '';
+
+  Object.values(ANIMAL_TEMPLATES).forEach(tmpl => {
+    const isUnlocked = state.unlockedAnimals[tmpl.id];
+    const card = document.createElement('div');
+    card.className = `unlock-card ${isUnlocked ? 'unlocked' : ''}`;
+
+    card.innerHTML = `
+      <div class="unlock-icon-wrap" style="font-size: 2rem;">${tmpl.icon}</div>
+      <div class="unlock-name">${tmpl.name}</div>
+      <div class="unlock-cost">💖 ${tmpl.cost}</div>
+      <button class="unlock-btn" ${isUnlocked ? '' : (state.hearts >= tmpl.cost ? '' : 'disabled')} onclick="unlockAnimal('${tmpl.id}')">
+        ${isUnlocked ? 'お迎えする' : 'なかまにする'}
+      </button>
+    `;
+    container.appendChild(card);
+  });
+
+  state.facilities.forEach(fac => {
+    const card = document.createElement('div');
+    card.className = `unlock-card ${fac.unlocked ? 'unlocked' : ''}`;
+
+    card.innerHTML = `
+      <div class="unlock-icon-wrap" style="font-size: 2rem;">${fac.icon}</div>
+      <div class="unlock-name">${fac.name}</div>
+      <div class="unlock-cost">💖 ${fac.cost}</div>
+      <button class="unlock-btn" ${fac.unlocked ? 'disabled' : (state.hearts >= fac.cost ? '' : 'disabled')} onclick="unlockFacility('${fac.id}')">
+        ${fac.unlocked ? '設置済み' : '建設する'}
+      </button>
+    `;
+    container.appendChild(card);
+  });
+
+  document.getElementById('shop-modal').style.display = 'flex';
+}
+
+function closeShopModal() {
+  document.getElementById('shop-modal').style.display = 'none';
+}
+
+function unlockAnimal(type) {
+  const tmpl = ANIMAL_TEMPLATES[type];
+  if (!state.unlockedAnimals[type]) {
+    if (state.hearts < tmpl.cost) return;
+    state.hearts -= tmpl.cost;
+    state.unlockedAnimals[type] = true;
+    sounds.playUnlockSound();
+  }
+
+  const newA = createAnimalInstance(type, 200 + Math.random() * 400, 200 + Math.random() * 250);
+  state.animals.push(newA);
+  document.getElementById('txt-animals-count').textContent = `${state.animals.length}匹`;
+  document.getElementById('txt-hearts').textContent = state.hearts;
+
+  closeShopModal();
+  addHearts(0, newA.x, newA.y - 20, false);
+}
+
+function unlockFacility(facId) {
+  const fac = state.facilities.find(f => f.id === facId);
+  if (!fac || fac.unlocked || state.hearts < fac.cost) return;
+
+  state.hearts -= fac.cost;
+  fac.unlocked = true;
+  document.getElementById('txt-hearts').textContent = state.hearts;
+  sounds.playUnlockSound();
+  closeShopModal();
+}
+
+function cycleTimeWeather() {
+  state.weatherIndex = (state.weatherIndex + 1) % state.weathers.length;
+  const w = state.weathers[state.weatherIndex];
+  document.getElementById('txt-weather-badge').textContent = w.name;
+}
+
+function toggleSound() {
+  sounds.init();
+  sounds.muted = !sounds.muted;
+  const btn = document.getElementById('btn-sound');
+  btn.textContent = sounds.muted ? '🔇' : '🔊';
+}
+
+function toggleFullscreen() {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+}
+
+function switchView(view) {
+  const gameView = document.getElementById('game-view');
+  const docView = document.getElementById('doc-view');
+  const btnGame = document.getElementById('btn-tab-game');
+  const btnDoc = document.getElementById('btn-tab-doc');
+
+  if (view === 'game') {
+    gameView.style.display = 'flex';
+    docView.style.display = 'none';
+    btnGame.classList.add('active');
+    btnDoc.classList.remove('active');
+    resizeCanvas();
+  } else {
+    gameView.style.display = 'none';
+    docView.style.display = 'block';
+    btnGame.classList.remove('active');
+    btnDoc.classList.add('active');
+    renderDocAnimalPreviews();
+  }
+}
+
+function renderDocAnimalPreviews() {
+  const wrap = document.getElementById('doc-animal-previews');
+  if (wrap.children.length > 0) return;
+
+  Object.values(ANIMAL_TEMPLATES).forEach(tmpl => {
+    const card = document.createElement('div');
+    card.className = 'preview-canvas-card';
+
+    const pCanvas = document.createElement('canvas');
+    pCanvas.className = 'preview-canvas';
+    pCanvas.width = 64;
+    pCanvas.height = 64;
+    const pCtx = pCanvas.getContext('2d');
+
+    drawPixelMatrix(pCtx, tmpl, 0, 0, 4, false, 0, 'idle');
+
+    const label = document.createElement('div');
+    label.style.fontWeight = '800';
+    label.style.fontSize = '0.85rem';
+    label.style.color = '#1b5e20';
+    label.textContent = `${tmpl.icon} ${tmpl.name}`;
+
+    card.appendChild(pCanvas);
+    card.appendChild(label);
+    wrap.appendChild(card);
+  });
+}
+
+window.addEventListener('load', () => {
+  initAnimals();
+  resizeCanvas();
+  centerCamera();
+  animFrameId = requestAnimationFrame(gameLoop);
+});
+</script>
+
+</body>
+</html>

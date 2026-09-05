@@ -161,6 +161,8 @@ export const GameCard: React.FC<GameCardProps> = ({
             />
           </svg>
         );
+      case 'zoo':
+        return <span className="text-2xl leading-none select-none">🐼</span>;
       default:
         return <LayoutGrid className="w-6 h-6 text-white" />;
     }

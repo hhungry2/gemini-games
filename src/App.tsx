@@ -21,6 +21,7 @@ import { CookieClickerGame, COOKIE_ALL_TIME_KEY, COOKIE_PRESTIGE_KEY, formatNumb
 import { SuikaGame } from './games/SuikaGame';
 import { WarioGame } from './games/WarioGame';
 import { SonicGame, SONIC_HIGH_SCORE_KEY, SONIC_BEST_TIME_KEY, SONIC_MAX_RINGS_KEY } from './games/SonicGame';
+import { PixelZooGame } from './games/PixelZooGame';
 import { GameInfo, GameId, GameGenre } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck, Search, X } from 'lucide-react';
 
@@ -69,6 +70,19 @@ const GENRES: { id: GameGenre | 'all'; label: string; icon: string }[] = [
 ];
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'zoo',
+    title: 'ぽかぽかドット動物園 (Pixel Zoo Sanctuary)',
+    titleEn: 'Pixel Zoo Sanctuary - Cozy Animals',
+    description:
+      'プログラム描画によるかわいいドット絵の動物たち（パンダ・カピバラ・レッサーパンダ・ペンギン・柴犬・三毛猫等）と触れ合って癒やされる動物園ゲーム！なでなで、エサやり、ボール遊び、温泉、昼夜・天候変化、心地よいオルゴール音響完備！詳細なゲーム開発仕様書ビューアも内蔵！',
+    badge: '🌿 最新作！癒やし動物園',
+    iconName: 'zoo',
+    color: 'from-emerald-500 via-teal-600 to-green-700',
+    genre: 'arcade',
+    genres: ['arcade', 'puzzle'],
+    tags: ['ドット絵', '動物園', '癒やし', 'パンダ', 'カピバラ', '温泉', 'エサやり', '仕様書完備', 'スマホ・PC両対応'],
+  },
   {
     id: 'sonic',
     title: 'ソニック・スピード・ラッシュ (Sonic Speed Rush)',
@@ -1174,6 +1188,16 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'zoo' && (
+              <PixelZooGame
+                onBackToHub={() => {
+                  setActiveGame(null);
+                  loadRecords();
+                }}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'sonic' && (
               <SonicGame
                 onBackToHub={() => {
