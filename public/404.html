@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redirecting... | Games Hub</title>
+    <script>
+      // GitHub Pages SPA リダイレクトハンドラー
+      // 例: /gemini-games/tetris -> /gemini-games/#/tetris
+      (function () {
+        var path = window.location.pathname;
+        var search = window.location.search;
+        var hash = window.location.hash;
+
+        // リポジトリ名 (例: /gemini-games/) を考慮
+        var segments = path.split('/').filter(Boolean);
+        var repoName = 'gemini-games';
+
+        // segments 内で repoName を探す
+        var repoIndex = segments.indexOf(repoName);
+        var basePath = repoIndex !== -1 ? '/' + segments.slice(0, repoIndex + 1).join('/') + '/' : '/';
+        var subPath = repoIndex !== -1 ? segments.slice(repoIndex + 1).join('/') : segments.join('/');
+
+        if (subPath) {
+          // サブパスが存在する場合、ハッシュルーティング形式に変換してリダイレクト
+          var redirectUrl = basePath + '#/' + subPath + (search ? '?' + search.slice(1) : '') + (hash ? hash : '');
+          window.location.replace(redirectUrl);
+        } else {
+          // サブパスがなければベースパスへ
+          window.location.replace(basePath + (search ? search : '') + (hash ? hash : ''));
+        }
+      })();
+    </script>
+  </head>
+  <body style="background:#020617;color:#94a3b8;font-family:sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;">
+    <p>ゲームへリダイレクト中...</p>
+  </body>
+</html>

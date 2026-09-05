@@ -21,6 +21,7 @@ import {
   Gem,
   Heart,
   Swords,
+  Link2,
 } from 'lucide-react';
 
 export interface RecordItem {
@@ -33,6 +34,7 @@ interface GameCardProps {
   onSelect: (id: GameId) => void;
   isDark: boolean;
   records?: RecordItem[];
+  onCopyLink?: (id: GameId) => void;
 }
 
 export const GameCard: React.FC<GameCardProps> = ({
@@ -40,6 +42,7 @@ export const GameCard: React.FC<GameCardProps> = ({
   onSelect,
   isDark,
   records = [],
+  onCopyLink,
 }) => {
   const getGameIcon = () => {
     switch (game.id) {
@@ -343,17 +346,37 @@ export const GameCard: React.FC<GameCardProps> = ({
       </div>
 
       <div
-        className={`pt-6 mt-6 border-t flex items-center justify-between text-xs font-bold transition-colors ${
+        className={`pt-5 mt-5 border-t flex items-center justify-between text-xs font-bold transition-colors ${
           isDark
-            ? 'border-slate-800/80 text-indigo-400 group-hover:text-indigo-300'
-            : 'border-slate-100 text-indigo-600 group-hover:text-indigo-700'
+            ? 'border-slate-800/80 text-indigo-400'
+            : 'border-slate-100 text-indigo-600'
         }`}
       >
-        <span className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 group-hover:text-indigo-400 transition-colors">
           <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-          今すぐプレイ
-        </span>
-        <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1.5 transition-transform" />
+          <span>今すぐプレイ</span>
+          <ArrowRight className="w-4 h-4 transform group-hover:translate-x-1.5 transition-transform" />
+        </div>
+
+        {onCopyLink && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopyLink(game.id);
+            }}
+            className={`px-2.5 py-1.5 rounded-xl border transition-all flex items-center gap-1.5 text-[11px] font-medium cursor-pointer ${
+              isDark
+                ? 'bg-slate-800/80 hover:bg-slate-700 border-slate-700/80 text-slate-300 hover:text-white'
+                : 'bg-slate-100 hover:bg-slate-200 border-slate-200 text-slate-600 hover:text-slate-900'
+            }`}
+            title="直接アクセス用URLをコピー"
+            aria-label="URLコピー"
+          >
+            <Link2 className="w-3.5 h-3.5 text-indigo-500" />
+            <span className="text-[11px]">URLコピー</span>
+          </button>
+        )}
       </div>
     </div>
   );

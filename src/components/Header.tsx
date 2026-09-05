@@ -10,6 +10,7 @@ import {
   Moon,
   Maximize,
   Minimize,
+  Share2,
 } from 'lucide-react';
 import { sound } from '../utils/audio';
 
@@ -20,6 +21,7 @@ interface HeaderProps {
   onToggleTheme: () => void;
   isFullscreen: boolean;
   onToggleFullscreen: () => void;
+  onCopyUrl?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -29,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
   isFullscreen,
   onToggleFullscreen,
+  onCopyUrl,
 }) => {
   const [isMuted, setIsMuted] = useState(sound.getMuted());
   const [showHelp, setShowHelp] = useState(false);
@@ -152,6 +155,23 @@ export const Header: React.FC<HeaderProps> = ({
                 <VolumeX className="w-4 h-4 sm:w-5 sm:h-5" />
               )}
             </button>
+
+            {/* ゲームURL共有ボタン */}
+            {activeGame && onCopyUrl && (
+              <button
+                onClick={onCopyUrl}
+                className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition ${
+                  isDark
+                    ? 'text-indigo-400 bg-slate-900 hover:bg-slate-800 border-slate-700 hover:border-indigo-500/50 hover:text-indigo-300'
+                    : 'text-indigo-600 bg-slate-100 hover:bg-slate-200 border-slate-200 hover:border-indigo-300'
+                }`}
+                title="このゲームのURLをコピー"
+                aria-label="URLコピー"
+              >
+                <Share2 className="w-4 h-4 text-indigo-500" />
+                <span className="hidden sm:inline">共有</span>
+              </button>
+            )}
 
             {/* 操作方法ボタン (ゲームプレイ時に表示) */}
             {activeGame && (
