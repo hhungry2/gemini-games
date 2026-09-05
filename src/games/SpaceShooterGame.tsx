@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  ArrowLeft,
   Volume2,
   VolumeX,
   Trophy,
@@ -165,7 +164,6 @@ interface Boss {
 }
 
 export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -2210,23 +2208,12 @@ export const SpaceShooterGame: React.FC<SpaceShooterGameProps> = ({
     >
       {/* 上部コントロールバー */}
       <div
-        className={`w-full flex items-center justify-between gap-2 mb-2 px-1 transition-all ${
+        className={`w-full flex items-center justify-end gap-2 mb-2 px-1 transition-all ${
           isFullscreen
             ? 'w-[min(96vw,calc((100vh-6.5rem)*540/800))] max-w-none'
             : 'max-w-[540px]'
         }`}
       >
-        <button
-          onClick={onBackToHub}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer ${
-            isDark
-              ? 'bg-slate-900 border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800'
-              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-100 shadow-xs'
-          }`}
-        >
-          <ArrowLeft className="w-4 h-4 text-indigo-500" />
-          <span>ゲーム一覧へ戻る</span>
-        </button>
 
         <div className="flex items-center gap-2">
           {/* 操作モード切り替え */}

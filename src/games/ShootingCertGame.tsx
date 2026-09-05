@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  ArrowLeft,
   Volume2,
   VolumeX,
   Play,
@@ -160,7 +159,6 @@ const V_WIDTH = 760;
 const V_HEIGHT = 900;
 
 export const ShootingCertGame: React.FC<ShootingCertGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -1874,6 +1872,13 @@ export const ShootingCertGame: React.FC<ShootingCertGameProps> = ({
     );
   };
 
+  // アンマウント時にBGMを確実に停止
+  useEffect(() => {
+    return () => {
+      sound.stopShootingCertBgm();
+    };
+  }, []);
+
   return (
     <div
       ref={containerRef}
@@ -1883,18 +1888,7 @@ export const ShootingCertGame: React.FC<ShootingCertGameProps> = ({
     >
       {/* 画面上部コントロールバー */}
       {!isFullscreen && (
-        <div className="w-full max-w-[800px] flex items-center justify-between py-2 px-3 mb-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 shadow-lg">
-          <button
-            onClick={() => {
-              sound.stopShootingCertBgm();
-              onBackToHub();
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 transition cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>ハブへ戻る</span>
-          </button>
-
+        <div className="w-full max-w-[800px] flex items-center justify-end py-2 px-3 mb-2 bg-slate-900/80 backdrop-blur-md rounded-2xl border border-slate-800 shadow-lg">
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold font-mono px-2.5 py-1 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30">
               BEST AGE: {bestAge > 0 ? `${bestAge}歳` : '--'}

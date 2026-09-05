@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  ArrowLeft,
   RotateCcw,
   Volume2,
   VolumeX,
@@ -45,7 +44,6 @@ interface SonicGameProps {
 }
 
 export const SonicGame: React.FC<SonicGameProps> = ({
-  onBackToHub,
   isDark = true,
   isFullscreen = false,
 }) => {
@@ -477,23 +475,12 @@ export const SonicGame: React.FC<SonicGameProps> = ({
     >
       {/* Top Header / Nav Bar (Floats on Fullscreen for zero margin) */}
       <div
-        className={`flex items-center justify-between px-3 py-1.5 z-30 transition-all ${
+        className={`flex items-center justify-end px-3 py-1.5 z-30 transition-all ${
           isFullscreen
             ? 'absolute top-2 left-2 right-2 pointer-events-none'
             : 'w-full'
         }`}
       >
-        <button
-          onClick={() => {
-            sonicAudio.stopBGM();
-            onBackToHub();
-          }}
-          className="pointer-events-auto flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs sm:text-sm font-semibold text-slate-300 hover:text-white bg-slate-900/80 hover:bg-slate-800 backdrop-blur-md border border-slate-700/60 shadow-lg transition"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>ゲーム一覧へ戻る</span>
-        </button>
-
         <div className="pointer-events-auto flex items-center gap-2">
           {gameState === 'playing' && (
             <button

@@ -4,7 +4,6 @@ import { FRUITS, getRandomDropLevel } from './suika/fruitData';
 import { Particle, FloatingText, FruitBodyData, SuikaGameProps } from './suika/types';
 import { suikaAudio } from './suika/SuikaAudio';
 import {
-  ArrowLeft,
   RotateCcw,
   Volume2,
   VolumeX,
@@ -29,7 +28,6 @@ const BOX_RIGHT = CANVAS_WIDTH - 20;
 const BOX_BOTTOM = CANVAS_HEIGHT - 15;
 
 export const SuikaGame: React.FC<SuikaGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -996,20 +994,8 @@ export const SuikaGame: React.FC<SuikaGameProps> = ({
     >
       {/* トップバー（戻る、スコア、NEXT、コントロール） */}
       <div className="w-full max-w-2xl flex items-center justify-between gap-2 px-2 py-1 shrink-0 mb-1">
-        {/* 左: 戻る & ミュート & 進化ツリー案内 */}
+        {/* 左: ミュート & 進化ツリー案内 */}
         <div className="flex items-center gap-1.5">
-          <button
-            onClick={onBackToHub}
-            className={`p-2 rounded-xl border transition-colors ${
-              isDark
-                ? 'bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-200'
-                : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700 shadow-sm'
-            }`}
-            title="ゲーム一覧へ戻る"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-
           <button
             onClick={handleToggleMute}
             className={`p-2 rounded-xl border transition-colors ${

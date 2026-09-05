@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from '../utils/audio';
 import {
-  ArrowLeft,
   RotateCcw,
   Sparkles,
   Volume2,
@@ -210,7 +209,6 @@ const WEEDING_HIGH_SCORE_KEY = 'chiikawa_weeding_high_score';
 const WEEDING_BEST_RANK_KEY = 'chiikawa_weeding_best_rank';
 
 export const ChiikawaGame: React.FC<ChiikawaGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -219,6 +217,13 @@ export const ChiikawaGame: React.FC<ChiikawaGameProps> = ({
   const [selectedCharId, setSelectedCharId] = useState<ChiikawaCharId>('chiikawa');
   const [gameState, setGameState] = useState<'title' | 'playing' | 'paused' | 'levelup' | 'gameover' | 'victory'>('title');
   const [isMuted, setIsMuted] = useState<boolean>(false);
+
+  // アンマウント時にBGMを停止
+  useEffect(() => {
+    return () => {
+      sound.stopChiikawaBgm();
+    };
+  }, []);
 
   // スコア・記録
   const [subjugationHighScore, setSubjugationHighScore] = useState<number>(() => {
@@ -1776,27 +1781,14 @@ export const ChiikawaGame: React.FC<ChiikawaGameProps> = ({
       {/* 上部ヘッダーバー */}
       <div className="w-full flex items-center justify-between px-3 py-2 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm mb-2 z-10">
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              sound.stopChiikawaBgm();
-              onBackToHub();
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold transition-colors cursor-pointer"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            一覧へ戻る
-          </button>
-
-          <div className="flex items-center gap-2 ml-2">
-            <span className="text-xl">🌸</span>
-            <div>
-              <h1 className="text-sm font-extrabold text-slate-800 dark:text-white leading-none">
-                ちいかわ なんとかなれ！大作戦
-              </h1>
-              <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
-                {activeTab === 'subjugation' ? '大討伐クエスト' : '草むしり検定'}
-              </p>
-            </div>
+          <span className="text-xl">🌸</span>
+          <div>
+            <h1 className="text-sm font-extrabold text-slate-800 dark:text-white leading-none">
+              ちいかわ なんとかなれ！大作戦
+            </h1>
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 mt-0.5">
+              {activeTab === 'subjugation' ? '大討伐クエスト' : '草むしり検定'}
+            </p>
           </div>
         </div>
 

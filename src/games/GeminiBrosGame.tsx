@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Volume2, VolumeX, Tv, Trophy } from 'lucide-react';
+import { Volume2, VolumeX, Tv, Trophy } from 'lucide-react';
 
 interface GeminiBrosGameProps {
   onBackToHub: () => void;
@@ -10,7 +10,6 @@ interface GeminiBrosGameProps {
 const HIGH_SCORE_KEY = 'gemini_bros_high_score';
 
 export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -2583,21 +2582,10 @@ export const GeminiBrosGame: React.FC<GeminiBrosGameProps> = ({
     <div className="w-full flex flex-col items-center select-none">
       {/* ナビゲーションバー */}
       <div
-        className={`w-full flex items-center justify-between mb-3 relative z-30 transition-all ${
+        className={`w-full flex items-center justify-end mb-3 relative z-30 transition-all ${
           isFullscreen ? 'max-w-[min(98vw,calc((100vh-100px)*16/9))]' : 'max-w-4xl'
         }`}
       >
-        <button
-          onClick={onBackToHub}
-          className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl border transition cursor-pointer relative z-30 ${
-            isDark
-              ? 'text-slate-300 hover:text-white bg-slate-900 border-slate-800 hover:bg-slate-800'
-              : 'text-slate-700 hover:text-slate-900 bg-white border-slate-200 hover:bg-slate-50 shadow-xs'
-          }`}
-        >
-          <ArrowLeft className="w-4 h-4 text-indigo-500" />
-          ゲーム一覧に戻る
-        </button>
 
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-xs text-amber-500 font-mono font-bold">

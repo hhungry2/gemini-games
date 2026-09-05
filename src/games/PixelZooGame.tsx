@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  ArrowLeft,
   Volume2,
   VolumeX,
   Heart,
@@ -320,7 +319,6 @@ interface Particle {
 }
 
 export const PixelZooGame: React.FC<PixelZooGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -932,13 +930,6 @@ export const PixelZooGame: React.FC<PixelZooGameProps> = ({
       {/* トップナビゲーションバー */}
       <div className="h-14 bg-white/95 dark:bg-zinc-900/95 backdrop-blur border-b border-emerald-500/20 px-4 flex items-center justify-between shrink-0 z-20">
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBackToHub}
-            className="p-2 rounded-xl bg-emerald-100 dark:bg-zinc-800 text-emerald-800 dark:text-emerald-300 hover:scale-105 transition"
-            title="ゲーム一覧へ戻る"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
           <div className="flex items-center gap-2">
             <span className="text-xl">🐼</span>
             <span className="font-extrabold text-sm sm:text-base text-emerald-800 dark:text-emerald-400">

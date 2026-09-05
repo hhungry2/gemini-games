@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from '../utils/audio';
-import { ArrowLeft, Play, RotateCcw } from 'lucide-react';
+import { Play, RotateCcw } from 'lucide-react';
 
 const HIGH_SCORE_KEY = 'doteater_high_score';
 
@@ -74,7 +74,6 @@ const HOUSE_CENTER_Y = 10 * TILE_SIZE + TILE_SIZE / 2; // 252
 const HOUSE_EXIT_Y = 7 * TILE_SIZE + TILE_SIZE / 2; // 180 (ゲート上の通路)
 
 export const DotEaterGame: React.FC<DotEaterGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -1017,23 +1016,12 @@ export const DotEaterGame: React.FC<DotEaterGameProps> = ({
     >
       {/* 上部ヘッダーナビゲーション */}
       <div
-        className={`flex items-center justify-between mb-2 transition-all ${
+        className={`flex items-center justify-end mb-2 transition-all ${
           isFullscreen
             ? 'w-[min(96vw,calc(100vh-100px))] px-1'
             : 'w-full max-w-[460px]'
         }`}
       >
-        <button
-          onClick={onBackToHub}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer ${
-            isDark
-              ? 'text-slate-300 hover:text-white bg-slate-900 border-slate-800 hover:bg-slate-800'
-              : 'text-slate-700 hover:text-slate-900 bg-white border-slate-200 hover:bg-slate-50 shadow-xs'
-          }`}
-        >
-          <ArrowLeft className="w-4 h-4 text-indigo-500" />
-          ゲーム一覧に戻る
-        </button>
 
         <div className="flex items-center gap-3 sm:gap-4 text-xs font-bold font-mono">
           <div className="flex items-center gap-1 text-yellow-500">

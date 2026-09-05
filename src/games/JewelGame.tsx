@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from '../utils/audio';
 import {
-  ArrowLeft,
   RotateCcw,
   Trophy,
   Sparkles,
@@ -159,7 +158,6 @@ const STAGE_STARS_KEY = 'jewel_quest_stage_stars_';
 let jewelGlobalId = 1;
 
 export const JewelGame: React.FC<JewelGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -1899,14 +1897,6 @@ export const JewelGame: React.FC<JewelGameProps> = ({
       {/* 上部ヘッダーコントロールバー */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md z-10 shrink-0">
         <div className="flex items-center gap-2">
-          <button
-            onClick={onBackToHub}
-            className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer flex items-center gap-1.5 text-xs font-bold"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">ハブへ戻る</span>
-          </button>
-
           <button
             onClick={toggleMute}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition cursor-pointer"

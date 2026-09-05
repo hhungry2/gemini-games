@@ -35,7 +35,6 @@ import {
 } from './spire/mapGenerator';
 import { spireAudio } from './spire/SpireAudio';
 import {
-  ArrowLeft,
   RotateCcw,
   Volume2,
   VolumeX,
@@ -61,7 +60,6 @@ const HIGH_FLOOR_KEY = 'spire_high_floor_v1';
 const WINS_KEY = 'spire_total_wins_v1';
 
 export const SpireGame: React.FC<SpireGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -1081,14 +1079,6 @@ export const SpireGame: React.FC<SpireGameProps> = ({
         }`}
       >
         <div className="flex items-center gap-3">
-          <button
-            onClick={onBackToHub}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-800 hover:bg-stone-700 text-stone-200 transition font-bold"
-            title="ゲーム一覧へ戻る"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>一覧</span>
-          </button>
           <div className="flex items-center gap-1.5 font-black text-amber-400 tracking-wider">
             <Flame className="w-4 h-4 text-orange-500 fill-orange-500" />
             <span>尖塔 {currentFloor + 1}F</span>

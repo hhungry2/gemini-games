@@ -4,7 +4,6 @@ import {
   Pause,
   Disc3,
   Sparkles,
-  ArrowLeft,
   Clock
 } from 'lucide-react';
 
@@ -184,7 +183,6 @@ const SONGS: Record<string, SongData> = {
 };
 
 export const LofiGame: React.FC<LofiGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen,
 }) => {
@@ -701,15 +699,7 @@ export const LofiGame: React.FC<LofiGameProps> = ({
           : 'max-w-2xl p-4'
       }`}
     >
-      <div className="w-full flex items-center justify-between mb-4 gap-2">
-        <button
-          onClick={onBackToHub}
-          className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 text-xs font-semibold cursor-pointer shadow-sm active:scale-95"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Games Hubへ戻る</span>
-        </button>
-
+      <div className="w-full flex items-center justify-end mb-4 gap-2">
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-xs text-amber-400 bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-500/20 font-mono">
             <Clock className="w-3.5 h-3.5" />

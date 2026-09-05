@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from '../utils/audio';
-import { ArrowLeft, Play, RotateCcw, Heart, Sparkles } from 'lucide-react';
+import { Play, RotateCcw, Heart, Sparkles } from 'lucide-react';
 
 const HIGH_SCORE_KEY = 'breakout_high_score';
 
@@ -87,7 +87,6 @@ const INITIAL_BALL_SPEED = 7;
 const MAX_STAGES = 5;
 
 export const BreakoutGame: React.FC<BreakoutGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -1089,22 +1088,10 @@ export const BreakoutGame: React.FC<BreakoutGameProps> = ({
     <div className="w-full flex flex-col items-center select-none">
       {/* 上部ヘッダーバー (枠幅完全統一) */}
       <div
-        className={`w-full flex items-center justify-between mb-3 transition-all ${
+        className={`w-full flex items-center justify-end mb-3 transition-all ${
           isFullscreen ? 'w-[min(96vw,calc((100vh-100px)*600/750))]' : 'w-full max-w-[480px]'
         }`}
       >
-        <button
-          onClick={onBackToHub}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer ${
-            isDark
-              ? 'text-slate-300 hover:text-white bg-slate-900 border-slate-800 hover:bg-slate-800'
-              : 'text-slate-700 hover:text-slate-900 bg-white border-slate-200 hover:bg-slate-50 shadow-xs'
-          }`}
-        >
-          <ArrowLeft className="w-4 h-4 text-indigo-500" />
-          ゲーム一覧に戻る
-        </button>
-
         <div className="flex items-center gap-3 text-xs font-bold font-mono">
           <div className="flex items-center gap-1 text-rose-500">
             <Heart className="w-4 h-4 fill-rose-500" />

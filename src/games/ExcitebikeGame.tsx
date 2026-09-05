@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  ArrowLeft,
   Play,
   RotateCcw,
   Volume2,
@@ -46,7 +45,6 @@ interface ExcitebikeGameProps {
 }
 
 export const ExcitebikeGame: React.FC<ExcitebikeGameProps> = ({
-  onBackToHub,
   isDark = true,
   isFullscreen = false,
 }) => {
@@ -478,17 +476,6 @@ export const ExcitebikeGame: React.FC<ExcitebikeGameProps> = ({
         }`}
       >
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              exciteAudio.stopEngine();
-              onBackToHub();
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 active:bg-slate-600 rounded-lg text-xs font-bold transition cursor-pointer"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            一覧へ戻る
-          </button>
-
           <span className="text-xs font-black tracking-wide text-amber-400 hidden sm:inline">
             ⚡ EXCITE BIKE ⚡
           </span>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from '../utils/audio';
 import {
-  ArrowLeft,
   Play,
   RotateCcw,
   Trophy,
@@ -283,7 +282,6 @@ const BOT_CONFIGS = [
 ];
 
 export const PaperIoGame: React.FC<PaperIoGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -2412,12 +2410,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
                 <Play className="w-5 h-5 fill-current" />
                 ゲームスタート
               </button>
-              <button
-                onClick={onBackToHub}
-                className="px-5 py-3.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs border border-slate-700 transition-colors"
-              >
-                戻る
-              </button>
             </div>
           </div>
         )}
@@ -2578,18 +2570,6 @@ export const PaperIoGame: React.FC<PaperIoGameProps> = ({
       {/* 下部コントロール＆操作説明バー */}
       {!isFullscreen && (
         <div className="w-full mt-4 flex flex-wrap items-center justify-between gap-3 text-xs">
-          <button
-            onClick={onBackToHub}
-            className={`flex items-center gap-1.5 px-4 py-2 rounded-xl font-bold border transition-colors ${
-              isDark
-                ? 'bg-slate-900 border-slate-800 text-slate-300 hover:bg-slate-800'
-                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-            }`}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            ゲーム一覧に戻る
-          </button>
-
           <div
             className={`flex items-center gap-3 px-4 py-2 rounded-xl border text-[11px] font-medium ${
               isDark

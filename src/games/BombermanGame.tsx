@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from '../utils/audio';
 import {
-  ArrowLeft,
   RotateCcw,
   Volume2,
   VolumeX,
@@ -179,7 +178,6 @@ interface BombermanGameProps {
 }
 
 export const BombermanGame: React.FC<BombermanGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -205,6 +203,13 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
 
   // リザルト画面オープン時刻（誤操作防止ディレイ用）
   const resultOpenTimeRef = useRef<number>(0);
+
+  // アンマウント時にBGMを停止
+  useEffect(() => {
+    return () => {
+      sound.stopBombermanBgm();
+    };
+  }, []);
 
   // 内部ミュータブルステート
   const stateRef = useRef({
@@ -2257,16 +2262,6 @@ export const BombermanGame: React.FC<BombermanGameProps> = ({
         } ${isFullscreen ? 'max-w-none' : 'max-w-4xl'}`}
       >
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              sound.stopBombermanBgm();
-              onBackToHub();
-            }}
-            className="p-2 rounded-xl bg-slate-800/20 hover:bg-slate-800/40 text-current transition cursor-pointer"
-            title="ゲーム一覧へ戻る"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
           <div>
             <div className="text-xs font-black flex items-center gap-1.5">
               <Flame className="w-4 h-4 text-orange-500" />

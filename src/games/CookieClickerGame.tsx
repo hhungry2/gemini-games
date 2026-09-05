@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { sound } from '../utils/audio';
 import {
-  ArrowLeft,
   Volume2,
   VolumeX,
   Sparkles,
@@ -294,7 +293,6 @@ export const formatNumberEn = (num: number): string => {
 };
 
 export const CookieClickerGame: React.FC<CookieClickerGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -1004,21 +1002,6 @@ export const CookieClickerGame: React.FC<CookieClickerGameProps> = ({
         }`}
       >
         <div className="flex items-center space-x-3">
-          <button
-            onClick={() => {
-              saveGame();
-              onBackToHub();
-            }}
-            className={`p-2 rounded-xl border flex items-center space-x-1 text-xs font-bold transition cursor-pointer ${
-              isDark
-                ? 'bg-slate-800 hover:bg-slate-700 border-slate-700 text-slate-200'
-                : 'bg-amber-100 hover:bg-amber-200 border-amber-300 text-amber-900'
-            }`}
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="hidden sm:inline">ハブへ戻る</span>
-          </button>
-
           <div className="flex items-center space-x-2">
             <span className="text-xl">🍪</span>
             <div className="flex flex-col">

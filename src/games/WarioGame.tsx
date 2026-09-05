@@ -3,7 +3,6 @@ import { MICROGAMES, createMicrogameInstance } from './wario/microgames';
 import { MicrogameDef, MicrogameInstance, InputState, MicrogameResult, WarioGameProps } from './wario/types';
 import { warioAudio } from './wario/WarioAudio';
 import {
-  ArrowLeft,
   RotateCcw,
   Volume2,
   VolumeX,
@@ -25,7 +24,6 @@ const CANVAS_HEIGHT = 360;
 type GameScreen = 'title' | 'instruction' | 'playing' | 'result' | 'speedup' | 'gameover' | 'practice';
 
 export const WarioGame: React.FC<WarioGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -399,20 +397,8 @@ export const WarioGame: React.FC<WarioGameProps> = ({
     >
       {/* トップバー */}
       <div className="w-full max-w-2xl flex items-center justify-between gap-2 px-2 py-1 shrink-0 mb-1">
-        {/* 左: 戻る & ミュート & 図鑑 */}
+        {/* 左: ミュート & 図鑑 */}
         <div className="flex items-center gap-1.5">
-          <button
-            onClick={onBackToHub}
-            className={`p-2 rounded-xl border transition-colors ${
-              isDark
-                ? 'bg-slate-800/80 border-slate-700 hover:bg-slate-700 text-slate-200'
-                : 'bg-white border-slate-200 hover:bg-slate-100 text-slate-700 shadow-sm'
-            }`}
-            title="ゲーム一覧へ戻る"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </button>
-
           <button
             onClick={() => setIsMuted(warioAudio.toggleMute())}
             className={`p-2 rounded-xl border transition-colors ${

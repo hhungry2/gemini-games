@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Matter from 'matter-js';
 import { sound } from '../utils/audio';
 import {
-  ArrowLeft,
   RotateCcw,
   Volume2,
   VolumeX,
@@ -89,7 +88,6 @@ const SLING_Y = 510;
 const SLING_MAX_PULL = 100;
 
 export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -1888,13 +1886,6 @@ export const AngryBirdsGame: React.FC<AngryBirdsGameProps> = ({
         } ${isFullscreen ? 'max-w-none' : 'max-w-4xl'}`}
       >
         <div className="flex items-center gap-2">
-          <button
-            onClick={onBackToHub}
-            className="p-2 rounded-xl bg-slate-800/20 hover:bg-slate-800/40 text-current transition cursor-pointer"
-            title="ゲーム一覧へ戻る"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
           <div>
             <div className="text-xs font-black flex items-center gap-1.5">
               <span>STAGE {currentLevel}</span>

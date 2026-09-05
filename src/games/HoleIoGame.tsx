@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from '../utils/audio';
 import {
-  ArrowLeft,
   Play,
   RotateCcw,
   Trophy,
@@ -238,7 +237,6 @@ const BOT_NAMES = [
 ];
 
 export const HoleIoGame: React.FC<HoleIoGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -2264,13 +2262,6 @@ export const HoleIoGame: React.FC<HoleIoGameProps> = ({
                 >
                   <Pause className="w-5 h-5" />
                 </button>
-                <button
-                  onClick={onBackToHub}
-                  className="p-2.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700/70 text-slate-300 transition-all shadow-md"
-                  title="ハブに戻る"
-                >
-                  <ArrowLeft className="w-5 h-5" />
-                </button>
               </div>
 
               {/* リーダーボード */}
@@ -2463,17 +2454,10 @@ export const HoleIoGame: React.FC<HoleIoGameProps> = ({
             </div>
 
             {/* スタートボタン */}
-            <div className="w-full flex items-center gap-3">
-              <button
-                onClick={onBackToHub}
-                className="py-4 px-5 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold transition-all"
-              >
-                <ArrowLeft className="w-5 h-5" />
-              </button>
-
+            <div className="w-full">
               <button
                 onClick={() => startGame(gameMode)}
-                className="flex-1 py-4 px-6 rounded-2xl bg-gradient-to-r from-sky-500 via-indigo-600 to-rose-600 hover:from-sky-400 hover:to-rose-500 text-white font-black text-lg tracking-wide shadow-xl shadow-indigo-600/30 transition-all active:scale-98 flex items-center justify-center gap-2"
+                className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-sky-500 via-indigo-600 to-rose-600 hover:from-sky-400 hover:to-rose-500 text-white font-black text-lg tracking-wide shadow-xl shadow-indigo-600/30 transition-all active:scale-98 flex items-center justify-center gap-2"
               >
                 <Play className="w-6 h-6 fill-current" /> ゲームスタート
               </button>
@@ -2499,12 +2483,6 @@ export const HoleIoGame: React.FC<HoleIoGameProps> = ({
                 className="w-full py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-slate-200 transition-all flex items-center justify-center gap-2"
               >
                 <RotateCcw className="w-4 h-4" /> 最初からやり直す
-              </button>
-              <button
-                onClick={onBackToHub}
-                className="w-full py-3.5 rounded-xl bg-slate-800 hover:bg-slate-700 font-bold text-slate-400 transition-all flex items-center justify-center gap-2"
-              >
-                <ArrowLeft className="w-4 h-4" /> ハブに戻る
               </button>
             </div>
           </div>
@@ -2581,13 +2559,6 @@ export const HoleIoGame: React.FC<HoleIoGameProps> = ({
                 className="py-3.5 px-5 rounded-2xl bg-slate-800 hover:bg-slate-700 font-bold text-slate-300 transition-all"
               >
                 メニュー
-              </button>
-              <button
-                onClick={onBackToHub}
-                className="py-3.5 px-4 rounded-2xl bg-slate-800 hover:bg-slate-700 font-bold text-slate-400 transition-all"
-                title="ハブへ戻る"
-              >
-                <ArrowLeft className="w-5 h-5" />
               </button>
             </div>
           </div>

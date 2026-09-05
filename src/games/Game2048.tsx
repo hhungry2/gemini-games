@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { sound } from '../utils/audio';
 import {
-  ArrowLeft,
   RotateCcw,
   Undo2,
   Trophy,
@@ -47,7 +46,6 @@ interface HistoryState {
 let nextTileId = 1;
 
 export const Game2048: React.FC<Game2048Props> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -582,21 +580,10 @@ export const Game2048: React.FC<Game2048Props> = ({
 
       {/* 上部ヘッダーナビゲーション */}
       <div
-        className={`w-full flex items-center justify-between mb-3 transition-all ${
+        className={`w-full flex items-center justify-end mb-3 transition-all ${
           isFullscreen ? 'w-[min(94vw,calc(100vh-140px))] max-w-[560px]' : 'w-full max-w-[460px]'
         }`}
       >
-        <button
-          onClick={onBackToHub}
-          className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl border transition cursor-pointer ${
-            isDark
-              ? 'text-slate-300 hover:text-white bg-slate-900 border-slate-800 hover:bg-slate-800'
-              : 'text-slate-700 hover:text-slate-900 bg-white border-slate-200 hover:bg-slate-50 shadow-xs'
-          }`}
-        >
-          <ArrowLeft className="w-4 h-4 text-indigo-500" />
-          ゲーム一覧に戻る
-        </button>
 
         {/* グリッドサイズ切替 (3x3 / 4x4 / 5x5) */}
         <div className="flex items-center gap-1 bg-slate-800/60 p-1 rounded-xl border border-slate-700/60 text-xs font-bold">

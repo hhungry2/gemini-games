@@ -14,7 +14,6 @@ import {
 import { getStageData, ROAD_WIDTH, createStairSteps } from './countmasters/stages';
 import { CountMastersRenderer } from './countmasters/renderer';
 import {
-  ArrowLeft,
   RotateCcw,
   Volume2,
   VolumeX,
@@ -98,7 +97,6 @@ interface CountMastersGameProps {
 }
 
 export const CountMastersGame: React.FC<CountMastersGameProps> = ({
-  onBackToHub,
   isDark,
   isFullscreen = false,
 }) => {
@@ -157,6 +155,13 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
   // サウンドミュート状態
   const [isMuted, setIsMuted] = useState<boolean>(countAudio.isMuted);
   const [isPaused, setIsPaused] = useState<boolean>(false);
+
+  // アンマウント時のBGM停止
+  useEffect(() => {
+    return () => {
+      countAudio.stopBgm();
+    };
+  }, []);
 
   // リザルト用ステート
   const [stageResult, setStageResult] = useState<{
@@ -964,23 +969,8 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
       {/* 上部共通ヘッダーHUD */}
       <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-20">
-        {/* 左: 戻るボタン & 一時停止 */}
+        {/* 左: 一時停止 */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          <button
-            onClick={() => {
-              countAudio.stopBgm();
-              if (gameState === 'RUNNING' || gameState === 'BOSS_BATTLE') {
-                setGameState('TITLE');
-              } else {
-                onBackToHub();
-              }
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-white text-xs font-bold transition backdrop-blur shadow-md cursor-pointer border border-slate-700/50"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span>{gameState === 'RUNNING' || gameState === 'BOSS_BATTLE' ? '中断' : 'ハブへ'}</span>
-          </button>
-
           {(gameState === 'RUNNING' || gameState === 'BOSS_BATTLE') && (
             <button
               onClick={togglePause}
