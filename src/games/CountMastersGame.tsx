@@ -1023,33 +1023,40 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
   return (
     <div
       ref={containerRef}
-      className={`relative flex flex-col items-center justify-center select-none overflow-hidden touch-none ${
+      className={`relative flex flex-col items-center justify-center select-none overflow-hidden ${
         isFullscreen
           ? 'w-full h-full max-w-none max-h-none flex-1 p-0 m-0'
           : 'w-full max-w-4xl h-[min(700px,calc(100dvh-4.5rem))] rounded-2xl shadow-2xl border border-slate-700/50 my-1 sm:my-2'
       } ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'}`}
-      onPointerDown={(e) => {
-        try {
-          (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-        } catch {}
-        handlePointerDown(e.clientX);
-      }}
-      onPointerMove={(e) => handlePointerMove(e.clientX)}
-      onPointerUp={(e) => {
-        try {
-          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-        } catch {}
-        handlePointerUp();
-      }}
-      onPointerCancel={(e) => {
-        try {
-          (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-        } catch {}
-        handlePointerUp();
-      }}
     >
       {/* メインゲームCanvas */}
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing" />
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing touch-none"
+        onPointerDown={(e) => {
+          if (gameState !== 'RUNNING' && gameState !== 'BOSS_BATTLE') return;
+          try {
+            (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+          } catch {}
+          handlePointerDown(e.clientX);
+        }}
+        onPointerMove={(e) => {
+          if (gameState !== 'RUNNING' && gameState !== 'BOSS_BATTLE') return;
+          handlePointerMove(e.clientX);
+        }}
+        onPointerUp={(e) => {
+          try {
+            (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+          } catch {}
+          handlePointerUp();
+        }}
+        onPointerCancel={(e) => {
+          try {
+            (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+          } catch {}
+          handlePointerUp();
+        }}
+      />
 
       {/* 上部共通ヘッダーHUD */}
       <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-20">
@@ -1224,27 +1231,30 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
             {/* アクションボタン */}
             <div className="flex flex-col gap-3">
               <button
-                onClick={() => setGameState('STAGE_SELECT')}
-                className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 text-white font-black text-lg transition shadow-xl shadow-blue-500/30 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                type="button"
+                onClick={() => startStage(clearedStage)}
+                className="w-full py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 active:from-blue-700 active:to-indigo-700 text-white font-black text-lg transition shadow-xl shadow-blue-500/30 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
               >
                 <Play className="w-6 h-6 fill-white" />
-                <span>バトル開始</span>
+                <span>バトル開始 (Stage {clearedStage})</span>
               </button>
 
               <div className="grid grid-cols-2 gap-3">
                 <button
+                  type="button"
+                  onClick={() => setGameState('STAGE_SELECT')}
+                  className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:bg-slate-700 text-slate-200 font-bold text-xs transition border border-slate-700/60 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
+                >
+                  <Zap className="w-4 h-4 text-cyan-400" />
+                  <span>ステージ選択</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setGameState('SHOP')}
-                  className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-bold text-xs transition border border-slate-700/60 flex items-center justify-center gap-2 cursor-pointer"
+                  className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 active:bg-slate-700 text-slate-200 font-bold text-xs transition border border-slate-700/60 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                 >
                   <ShoppingBag className="w-4 h-4 text-emerald-400" />
                   <span>ショップ・強化</span>
-                </button>
-                <button
-                  onClick={() => startStage(clearedStage)}
-                  className="py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-200 font-bold text-xs transition border border-slate-700/60 flex items-center justify-center gap-2 cursor-pointer"
-                >
-                  <Zap className="w-4 h-4 text-amber-400" />
-                  <span>最新ステージ {clearedStage}</span>
                 </button>
               </div>
             </div>
