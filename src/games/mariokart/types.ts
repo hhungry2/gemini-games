@@ -162,6 +162,7 @@ export interface TrackData {
   walls: [number, number, number, number][];
   // Generated on load
   textureCanvas?: HTMLCanvasElement;
+  textureData?: Uint32Array;
   minimapCanvas?: HTMLCanvasElement;
 }
 

@@ -516,7 +516,7 @@ export function createTrackInstance(courseId: CourseId): TrackData {
   }));
 
   // Generate track visual canvas and surface collision map
-  const { textureCanvas, minimapCanvas } = generateTrackTextures(
+  const { textureCanvas, textureData, minimapCanvas } = generateTrackTextures(
     config,
     size,
     waypoints,
@@ -547,6 +547,7 @@ export function createTrackInstance(courseId: CourseId): TrackData {
     checkpoints,
     walls,
     textureCanvas,
+    textureData,
     minimapCanvas,
   };
 }
@@ -559,7 +560,11 @@ function generateTrackTextures(
   boostPads: { x: number; y: number }[],
   oilSlicks: { x: number; y: number }[],
   jumpPads: { x: number; y: number }[]
-): { textureCanvas: HTMLCanvasElement; minimapCanvas: HTMLCanvasElement } {
+): {
+  textureCanvas: HTMLCanvasElement;
+  textureData: Uint32Array;
+  minimapCanvas: HTMLCanvasElement;
+} {
   const canvas = document.createElement('canvas');
   canvas.width = size;
   canvas.height = size;
@@ -789,7 +794,10 @@ function generateTrackTextures(
     );
   }
 
-  return { textureCanvas: canvas, minimapCanvas };
+  const texImg = ctx.getImageData(0, 0, size, size);
+  const textureData = new Uint32Array(texImg.data.buffer);
+
+  return { textureCanvas: canvas, textureData, minimapCanvas };
 }
 
 // Surface detection at world (x, y)

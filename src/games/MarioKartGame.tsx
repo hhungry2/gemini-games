@@ -36,6 +36,7 @@ import {
   checkKartCollisions,
   updateRaceProgress,
   updateParticles,
+  updateTrackPickups,
 } from './mariokart/physics';
 import { renderGameView } from './mariokart/renderer';
 import { marioKartAudio } from './mariokart/audio';
@@ -333,7 +334,7 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
 
   // Main 60FPS Game Loop
   useEffect(() => {
-    if (gameState !== 'racing') {
+    if (!['countdown', 'racing', 'finished'].includes(gameState)) {
       if (gameState !== 'paused') {
         marioKartAudio.stopEngine();
       }
@@ -349,35 +350,45 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
       const { track, player, allKarts, activeItems, particles } = loopRef.current;
       if (!track || !player) return;
 
-      loopRef.current.raceTime += dt;
+      if (gameState === 'racing') {
+        loopRef.current.raceTime += dt;
 
-      // 1. Update Player Physics
-      updatePlayerKart(
-        player,
-        inputsRef.current,
-        track,
-        engineClass,
-        particles,
-        activeItems,
-        allKarts,
-        dt
-      );
+        // 1. Update Player Physics
+        updatePlayerKart(
+          player,
+          inputsRef.current,
+          track,
+          engineClass,
+          particles,
+          activeItems,
+          allKarts,
+          dt
+        );
 
-      // 2. Update Rivals AI
-      for (const k of allKarts) {
-        if (!k.isPlayer) {
-          updateRivalAI(k, track, engineClass, player, allKarts, activeItems, particles, dt);
+        // 2. Update Rivals AI
+        for (const k of allKarts) {
+          if (!k.isPlayer) {
+            updateRivalAI(k, track, engineClass, player, allKarts, activeItems, particles, dt);
+          }
+        }
+
+        // 3. Update Projectiles & Pickups
+        updateActiveItems(activeItems, allKarts, track, particles, dt);
+
+        // 4. Kart Collisions
+        checkKartCollisions(allKarts, particles);
+
+        // 5. Track Laps & Progress
+        updateRaceProgress(allKarts, track);
+
+        // 6. Track Pickups Respawn
+        updateTrackPickups(track, dt);
+      } else if (gameState === 'countdown') {
+        // Rocket start check during countdown
+        if (countdownNum === 1 && inputsRef.current.accelerate) {
+          loopRef.current.rocketStartCharged = true;
         }
       }
-
-      // 3. Update Projectiles & Pickups
-      updateActiveItems(activeItems, allKarts, track, particles, dt);
-
-      // 4. Kart Collisions
-      checkKartCollisions(allKarts, particles);
-
-      // 5. Track Laps & Progress
-      updateRaceProgress(allKarts, track);
 
       // 6. Particles
       updateParticles(particles, dt);

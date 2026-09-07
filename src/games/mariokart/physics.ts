@@ -732,6 +732,26 @@ function checkTrackPickups(kart: KartState, track: TrackData, particles: Particl
   }
 }
 
+// Track Pickups Update (Respawn Timers)
+export function updateTrackPickups(track: TrackData, dt: number) {
+  for (const box of track.itemBoxes) {
+    if (!box.active) {
+      box.respawnTimer -= dt;
+      if (box.respawnTimer <= 0) {
+        box.active = true;
+      }
+    }
+  }
+  for (const c of track.coins) {
+    if (c.collected) {
+      c.respawnTimer -= dt;
+      if (c.respawnTimer <= 0) {
+        c.collected = false;
+      }
+    }
+  }
+}
+
 // Update Lap & Race Progress & Ranks
 export function updateRaceProgress(karts: KartState[], track: TrackData) {
   const numCp = track.checkpoints.length;

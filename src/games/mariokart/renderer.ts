@@ -40,10 +40,9 @@ export function renderGameView(params: RenderParams) {
   const height = canvas.height;
 
   // Camera Settings
-  const cameraDist = isRearView ? -32 : 36;
   const cameraAngle = isRearView ? player.angle + Math.PI : player.angle;
-  const camX = player.x - Math.cos(cameraAngle) * cameraDist;
-  const camY = player.y - Math.sin(cameraAngle) * cameraDist;
+  const camX = player.x - Math.cos(cameraAngle) * 36;
+  const camY = player.y - Math.sin(cameraAngle) * 36;
   const camZ = 28 + player.z * 0.5; // Altitude
   const horizonY = Math.floor(height * 0.40);
   const focalLength = height * 0.75;
@@ -181,14 +180,18 @@ function renderMode7Ground(
   focalLength: number,
   track: TrackData
 ) {
-  const texCanvas = track.textureCanvas;
-  if (!texCanvas) return;
-  const texCtx = texCanvas.getContext('2d');
-  if (!texCtx) return;
+  let texPixels = track.textureData;
+  if (!texPixels) {
+    const texCanvas = track.textureCanvas;
+    if (!texCanvas) return;
+    const texCtx = texCanvas.getContext('2d');
+    if (!texCtx) return;
+    const texData = texCtx.getImageData(0, 0, track.worldSize, track.worldSize);
+    track.textureData = new Uint32Array(texData.data.buffer);
+    texPixels = track.textureData;
+  }
 
   const texSize = track.worldSize; // 1024
-  const texData = texCtx.getImageData(0, 0, texSize, texSize);
-  const texPixels = new Uint32Array(texData.data.buffer);
 
   // Screen ImageData
   const groundHeight = height - horizonY;
@@ -205,11 +208,11 @@ function renderMode7Ground(
     const z = (camZ * focalLength) / sy;
     if (z <= 0 || z > 1600) continue;
 
-    // World endpoints for current scanline
-    const leftX = camX + z * (cosA - (halfWidth / focalLength) * sinA);
-    const leftY = camY + z * (sinA + (halfWidth / focalLength) * cosA);
-    const rightX = camX + z * (cosA + (halfWidth / focalLength) * sinA);
-    const rightY = camY + z * (sinA - (halfWidth / focalLength) * cosA);
+    // World endpoints for current scanline (Correct non-inverted screen space)
+    const leftX = camX + z * (cosA + (halfWidth / focalLength) * sinA);
+    const leftY = camY + z * (sinA - (halfWidth / focalLength) * cosA);
+    const rightX = camX + z * (cosA - (halfWidth / focalLength) * sinA);
+    const rightY = camY + z * (sinA + (halfWidth / focalLength) * cosA);
 
     const stepX = (rightX - leftX) / width;
     const stepY = (rightY - leftY) / width;
@@ -315,7 +318,24 @@ function renderWorldSprites(
 
   // D. Karts (Player & Rivals)
   for (const kart of allKarts) {
-    // If rear view and it's player, skip or draw front
+    if (kart.id === player.id && !isRearView) {
+      // Player kart in normal view is always drawn at front center
+      sprites.push({
+        zDepth: 0.1, // Always on top
+        render: () =>
+          drawKartSprite(
+            ctx,
+            halfWidth,
+            horizonY + 165 - player.z * 1.5,
+            1.0,
+            player,
+            camAngle,
+            true
+          ),
+      });
+      continue;
+    }
+
     const proj = project(kart.x, kart.y, kart.z);
     if (!proj) continue;
 
@@ -329,7 +349,7 @@ function renderWorldSprites(
           proj.scale,
           kart,
           camAngle,
-          kart.id === player.id && !isRearView
+          false
         ),
     });
   }
@@ -481,7 +501,7 @@ function drawKartSprite(
   isSelfBehind: boolean
 ) {
   const stats = CHARACTERS[kart.charId];
-  const size = Math.max(14, 38 * scale);
+  const size = isSelfBehind ? 64 : Math.max(12, Math.min(68, 28 * scale));
 
   ctx.save();
   ctx.translate(x, y);
