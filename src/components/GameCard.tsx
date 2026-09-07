@@ -203,6 +203,55 @@ export const GameCard: React.FC<GameCardProps> = ({
             <path d="M19 12.2v4.5M17 14l2-0.8 2 0.8M17.5 19.5l1.5-2.8 1.5 2.8" stroke="#38bdf8" strokeWidth="1.5" />
           </svg>
         );
+      case 'agario':
+        return (
+          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none">
+            {/* Agar.io アイコン：大きなメイン細胞、分裂細胞、エサ、トゲ */}
+            {/* 周囲のエサ(Pellets) */}
+            <circle cx="4" cy="6" r="1.5" fill="#f43f5e" />
+            <circle cx="20" cy="5" r="1.2" fill="#eab308" />
+            <circle cx="21" cy="18" r="1.5" fill="#06b6d4" />
+            <circle cx="5" cy="19" r="1.2" fill="#a855f7" />
+            {/* トゲ細胞 (Virus) */}
+            <path
+              d="M18 10l1.2-.5.3 1.2 1.2.2-.4 1.1 1 1-1.2.5-.2 1.3-1.1-.4-1 1-.5-1.2-1.3-.2.4-1.1-1-1 1.2-.5.2-1.3z"
+              fill="#22c55e"
+              stroke="#15803d"
+              strokeWidth="0.5"
+            />
+            {/* 分裂した小細胞 */}
+            <circle cx="7" cy="14" r="3.5" fill="#38bdf8" stroke="#0284c7" strokeWidth="0.8" />
+            <circle cx="6.2" cy="13.2" r="0.8" fill="#ffffff" />
+            <circle cx="6.4" cy="13.2" r="0.4" fill="#0f172a" />
+            {/* メイン巨大細胞 */}
+            <circle cx="12.5" cy="9.5" r="6.5" fill="#ec4899" stroke="#be185d" strokeWidth="1" />
+            {/* 瞳 (キョロキョロした目) */}
+            <circle cx="10.8" cy="8.2" r="1.6" fill="#ffffff" />
+            <circle cx="11.2" cy="8.2" r="0.8" fill="#0f172a" />
+            <circle cx="14.8" cy="8.2" r="1.6" fill="#ffffff" />
+            <circle cx="15.2" cy="8.2" r="0.8" fill="#0f172a" />
+          </svg>
+        );
+      case 'mariokart':
+        return (
+          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none">
+            {/* マリオカートアイコン：レーシングカート・赤いマリオキャップ・チェッカー */}
+            {/* タイヤ (前輪 & 後輪) */}
+            <rect x="2" y="14" width="4" height="6" rx="1.5" fill="#1e293b" />
+            <rect x="18" y="14" width="4" height="6" rx="1.5" fill="#1e293b" />
+            <rect x="4" y="8" width="3" height="4" rx="1" fill="#334155" />
+            <rect x="17" y="8" width="3" height="4" rx="1" fill="#334155" />
+            {/* カートシャーシ */}
+            <path d="M5 13h14l-2 5H7l-2-5z" fill="#e11d48" />
+            <rect x="8" y="16" width="8" height="2" rx="1" fill="#fbbf24" />
+            {/* マリオキャップ・ドライバー */}
+            <circle cx="12" cy="9" r="3.5" fill="#e11d48" />
+            <ellipse cx="12" cy="11.5" rx="3.2" ry="1.2" fill="#be123c" />
+            <rect x="10" y="12" width="4" height="3" rx="1" fill="#3b82f6" />
+            {/* チェッカーフラッグの風 */}
+            <path d="M17 3l3 2-3 2v-4z" fill="#ffffff" stroke="#facc15" strokeWidth="0.8" />
+          </svg>
+        );
       default:
         return <LayoutGrid className="w-6 h-6 text-white" />;
     }

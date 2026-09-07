@@ -22,7 +22,9 @@ export type GameId =
   | 'zoo'
   | 'lofi'
   | 'shooting_cert'
-  | 'countmasters';
+  | 'countmasters'
+  | 'agario'
+  | 'mariokart';
 
 export type GameGenre = 'action' | 'puzzle' | 'arcade' | 'racing' | 'io';
 

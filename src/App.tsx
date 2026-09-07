@@ -35,11 +35,24 @@ import {
   COUNT_MASTERS_MAX_CROWD_KEY,
   COUNT_MASTERS_STAGE_KEY,
 } from './games/CountMastersGame';
+import {
+  AgarioGame,
+  AGARIO_HIGH_SCORE_KEY,
+  AGARIO_BEST_KILLS_KEY,
+  AGARIO_BEST_RANK_KEY,
+} from './games/AgarioGame';
+import {
+  MarioKartGame,
+  MARIO_KART_BEST_TIMES_KEY,
+} from './games/MarioKartGame';
 import { GameInfo, GameId, GameGenre } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck, Search, X, Check, ArrowLeft } from 'lucide-react';
 import { getGameIdFromUrl, syncUrlWithGame, copyGameUrl } from './utils/urlRouter';
 
 const THEME_KEY = 'games_hub_theme';
+const AGARIO_HIGH_KEY = AGARIO_HIGH_SCORE_KEY;
+const AGARIO_KILLS_KEY = AGARIO_BEST_KILLS_KEY;
+const AGARIO_RANK_KEY = AGARIO_BEST_RANK_KEY;
 const LOFI_LISTEN_KEY = LOFI_LISTEN_TIME_KEY;
 const SHOOTING_CERT_HIGH_KEY = SHOOTING_CERT_HIGH_SCORE_KEY;
 const SHOOTING_CERT_AGE_KEY = SHOOTING_CERT_BEST_AGE_KEY;
@@ -88,6 +101,32 @@ const GENRES: { id: GameGenre | 'all'; label: string; icon: string }[] = [
 ];
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'mariokart',
+    title: 'スーパーマリオカート (Super Mario Kart GP)',
+    titleEn: 'Super Mario Kart: 16-Bit 3D Grand Prix',
+    description:
+      '伝説の初代マリオカートをMode 7擬似3Dラスタースクロールエンジンで完全再現！マリオ、クッパ、ヨッシーら8人のレーサー、マリオサーキットからレインボーロードまで全5コース、ミドリ・アカ・トゲゾーこうら・スター・イナズマ等10大アイテム、ロケットスタート、火花チャージ＆ミニターボ、グランプリ5連戦＆表彰式完備！',
+    badge: '🔥 超新作！Mode 7 3Dレーシング',
+    iconName: 'mariokart',
+    color: 'from-rose-600 via-amber-500 to-emerald-500',
+    genre: 'racing',
+    genres: ['racing', 'action', 'arcade'],
+    tags: ['マリオカート', 'レース', 'Mode 7', '擬似3D', 'ドリフト', 'ミニターボ', 'トゲゾーこうら', 'グランプリ', '表彰台', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'agario',
+    title: '寒天セル.io (Agar.io)',
+    titleEn: 'Agar.io: Cell Devourer Action',
+    description:
+      '世界的大ヒット細胞捕食マルチプレイヤーゲームを完全再現！マップ中のエサ（Pellets）を吸い込み巨大化せよ！Spaceキーで細胞分裂（Split）急襲捕食、Wキーで質量射出（Feed）、トゲ（Virus）爆散＆トゲ発射ギミック、24体のAIボット対戦、3大ゲームモード（FFA・バトロワ・タイムアタック）、12種以上の美麗スキン完備！',
+    badge: '🔥 最新作！細胞捕食io',
+    iconName: 'agario',
+    color: 'from-cyan-500 via-sky-500 to-indigo-600',
+    genre: 'io',
+    genres: ['io', 'action', 'arcade'],
+    tags: ['アガリオ', '細胞捕食', '分裂スプリット', 'ウイルス爆散', 'バトロワ', 'リアルタイム対戦', 'スマホ・PC両対応'],
+  },
   {
     id: 'countmasters',
     title: 'カウントマスターズ (Count Masters)',
@@ -472,10 +511,30 @@ export function App() {
   const [countMastersHighScore, setCountMastersHighScore] = useState<number>(0);
   const [countMastersMaxCrowd, setCountMastersMaxCrowd] = useState<number>(0);
   const [countMastersClearedStage, setCountMastersClearedStage] = useState<number>(1);
+  const [agarioHighScore, setAgarioHighScore] = useState<number>(0);
+  const [agarioBestKills, setAgarioBestKills] = useState<number>(0);
+  const [agarioBestRank, setAgarioBestRank] = useState<number>(99);
+  const [marioKartBestTimes, setMarioKartBestTimes] = useState<Record<string, number>>({});
 
   // レコードの読み込み
   const loadRecords = () => {
     if (typeof window === 'undefined') return;
+
+    const mkTimes = localStorage.getItem(MARIO_KART_BEST_TIMES_KEY);
+    if (mkTimes) {
+      try {
+        setMarioKartBestTimes(JSON.parse(mkTimes));
+      } catch {}
+    }
+
+    const agScore = localStorage.getItem(AGARIO_HIGH_KEY);
+    if (agScore) setAgarioHighScore(parseInt(agScore, 10) || 0);
+
+    const agKills = localStorage.getItem(AGARIO_KILLS_KEY);
+    if (agKills) setAgarioBestKills(parseInt(agKills, 10) || 0);
+
+    const agRank = localStorage.getItem(AGARIO_RANK_KEY);
+    if (agRank) setAgarioBestRank(parseInt(agRank, 10) || 99);
 
     const cmHigh = localStorage.getItem(COUNT_MASTERS_HIGH_SCORE_KEY);
     if (cmHigh) setCountMastersHighScore(parseInt(cmHigh, 10) || 0);
@@ -748,7 +807,11 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'countmasters') {
+    if (activeGame === 'mariokart') {
+      document.title = 'スーパーマリオカート (Super Mario Kart GP) | Games Hub';
+    } else if (activeGame === 'agario') {
+      document.title = '寒天セル.io (Agar.io) | Games Hub';
+    } else if (activeGame === 'countmasters') {
       document.title = 'カウントマスターズ (Count Masters) | Games Hub';
     } else if (activeGame === 'lofi') {
       document.title = 'Lo-fi カバー再現スタジオ (Lo-fi Studio) | Games Hub';
@@ -801,6 +864,40 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'mariokart') {
+      const mcBest = marioKartBestTimes['mario_circuit'];
+      const count = Object.keys(marioKartBestTimes).length;
+      return [
+        {
+          label: 'マリオサーキット',
+          value: mcBest ? `${mcBest.toFixed(2)} 秒` : '--',
+        },
+        {
+          label: '記録コース数',
+          value: count > 0 ? `${count} / 5 コース` : '未走破',
+        },
+        {
+          label: 'グランプリ',
+          value: '全5戦・表彰台',
+        },
+      ];
+    }
+    if (gameId === 'agario') {
+      return [
+        {
+          label: '最高質量',
+          value: agarioHighScore > 0 ? `${agarioHighScore.toLocaleString()} Mass` : '--',
+        },
+        {
+          label: '最多キル',
+          value: agarioBestKills > 0 ? `${agarioBestKills} 撃破` : '--',
+        },
+        {
+          label: '最高順位',
+          value: agarioBestRank < 99 ? `#${agarioBestRank}` : '--',
+        },
+      ];
+    }
     if (gameId === 'countmasters') {
       return [
         {
@@ -1475,6 +1572,20 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'mariokart' && (
+              <MarioKartGame
+                onBackToHub={requestGoHome}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'agario' && (
+              <AgarioGame
+                onBackToHub={requestGoHome}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'countmasters' && (
               <CountMastersGame
                 onBackToHub={requestGoHome}
