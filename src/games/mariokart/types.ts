@@ -102,6 +102,7 @@ export interface ActiveItem {
   vz: number;
   angle: number;
   ownerId: string;
+  ownerSafeTimer: number; // Prevent self-hit immediately after throwing/dropping
   life: number;
   bounces: number;
   targetKartId?: string;

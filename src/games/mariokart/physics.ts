@@ -141,12 +141,13 @@ export function updatePlayerKart(
     if (kart.z === 0 && kart.spinTimer <= 0) {
       triggerCrash(kart, 'crash', particles);
       marioKartAudio.playExplosion();
-      // Respawn at nearest waypoint
+      // Respawn at nearest waypoint pointing toward next waypoint
       const nearestWp = track.waypoints[kart.checkpointIndex];
+      const nextWp = track.waypoints[(kart.checkpointIndex + 1) % track.waypoints.length];
       kart.x = nearestWp.x;
       kart.y = nearestWp.y;
       kart.speed = 0;
-      kart.angle = track.startPos.angle;
+      kart.angle = Math.atan2(nextWp.y - nearestWp.y, nextWp.x - nearestWp.x);
       kart.invulnerableTimer = 2.0;
     }
   }
@@ -198,12 +199,16 @@ export function updatePlayerKart(
   let turnSpeed = 2.2 * handlingMult * (kart.speed / (baseMaxSpeed || 1));
   turnSpeed = Math.max(-2.8, Math.min(2.8, turnSpeed));
 
-  // Hop action
+  // Hop action & Drift trigger
   if (inputs.drift && !kart.isAirborne && kart.driftDir === 0 && kart.speed > 1.5) {
     kart.vz = 8;
     kart.isAirborne = true;
     marioKartAudio.playHop();
-    // Decide drift direction
+    // Decide drift direction immediately if steering
+    if (inputs.left) kart.driftDir = -1;
+    else if (inputs.right) kart.driftDir = 1;
+  } else if (inputs.drift && kart.isAirborne && kart.driftDir === 0) {
+    // Allow setting drift direction mid-hop before landing
     if (inputs.left) kart.driftDir = -1;
     else if (inputs.right) kart.driftDir = 1;
   }
@@ -318,14 +323,44 @@ export function updateRivalAI(
   }
 
   // Target waypoint navigation
-  const wp = track.waypoints[ai.targetWpIndex];
-  const dx = wp.x - ai.x;
-  const dy = wp.y - ai.y;
-  const distSq = dx * dx + dy * dy;
+  const wpCount = track.waypoints.length;
+  let wp = track.waypoints[ai.targetWpIndex];
+  let nextWp = track.waypoints[(ai.targetWpIndex + 1) % wpCount];
 
-  if (distSq < 45 * 45) {
-    // Advance to next waypoint
-    ai.targetWpIndex = (ai.targetWpIndex + 1) % track.waypoints.length;
+  let dx = wp.x - ai.x;
+  let dy = wp.y - ai.y;
+  let distSq = dx * dx + dy * dy;
+
+  // Segment vector from current wp to next wp
+  const segX = nextWp.x - wp.x;
+  const segY = nextWp.y - wp.y;
+  // Vector from current wp to AI kart
+  const toKartX = ai.x - wp.x;
+  const toKartY = ai.y - wp.y;
+  // Dot product: if > 0, AI kart has already crossed the waypoint plane towards next waypoint
+  const dotForward = toKartX * segX + toKartY * segY;
+
+  // Advance to next waypoint if within proximity OR already crossed the waypoint plane
+  if (distSq < 65 * 65 || (dotForward > 0 && distSq < 120 * 120)) {
+    ai.targetWpIndex = (ai.targetWpIndex + 1) % wpCount;
+    wp = track.waypoints[ai.targetWpIndex];
+    dx = wp.x - ai.x;
+    dy = wp.y - ai.y;
+  } else if (distSq > 280 * 280) {
+    // Recovery: if heavily pushed away, find nearest forward waypoint
+    let bestIdx = ai.targetWpIndex;
+    let bestDist = Infinity;
+    for (let i = 0; i < wpCount; i++) {
+      const d = Math.hypot(track.waypoints[i].x - ai.x, track.waypoints[i].y - ai.y);
+      if (d < bestDist) {
+        bestDist = d;
+        bestIdx = (i + 1) % wpCount;
+      }
+    }
+    ai.targetWpIndex = bestIdx;
+    wp = track.waypoints[ai.targetWpIndex];
+    dx = wp.x - ai.x;
+    dy = wp.y - ai.y;
   }
 
   const targetAngle = Math.atan2(dy, dx);
@@ -424,6 +459,7 @@ export function useKartItem(
       vz: 0,
       angle: user.angle,
       ownerId: user.id,
+      ownerSafeTimer: 0.8, // 0.8s immunity for thrower
       life: 60,
       bounces: 0,
     });
@@ -441,6 +477,7 @@ export function useKartItem(
       vz: 0,
       angle: shootAngle,
       ownerId: user.id,
+      ownerSafeTimer: 0.6, // 0.6s immunity for thrower
       life: 15,
       bounces: 0,
     });
@@ -469,6 +506,7 @@ export function useKartItem(
       vz: 0,
       angle: user.angle,
       ownerId: user.id,
+      ownerSafeTimer: 0.6,
       life: 12,
       bounces: 0,
       targetKartId: targetKart?.id,
@@ -488,6 +526,7 @@ export function useKartItem(
       vz: 0,
       angle: user.angle,
       ownerId: user.id,
+      ownerSafeTimer: 1.0,
       life: 20,
       bounces: 0,
       targetKartId: firstKart.id,
@@ -506,6 +545,7 @@ export function useKartItem(
       vz: 6,
       angle: user.angle,
       ownerId: user.id,
+      ownerSafeTimer: 0.8,
       life: 3.5,
       bounces: 0,
     });
@@ -523,6 +563,7 @@ export function updateActiveItems(
   for (let i = items.length - 1; i >= 0; i--) {
     const it = items[i];
     it.life -= dt;
+    if (it.ownerSafeTimer > 0) it.ownerSafeTimer -= dt;
 
     if (it.life <= 0) {
       if (it.type === 'bobomb') {
@@ -586,11 +627,20 @@ export function updateActiveItems(
     if (it.type === 'green_shell') {
       const surf = getSurfaceAt(track, it.x, it.y);
       if (surf === 'offroad' || surf === 'wall') {
-        it.vx = -it.vx * 0.95;
-        it.vy = -it.vy * 0.95;
+        // Push back out of collision to avoid sticking in wall
+        it.x -= it.vx * 60 * dt * 1.5;
+        it.y -= it.vy * 60 * dt * 1.5;
+
+        // Bounce reflection with slight angular variation to avoid infinite ping-pong
+        const currentSpeed = Math.hypot(it.vx, it.vy) * 0.95;
+        const bounceAng = Math.atan2(-it.vy, -it.vx) + (Math.random() - 0.5) * 0.3;
+        it.vx = Math.cos(bounceAng) * currentSpeed;
+        it.vy = Math.sin(bounceAng) * currentSpeed;
+        it.angle = bounceAng;
+
         it.bounces++;
         marioKartAudio.playShellBounce();
-        if (it.bounces > 4) {
+        if (it.bounces > 5) {
           items.splice(i, 1);
           continue;
         }
@@ -601,6 +651,9 @@ export function updateActiveItems(
     let hit = false;
     for (const kart of karts) {
       if (kart.invulnerableTimer > 0) continue;
+      // Immunity for owner during ownerSafeTimer
+      if (kart.id === it.ownerId && it.ownerSafeTimer > 0) continue;
+
       const d = Math.hypot(kart.x - it.x, kart.y - it.y);
       if (d < 22) {
         // Hit!

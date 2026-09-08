@@ -317,17 +317,20 @@ function renderWorldSprites(
   }
 
   // D. Karts (Player & Rivals)
+  const canvasHeight = ctx.canvas.height;
+  const kartScaleFactor = canvasHeight / 360;
+
   for (const kart of allKarts) {
     if (kart.id === player.id && !isRearView) {
-      // Player kart in normal view is always drawn at front center
+      // Player kart in normal view is scaled dynamically and anchored nicely at bottom center
       sprites.push({
         zDepth: 0.1, // Always on top
         render: () =>
           drawKartSprite(
             ctx,
             halfWidth,
-            horizonY + 165 - player.z * 1.5,
-            1.0,
+            canvasHeight - 52 * kartScaleFactor - player.z * 1.5 * kartScaleFactor,
+            kartScaleFactor,
             player,
             camAngle,
             true
@@ -501,7 +504,10 @@ function drawKartSprite(
   isSelfBehind: boolean
 ) {
   const stats = CHARACTERS[kart.charId];
-  const size = isSelfBehind ? 64 : Math.max(12, Math.min(68, 28 * scale));
+  const baseScaleFactor = ctx.canvas.height / 360;
+  const size = isSelfBehind
+    ? 64 * scale
+    : Math.max(12 * baseScaleFactor, Math.min(84 * baseScaleFactor, 28 * scale));
 
   ctx.save();
   ctx.translate(x, y);
@@ -670,6 +676,16 @@ function renderHUD(
       const kx = mx + k.x * scale + offset;
       const ky = my + k.y * scale + offset;
       const stats = CHARACTERS[k.charId];
+
+      if (k.isPlayer) {
+        // Glowing pulse radar ring for player
+        const pulse = (performance.now() * 0.004) % 1;
+        ctx.strokeStyle = `rgba(239, 68, 68, ${1 - pulse})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(kx, ky, 5.5 + pulse * 6, 0, Math.PI * 2);
+        ctx.stroke();
+      }
 
       ctx.fillStyle = k.isPlayer ? '#ffffff' : stats.kartColor;
       ctx.strokeStyle = k.isPlayer ? '#ef4444' : '#000000';
@@ -941,15 +957,21 @@ function renderSpeedometer(
   ctx.translate(x, y);
 
   const speedKmh = Math.floor(Math.abs(player.speed) * 14.5);
-  ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-  ctx.beginPath();
-  ctx.roundRect(-8, -24, 110, 36, 8);
-  ctx.fill();
+  const isBoosting = player.boostTimer > 0;
 
-  ctx.font = '900 18px sans-serif';
+  ctx.fillStyle = isBoosting ? 'rgba(234, 88, 12, 0.85)' : 'rgba(15, 23, 42, 0.75)';
+  ctx.strokeStyle = isBoosting ? '#f97316' : 'rgba(255, 255, 255, 0.15)';
+  ctx.lineWidth = isBoosting ? 2 : 1;
+
+  ctx.beginPath();
+  ctx.roundRect(-8, -24, 120, 36, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.font = '900 17px sans-serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle = player.boostTimer > 0 ? '#f97316' : '#38bdf8';
-  ctx.fillText(`${speedKmh} km/h`, 0, -6);
+  ctx.fillStyle = isBoosting ? '#fed7aa' : '#38bdf8';
+  ctx.fillText(`${speedKmh} km/h ${isBoosting ? '🔥' : ''}`, 0, -6);
   ctx.restore();
 }
