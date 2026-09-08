@@ -94,6 +94,9 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
   });
 
   // Mutable Game Loop State
+  const countdownIntervalRef = useRef<number>(0);
+  const finishTimeoutRef = useRef<number>(0);
+  const finishHandledRef = useRef<boolean>(false);
   const loopRef = useRef<{
     track: TrackData | null;
     player: KartState | null;
@@ -117,6 +120,29 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
     isLooping: false,
     rocketStartCharged: false,
   });
+
+  // Fullscreen: canvas backing-storeをviewportに合わせて高解像度化
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (!isFullscreen) {
+      canvas.width = 640;
+      canvas.height = 360;
+      return;
+    }
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.floor(window.innerWidth * dpr);
+    const h = Math.floor(window.innerHeight * dpr);
+    canvas.width = Math.max(640, w);
+    canvas.height = Math.max(360, h);
+    const onResize = () => {
+      const d = Math.min(window.devicePixelRatio || 1, 2);
+      canvas.width = Math.max(640, Math.floor(window.innerWidth * d));
+      canvas.height = Math.max(360, Math.floor(window.innerHeight * d));
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [isFullscreen, gameState]);
 
   // Load Saved Records
   useEffect(() => {
@@ -187,6 +213,16 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
 
   // Initialize Race
   const startRace = useCallback((courseId: CourseId, playerChar: CharacterId) => {
+    // 既存のカウントダウン/フィニッシュタイマーを確実に破棄 (リーク防止)
+    if (countdownIntervalRef.current) {
+      window.clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = 0;
+    }
+    if (finishTimeoutRef.current) {
+      window.clearTimeout(finishTimeoutRef.current);
+      finishTimeoutRef.current = 0;
+    }
+    finishHandledRef.current = false;
     const track = createTrackInstance(courseId);
 
     // Pick 7 rivals (all distinct from player)
@@ -316,8 +352,8 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
         marioKartAudio.playCountdown(true);
         marioKartAudio.startEngine();
 
-        // Check Rocket Start boost!
-        if (loopRef.current.rocketStartCharged || inputsRef.current.accelerate) {
+        // Rocket Startはタイミング良く溜めた場合のみ (GO時点で踏みっぱなしでは付与しない)
+        if (loopRef.current.rocketStartCharged) {
           playerKart.boostTimer = 2.0;
           marioKartAudio.playRocketStart();
         }
@@ -326,10 +362,12 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
         loopRef.current.lastTime = performance.now();
         loopRef.current.isLooping = true;
       } else {
-        clearInterval(interval);
+        window.clearInterval(interval);
+        if (countdownIntervalRef.current === interval) countdownIntervalRef.current = 0;
         setCountdownNum(-1); // Finished countdown display
       }
     }, 1000);
+    countdownIntervalRef.current = interval;
   }, [gameMode]);
 
   // Main 60FPS Game Loop
@@ -348,7 +386,10 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
       loopRef.current.lastTime = currentTime;
 
       const { track, player, allKarts, activeItems, particles } = loopRef.current;
-      if (!track || !player) return;
+      if (!track || !player) {
+        animId = requestAnimationFrame(gameLoop);
+        return;
+      }
 
       if (gameState === 'racing') {
         loopRef.current.raceTime += dt;
@@ -393,14 +434,18 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
       // 6. Particles
       updateParticles(particles, dt);
 
-      // Check Race Finish
-      if (player.finished && !raceResult) {
+      // Check Race Finish (多重発火ガード付き)
+      if (player.finished && !finishHandledRef.current) {
+        finishHandledRef.current = true;
+        const finalRank = player.rank;
+        const finalTime = loopRef.current.raceTime;
+        const finalCoins = player.coins;
         setRaceResult({
-          rank: player.rank,
-          time: loopRef.current.raceTime,
-          coins: player.coins,
+          rank: finalRank,
+          time: finalTime,
+          coins: finalCoins,
         });
-        saveBestTime(track.id, loopRef.current.raceTime);
+        saveBestTime(track.id, finalTime);
 
         // Update Grand Prix points if applicable
         if (gameMode === 'grand_prix') {
@@ -412,7 +457,8 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
           }));
         }
 
-        setTimeout(() => {
+        if (finishTimeoutRef.current) window.clearTimeout(finishTimeoutRef.current);
+        finishTimeoutRef.current = window.setTimeout(() => {
           setGameState('finished');
         }, 2200);
       }
@@ -442,13 +488,23 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
       cancelAnimationFrame(animId);
       marioKartAudio.stopEngine();
     };
-  }, [gameState, engineClass, countdownNum, gameMode, raceResult, saveBestTime]);
+  }, [gameState, engineClass, countdownNum, gameMode, saveBestTime]);
 
   const toggleMute = () => {
     const next = !isMuted;
     setIsMuted(next);
     marioKartAudio.setMuted(next);
   };
+
+  // アンマウント時にタイマーを確実に破棄
+  useEffect(() => {
+    return () => {
+      if (countdownIntervalRef.current) window.clearInterval(countdownIntervalRef.current);
+      if (finishTimeoutRef.current) window.clearTimeout(finishTimeoutRef.current);
+      marioKartAudio.stopEngine();
+      marioKartAudio.stopStarBgm();
+    };
+  }, []);
 
   const handleNextTrackInGrandPrix = () => {
     const nextIdx = grandPrixIndex + 1;
@@ -505,6 +561,14 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
             onClick={() => {
               marioKartAudio.stopEngine();
               marioKartAudio.stopStarBgm();
+              if (countdownIntervalRef.current) {
+                window.clearInterval(countdownIntervalRef.current);
+                countdownIntervalRef.current = 0;
+              }
+              if (finishTimeoutRef.current) {
+                window.clearTimeout(finishTimeoutRef.current);
+                finishTimeoutRef.current = 0;
+              }
               if (gameState === 'racing' || gameState === 'paused' || gameState === 'finished') {
                 setGameState('title');
               } else {
@@ -551,7 +615,7 @@ export const MarioKartGame: React.FC<MarioKartGameProps> = ({
           ref={canvasRef}
           width={640}
           height={360}
-          className={`w-full h-full object-contain ${
+          className={`${isFullscreen ? 'w-screen h-screen object-contain bg-black' : 'w-full h-full object-contain'} ${
             ['racing', 'paused', 'finished', 'countdown'].includes(gameState)
               ? 'block'
               : 'hidden'
