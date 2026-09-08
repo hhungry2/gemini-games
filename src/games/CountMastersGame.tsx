@@ -537,8 +537,9 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       if (canvas && container) {
         // キャンバスリサイズ (フルスクリーン時はコンテナの全域に拡大)
         const dpr = window.devicePixelRatio || 1;
-        const targetW = container.clientWidth;
-        const targetH = container.clientHeight;
+        const targetW = Math.max(100, container.clientWidth || window.innerWidth);
+        const headerH = window.innerWidth < 640 ? 56 : 64;
+        const targetH = Math.max(100, container.clientHeight || (window.innerHeight - headerH));
 
         if (canvas.width !== targetW * dpr || canvas.height !== targetH * dpr) {
           canvas.width = targetW * dpr;
@@ -1025,7 +1026,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       ref={containerRef}
       className={`relative flex flex-col items-center justify-center select-none overflow-hidden ${
         isFullscreen
-          ? 'w-full h-full max-w-none max-h-none flex-1 p-0 m-0'
+          ? 'w-full h-[calc(100dvh-3.5rem)] sm:h-[calc(100dvh-4rem)] max-w-none max-h-none flex-1 p-0 m-0 rounded-none border-none shadow-none'
           : 'w-full max-w-4xl h-[min(700px,calc(100dvh-4.5rem))] rounded-2xl shadow-2xl border border-slate-700/50 my-1 sm:my-2'
       } ${isDark ? 'bg-slate-950 text-slate-100' : 'bg-slate-100 text-slate-900'}`}
     >

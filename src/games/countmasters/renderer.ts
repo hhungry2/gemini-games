@@ -77,6 +77,7 @@ export class CountMastersRenderer {
   // メイン描画メソッド
   public render(rc: RenderContext) {
     const { ctx, width, height, camX, camY, camZ, shakeX, shakeY, theme } = rc;
+    if (width <= 0 || height <= 0) return;
 
     // 画面クリア
     ctx.clearRect(0, 0, width, height);

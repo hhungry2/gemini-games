@@ -1300,7 +1300,7 @@ export function App() {
         className={`flex-1 w-full flex flex-col items-center justify-center transition-all duration-300 ${
           isFullscreen
             ? activeGame
-              ? 'max-w-none p-0 sm:p-1'
+              ? 'w-full h-[calc(100dvh-3.5rem)] sm:h-[calc(100dvh-4rem)] max-w-none p-0 overflow-hidden'
               : 'max-w-none px-2 sm:px-4 py-2'
             : activeGame
             ? 'w-full max-w-6xl mx-auto p-1 sm:p-2 h-[calc(100dvh-3.5rem)] sm:h-[calc(100dvh-4rem)] overflow-hidden'
