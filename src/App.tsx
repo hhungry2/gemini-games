@@ -45,11 +45,22 @@ import {
   MarioKartGame,
   MARIO_KART_BEST_TIMES_KEY,
 } from './games/MarioKartGame';
+import {
+  SrwGame,
+  SRW_HIGH_STAGE_KEY,
+  SRW_TOTAL_KILLS_KEY,
+  SRW_MAX_FUNDS_KEY,
+} from './games/SrwGame';
+import {
+  CircusGame,
+  CIRCUS_HIGH_SCORE_KEY,
+} from './games/CircusGame';
 import { GameInfo, GameId, GameGenre } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck, Search, X, Check, ArrowLeft } from 'lucide-react';
 import { getGameIdFromUrl, syncUrlWithGame, copyGameUrl } from './utils/urlRouter';
 
 const THEME_KEY = 'games_hub_theme';
+const CIRCUS_HIGH_KEY = CIRCUS_HIGH_SCORE_KEY;
 const AGARIO_HIGH_KEY = AGARIO_HIGH_SCORE_KEY;
 const AGARIO_KILLS_KEY = AGARIO_BEST_KILLS_KEY;
 const AGARIO_RANK_KEY = AGARIO_BEST_RANK_KEY;
@@ -101,6 +112,32 @@ const GENRES: { id: GameGenre | 'all'; label: string; icon: string }[] = [
 ];
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'srw',
+    title: 'スーパーロボット大戦 ネオ・ジェネシス (Super Robot Wars)',
+    titleEn: 'Super Robot Wars: Neo Genesis Tactics RPG',
+    description:
+      'バンプレストの名作シミュレーションRPGを完全再現！ダイナミック・カイザー、アーク・ヴァイス、サイバー・ファルコン、エンジェル・ウィング集結！全3話の本格キャンペーン、熱血・ひらめき・鉄壁など13大精神コマンド、迫力のサイドビュー戦闘アニメーション＆パイロットカットイン、格納庫での機体・武器5段階改造＆フル改造ボーナス、修理・補給・Undo機能完備！',
+    badge: '🔥 最新超大作！本格SRPG',
+    iconName: 'srw',
+    color: 'from-red-600 via-rose-600 to-amber-500',
+    genre: 'action',
+    genres: ['action', 'arcade'],
+    tags: ['スーパーロボット大戦', 'スパロボ', 'SRPG', 'グリッド戦術', '熱血', 'ひらめき', '戦闘アニメ', '機体改造', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'circus',
+    title: 'サーカスチャーリー (Circus Charlie)',
+    titleEn: 'Circus Charlie: 8-Bit Arcade Masterpiece',
+    description:
+      'コナミの名作アーケード＆ファミコンゲームを完全再現！花形ピエロ「チャーリー」が挑む全5大演目（ライオン火の輪くぐり、綱渡りお猿ジャンプ、トランポリン、玉乗り、空中ブランコ）を完全実装！アメリカン・パトロールの軽快なPSGサーカス音響、コインボーナス、周回難易度アップ、特訓ステージセレクト完備！',
+    badge: '🎪 超新作！伝説のサーカス',
+    iconName: 'circus',
+    color: 'from-rose-600 via-amber-500 to-yellow-400',
+    genre: 'action',
+    genres: ['action', 'arcade'],
+    tags: ['サーカスチャーリー', 'レトロゲーム', 'ファミコン', 'アーケード', '火の輪', 'ライオン', '綱渡り', 'トランポリン', '玉乗り', '空中ブランコ', 'スマホ・PC両対応'],
+  },
   {
     id: 'mariokart',
     title: 'スーパーマリオカート (Super Mario Kart GP)',
@@ -515,10 +552,26 @@ export function App() {
   const [agarioBestKills, setAgarioBestKills] = useState<number>(0);
   const [agarioBestRank, setAgarioBestRank] = useState<number>(99);
   const [marioKartBestTimes, setMarioKartBestTimes] = useState<Record<string, number>>({});
+  const [circusHighScore, setCircusHighScore] = useState<number>(0);
+  const [srwHighStage, setSrwHighStage] = useState<number>(0);
+  const [srwTotalKills, setSrwTotalKills] = useState<number>(0);
+  const [srwMaxFunds, setSrwMaxFunds] = useState<number>(0);
 
   // レコードの読み込み
   const loadRecords = () => {
     if (typeof window === 'undefined') return;
+
+    const srwStage = localStorage.getItem(SRW_HIGH_STAGE_KEY);
+    if (srwStage) setSrwHighStage(parseInt(srwStage, 10) || 0);
+
+    const srwKills = localStorage.getItem(SRW_TOTAL_KILLS_KEY);
+    if (srwKills) setSrwTotalKills(parseInt(srwKills, 10) || 0);
+
+    const srwFunds = localStorage.getItem(SRW_MAX_FUNDS_KEY);
+    if (srwFunds) setSrwMaxFunds(parseInt(srwFunds, 10) || 0);
+
+    const circusHigh = localStorage.getItem(CIRCUS_HIGH_KEY);
+    if (circusHigh) setCircusHighScore(parseInt(circusHigh, 10) || 0);
 
     const mkTimes = localStorage.getItem(MARIO_KART_BEST_TIMES_KEY);
     if (mkTimes) {
@@ -807,7 +860,11 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'mariokart') {
+    if (activeGame === 'srw') {
+      document.title = 'スーパーロボット大戦 ネオ・ジェネシス (Super Robot Wars) | Games Hub';
+    } else if (activeGame === 'circus') {
+      document.title = 'サーカスチャーリー (Circus Charlie) | Games Hub';
+    } else if (activeGame === 'mariokart') {
       document.title = 'スーパーマリオカート (Super Mario Kart GP) | Games Hub';
     } else if (activeGame === 'agario') {
       document.title = '寒天セル.io (Agar.io) | Games Hub';
@@ -864,6 +921,38 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'srw') {
+      return [
+        {
+          label: '制覇ステージ',
+          value: srwHighStage > 0 ? `Stage ${srwHighStage} / 3` : '未出撃',
+        },
+        {
+          label: '総撃破数',
+          value: srwTotalKills > 0 ? `${srwTotalKills} 機` : '--',
+        },
+        {
+          label: '最高所持資金',
+          value: srwMaxFunds > 0 ? `${srwMaxFunds.toLocaleString()} G` : '--',
+        },
+      ];
+    }
+    if (gameId === 'circus') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: circusHighScore > 0 ? `${circusHighScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: '演目数',
+          value: '全5大ステージ完備',
+        },
+        {
+          label: '特訓モード',
+          value: 'ステージ選択対応',
+        },
+      ];
+    }
     if (gameId === 'mariokart') {
       const mcBest = marioKartBestTimes['mario_circuit'];
       const count = Object.keys(marioKartBestTimes).length;
@@ -1572,6 +1661,20 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'srw' && (
+              <SrwGame
+                onBackToHub={requestGoHome}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'circus' && (
+              <CircusGame
+                onBackToHub={requestGoHome}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'mariokart' && (
               <MarioKartGame
                 onBackToHub={requestGoHome}

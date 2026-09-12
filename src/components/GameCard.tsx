@@ -46,6 +46,17 @@ export const GameCard: React.FC<GameCardProps> = ({
 }) => {
   const getGameIcon = () => {
     switch (game.id) {
+      case 'srw':
+        return (
+          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            {/* メカヘッド・V字アンテナ・ツインアイ */}
+            <path d="M12 2L9 8h6l-3-6z" fill="#f59e0b" stroke="#f59e0b" />
+            <path d="M4 6l5 4h6l5-4-3 6v6l-5 4-5-4v-6L4 6z" fill="#2563eb" stroke="#93c5fd" />
+            <circle cx="8.5" cy="13" r="1" fill="#38bdf8" />
+            <circle cx="15.5" cy="13" r="1" fill="#38bdf8" />
+            <path d="M10 16h4M12 16v2" stroke="#f87171" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        );
       case 'angrybirds':
         return <Target className="w-6 h-6 text-white" />;
       case 'shooter':
@@ -250,6 +261,19 @@ export const GameCard: React.FC<GameCardProps> = ({
             <rect x="10" y="12" width="4" height="3" rx="1" fill="#3b82f6" />
             {/* チェッカーフラッグの風 */}
             <path d="M17 3l3 2-3 2v-4z" fill="#ffffff" stroke="#facc15" strokeWidth="0.8" />
+          </svg>
+        );
+      case 'circus':
+        return (
+          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none">
+            {/* サーカスチャーリーアイコン：サーカステント＆火の輪＆星 */}
+            <path d="M12 2L4 9h16L12 2z" fill="#ef4444" />
+            <path d="M12 2L8 9h8L12 2z" fill="#facc15" />
+            <path d="M4 9v9h16V9H4z" fill="#3b82f6" />
+            <path d="M7 9v9M12 9v9M17 9v9" stroke="#ffffff" strokeWidth="1.5" />
+            <path d="M10 18a2 2 0 0 1 4 0" fill="#facc15" />
+            <ellipse cx="18" cy="6" rx="3.5" ry="5.5" stroke="#f97316" strokeWidth="1.5" />
+            <ellipse cx="18" cy="6" rx="2.5" ry="4" stroke="#facc15" strokeWidth="1" />
           </svg>
         );
       default:

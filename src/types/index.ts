@@ -24,7 +24,9 @@ export type GameId =
   | 'shooting_cert'
   | 'countmasters'
   | 'agario'
-  | 'mariokart';
+  | 'mariokart'
+  | 'circus'
+  | 'srw';
 
 export type GameGenre = 'action' | 'puzzle' | 'arcade' | 'racing' | 'io';
 
