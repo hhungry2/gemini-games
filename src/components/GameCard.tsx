@@ -276,6 +276,17 @@ export const GameCard: React.FC<GameCardProps> = ({
             <ellipse cx="18" cy="6" rx="2.5" ry="4" stroke="#facc15" strokeWidth="1" />
           </svg>
         );
+      case 'othellonia':
+        return (
+          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none">
+            {/* オセロニアアイコン：金・紫・赤の属性シンボルとリッチなオセロ石 */}
+            <circle cx="12" cy="12" r="9" fill="#0f172a" stroke="#fbbf24" strokeWidth="2" />
+            <path d="M12 3a9 9 0 0 1 0 18z" fill="#f59e0b" />
+            <path d="M12 3a9 9 0 0 0 0 18z" fill="#7c3aed" />
+            <path d="M12 7l1.5 3.5L17 12l-3.5 1.5L12 17l-1.5-3.5L7 12l3.5-1.5z" fill="#ffffff" />
+            <circle cx="12" cy="12" r="1.5" fill="#ef4444" />
+          </svg>
+        );
       default:
         return <LayoutGrid className="w-6 h-6 text-white" />;
     }

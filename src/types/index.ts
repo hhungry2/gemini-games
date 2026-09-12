@@ -26,7 +26,8 @@ export type GameId =
   | 'agario'
   | 'mariokart'
   | 'circus'
-  | 'srw';
+  | 'srw'
+  | 'othellonia';
 
 export type GameGenre = 'action' | 'puzzle' | 'arcade' | 'racing' | 'io';
 

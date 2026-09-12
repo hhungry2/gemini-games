@@ -55,6 +55,12 @@ import {
   CircusGame,
   CIRCUS_HIGH_SCORE_KEY,
 } from './games/CircusGame';
+import {
+  OthelloniaGame,
+  OTHELLONIA_WINS_KEY,
+  OTHELLONIA_MAX_DAMAGE_KEY,
+  OTHELLONIA_STAGES_CLEARED_KEY,
+} from './games/OthelloniaGame';
 import { GameInfo, GameId, GameGenre } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck, Search, X, Check, ArrowLeft } from 'lucide-react';
 import { getGameIdFromUrl, syncUrlWithGame, copyGameUrl } from './utils/urlRouter';
@@ -112,6 +118,19 @@ const GENRES: { id: GameGenre | 'all'; label: string; icon: string }[] = [
 ];
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'othellonia',
+    title: '逆転オセロニア・レジェンド (Othellonia: Reverse Legends)',
+    titleEn: 'Dramatic Reverse Reversi RPG',
+    description:
+      '神・魔・竜が織りなすドラマチック逆転バトル！6x6盤面での挟み反転、30体以上のキャラクター駒、連鎖コンボスキル、毒・罠カウンター・割合特殊ダメージ・貫通、全8話のクエスト＆難易度別CPU対戦＆本格デッキ編成完備！',
+    badge: '🔥 最新超大作！本格オセロRPG',
+    iconName: 'othellonia',
+    color: 'from-amber-500 via-purple-600 to-rose-600',
+    genre: 'action',
+    genres: ['action', 'puzzle'],
+    tags: ['オセロニア', '逆転オセロニア', 'オセロ', 'リバーシ', 'ボードゲーム', 'デッキ編成', 'スキル連鎖', 'スマホ・PC両対応'],
+  },
   {
     id: 'srw',
     title: 'スーパーロボット大戦 ネオ・ジェネシス (Super Robot Wars)',
@@ -556,10 +575,27 @@ export function App() {
   const [srwHighStage, setSrwHighStage] = useState<number>(0);
   const [srwTotalKills, setSrwTotalKills] = useState<number>(0);
   const [srwMaxFunds, setSrwMaxFunds] = useState<number>(0);
+  const [othelloniaWins, setOthelloniaWins] = useState<number>(0);
+  const [othelloniaMaxDamage, setOthelloniaMaxDamage] = useState<number>(0);
+  const [othelloniaClearedStages, setOthelloniaClearedStages] = useState<number>(0);
 
   // レコードの読み込み
   const loadRecords = () => {
     if (typeof window === 'undefined') return;
+
+    const othWins = localStorage.getItem(OTHELLONIA_WINS_KEY);
+    if (othWins) setOthelloniaWins(parseInt(othWins, 10) || 0);
+
+    const othDamage = localStorage.getItem(OTHELLONIA_MAX_DAMAGE_KEY);
+    if (othDamage) setOthelloniaMaxDamage(parseInt(othDamage, 10) || 0);
+
+    const othStages = localStorage.getItem(OTHELLONIA_STAGES_CLEARED_KEY);
+    if (othStages) {
+      try {
+        const arr = JSON.parse(othStages);
+        if (Array.isArray(arr)) setOthelloniaClearedStages(arr.length);
+      } catch {}
+    }
 
     const srwStage = localStorage.getItem(SRW_HIGH_STAGE_KEY);
     if (srwStage) setSrwHighStage(parseInt(srwStage, 10) || 0);
@@ -860,7 +896,9 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'srw') {
+    if (activeGame === 'othellonia') {
+      document.title = '逆転オセロニア・レジェンド (Othellonia: Reverse Legends) | Games Hub';
+    } else if (activeGame === 'srw') {
       document.title = 'スーパーロボット大戦 ネオ・ジェネシス (Super Robot Wars) | Games Hub';
     } else if (activeGame === 'circus') {
       document.title = 'サーカスチャーリー (Circus Charlie) | Games Hub';
@@ -921,6 +959,22 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'othellonia') {
+      return [
+        {
+          label: '累計勝利数',
+          value: othelloniaWins > 0 ? `${othelloniaWins} 勝` : '--',
+        },
+        {
+          label: '最高一撃ダメージ',
+          value: othelloniaMaxDamage > 0 ? `${othelloniaMaxDamage.toLocaleString()}` : '--',
+        },
+        {
+          label: '制覇クエスト',
+          value: othelloniaClearedStages > 0 ? `${othelloniaClearedStages} / 8 話` : '未挑戦',
+        },
+      ];
+    }
     if (gameId === 'srw') {
       return [
         {
@@ -1661,6 +1715,13 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'othellonia' && (
+              <OthelloniaGame
+                onBackToHub={requestGoHome}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'srw' && (
               <SrwGame
                 onBackToHub={requestGoHome}
