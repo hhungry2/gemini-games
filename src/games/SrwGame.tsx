@@ -607,25 +607,29 @@ export const SrwGame: React.FC<SrwGameProps> = ({
           : 'w-full max-w-5xl h-[850px] max-h-[92vh] rounded-3xl border border-slate-800 shadow-2xl my-auto'
       }`}
     >
-      {/* 共通トップコントロール */}
-      <div className="absolute top-3 left-3 z-50 flex items-center space-x-2">
-        <button
-          onClick={onBackToHub}
-          className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-slate-700/60 text-slate-300 hover:text-white text-xs font-bold flex items-center space-x-1.5 transition shadow cursor-pointer backdrop-blur"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>ゲーム一覧</span>
-        </button>
-      </div>
+      {/* 共通トップコントロール (戦闘演出中は戦闘UIを遮らないよう非表示) */}
+      {phase !== 'battle' && (
+        <>
+          <div className="absolute top-3 left-3 z-50 flex items-center space-x-2">
+            <button
+              onClick={onBackToHub}
+              className="px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-slate-700/60 text-slate-300 hover:text-white text-xs font-bold flex items-center space-x-1.5 transition shadow cursor-pointer backdrop-blur"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              <span>ゲーム一覧</span>
+            </button>
+          </div>
 
-      <div className="absolute top-3 right-3 z-50 flex items-center space-x-2">
-        <button
-          onClick={toggleMute}
-          className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-slate-700/60 text-slate-300 hover:text-white transition shadow cursor-pointer backdrop-blur"
-        >
-          {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
-        </button>
-      </div>
+          <div className="absolute top-3 right-3 z-50 flex items-center space-x-2">
+            <button
+              onClick={toggleMute}
+              className="p-2 rounded-xl bg-slate-900/80 hover:bg-slate-850 border border-slate-700/60 text-slate-300 hover:text-white transition shadow cursor-pointer backdrop-blur"
+            >
+              {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+            </button>
+          </div>
+        </>
+      )}
 
       {/* --- 1. 会話イベント画面 (Dialog) --- */}
       {phase === 'dialog' && dialogQueue[currentDialogIndex] && (
