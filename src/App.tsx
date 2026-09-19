@@ -61,6 +61,16 @@ import {
   OTHELLONIA_MAX_DAMAGE_KEY,
   OTHELLONIA_STAGES_CLEARED_KEY,
 } from './games/OthelloniaGame';
+import {
+  DigDugGame,
+  DIGDUG_HIGH_SCORE_KEY,
+  DIGDUG_MAX_ROUND_KEY,
+} from './games/DigDugGame';
+import {
+  AntarcticGame,
+  ANTARCTIC_HIGH_SCORE_KEY,
+  ANTARCTIC_BEST_STAGE_KEY,
+} from './games/AntarcticGame';
 import { GameInfo, GameId, GameGenre } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck, Search, X, Check, ArrowLeft } from 'lucide-react';
 import { getGameIdFromUrl, syncUrlWithGame, copyGameUrl } from './utils/urlRouter';
@@ -118,6 +128,32 @@ const GENRES: { id: GameGenre | 'all'; label: string; icon: string }[] = [
 ];
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'antarctic',
+    title: 'けっきょく南極大冒険 (Antarctic Adventure)',
+    titleEn: 'Antarctic Adventure: Penta South Pole Journey',
+    description:
+      'コナミの名作レトロゲームを完全再現！愛らしいペンギン「ペン太」が南極大陸の全8大観測基地（オーストラリア基地から昭和基地まで）を目指して氷原を大激走！エミール・ワルトトイフェル作曲『スケーターズ・ワルツ』の軽快な8-bit PSGピコピコBGM、クレバス跳び越え、ひょっこり顔を出すアザラシ、穴から飛び出す魚のキャッチ、プロペラ旗での空中ホバリング飛行、ゴールファンファーレ完備！',
+    badge: '🐧 最新作！伝説の南極横断',
+    iconName: 'antarctic',
+    color: 'from-cyan-500 via-sky-600 to-blue-700',
+    genre: 'action',
+    genres: ['action', 'racing', 'arcade'],
+    tags: ['けっきょく南極大冒険', 'ペン太', 'スケーターズワルツ', 'レトロゲーム', 'ファミコン', 'アザラシ', 'クレバス', 'プロペラ', '昭和基地', 'スマホ・PC両対応'],
+  },
+  {
+    id: 'digdug',
+    title: 'ディグダグ (Dig Dug)',
+    titleEn: 'Dig Dug: Arcade Ground Masterpiece',
+    description:
+      'ナムコの名作アーケードゲームを完全再現！モリを打ち込み空気ポンプでモンスターを膨らませて破裂させろ！岩を落として敵を一網打尽にする落石クラッシュ、土の中をすり抜けるゴースト化、ファイガーの火炎放射、歩行中だけ鳴る軽快な名曲BGM完備！',
+    badge: '⛏️ 最新作！伝説の掘削アクション',
+    iconName: 'digdug',
+    color: 'from-amber-600 via-rose-600 to-yellow-500',
+    genre: 'arcade',
+    genres: ['arcade', 'action'],
+    tags: ['ディグダグ', 'アーケード', 'ナムコ', '穴掘り', 'プーカァ', 'ファイガー', '落石', '空気ポンプ', 'スマホ・PC両対応'],
+  },
   {
     id: 'othellonia',
     title: '逆転オセロニア・レジェンド (Othellonia: Reverse Legends)',
@@ -578,10 +614,26 @@ export function App() {
   const [othelloniaWins, setOthelloniaWins] = useState<number>(0);
   const [othelloniaMaxDamage, setOthelloniaMaxDamage] = useState<number>(0);
   const [othelloniaClearedStages, setOthelloniaClearedStages] = useState<number>(0);
+  const [digDugHighScore, setDigDugHighScore] = useState<number>(0);
+  const [digDugMaxRound, setDigDugMaxRound] = useState<number>(1);
+  const [antarcticHighScore, setAntarcticHighScore] = useState<number>(0);
+  const [antarcticBestStage, setAntarcticBestStage] = useState<number>(1);
 
   // レコードの読み込み
   const loadRecords = () => {
     if (typeof window === 'undefined') return;
+
+    const antHigh = localStorage.getItem(ANTARCTIC_HIGH_SCORE_KEY);
+    if (antHigh) setAntarcticHighScore(parseInt(antHigh, 10) || 0);
+
+    const antStage = localStorage.getItem(ANTARCTIC_BEST_STAGE_KEY);
+    if (antStage) setAntarcticBestStage(parseInt(antStage, 10) || 1);
+
+    const ddHigh = localStorage.getItem(DIGDUG_HIGH_SCORE_KEY);
+    if (ddHigh) setDigDugHighScore(parseInt(ddHigh, 10) || 0);
+
+    const ddRound = localStorage.getItem(DIGDUG_MAX_ROUND_KEY);
+    if (ddRound) setDigDugMaxRound(parseInt(ddRound, 10) || 1);
 
     const othWins = localStorage.getItem(OTHELLONIA_WINS_KEY);
     if (othWins) setOthelloniaWins(parseInt(othWins, 10) || 0);
@@ -896,7 +948,11 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'othellonia') {
+    if (activeGame === 'antarctic') {
+      document.title = 'けっきょく南極大冒険 (Antarctic Adventure) | Games Hub';
+    } else if (activeGame === 'digdug') {
+      document.title = 'ディグダグ (Dig Dug) | Games Hub';
+    } else if (activeGame === 'othellonia') {
       document.title = '逆転オセロニア・レジェンド (Othellonia: Reverse Legends) | Games Hub';
     } else if (activeGame === 'srw') {
       document.title = 'スーパーロボット大戦 ネオ・ジェネシス (Super Robot Wars) | Games Hub';
@@ -959,6 +1015,38 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'antarctic') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: antarcticHighScore > 0 ? `${antarcticHighScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: '最高到達',
+          value: antarcticBestStage > 1 ? `Stage ${antarcticBestStage}` : antarcticHighScore > 0 ? 'Stage 1' : '未挑戦',
+        },
+        {
+          label: '最終目的地',
+          value: '昭和基地 🇯🇵',
+        },
+      ];
+    }
+    if (gameId === 'digdug') {
+      return [
+        {
+          label: 'HIGH SCORE',
+          value: digDugHighScore > 0 ? `${digDugHighScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: '最高到達',
+          value: `ROUND #${digDugMaxRound}`,
+        },
+        {
+          label: 'アクション',
+          value: 'ポンプ破裂・落石',
+        },
+      ];
+    }
     if (gameId === 'othellonia') {
       return [
         {
@@ -1715,6 +1803,20 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'antarctic' && (
+              <AntarcticGame
+                onBackToHub={requestGoHome}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'digdug' && (
+              <DigDugGame
+                onBackToHub={requestGoHome}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'othellonia' && (
               <OthelloniaGame
                 onBackToHub={requestGoHome}

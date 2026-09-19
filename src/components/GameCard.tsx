@@ -46,6 +46,15 @@ export const GameCard: React.FC<GameCardProps> = ({
 }) => {
   const getGameIcon = () => {
     switch (game.id) {
+      case 'digdug':
+        return (
+          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            {/* シャベル＆ヘルメットアイコン */}
+            <path d="M4 4l5 5m0 0l-3 3 5 5 3-3-5-5m0 0l5-5" stroke="#facc15" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <circle cx="16" cy="16" r="5" fill="#ef4444" stroke="#dc2626" />
+            <circle cx="15" cy="15" r="1.5" fill="#ffffff" />
+          </svg>
+        );
       case 'srw':
         return (
           <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -285,6 +294,33 @@ export const GameCard: React.FC<GameCardProps> = ({
             <path d="M12 3a9 9 0 0 0 0 18z" fill="#7c3aed" />
             <path d="M12 7l1.5 3.5L17 12l-3.5 1.5L12 17l-1.5-3.5L7 12l3.5-1.5z" fill="#ffffff" />
             <circle cx="12" cy="12" r="1.5" fill="#ef4444" />
+          </svg>
+        );
+      case 'antarctic':
+        return (
+          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none">
+            {/* けっきょく南極大冒険：ペンギン（ペン太）アイコン */}
+            {/* ペンギンの体 */}
+            <ellipse cx="12" cy="13" rx="7" ry="8" fill="#1e293b" />
+            {/* 白いお腹 */}
+            <ellipse cx="12" cy="14" rx="4.5" ry="6" fill="#f8fafc" />
+            {/* 頭部 */}
+            <circle cx="12" cy="7.5" r="4.5" fill="#1e293b" />
+            {/* 目 */}
+            <circle cx="10" cy="7" r="1" fill="#ffffff" />
+            <circle cx="10.3" cy="7" r="0.5" fill="#0f172a" />
+            <circle cx="14" cy="7" r="1" fill="#ffffff" />
+            <circle cx="13.7" cy="7" r="0.5" fill="#0f172a" />
+            {/* くちばし */}
+            <polygon points="12,7.5 10.5,9.5 13.5,9.5" fill="#f59e0b" />
+            {/* 翼・フリッパー */}
+            <ellipse cx="5.5" cy="13" rx="1.5" ry="3.5" transform="rotate(-20 5.5 13)" fill="#0f172a" />
+            <ellipse cx="18.5" cy="13" rx="1.5" ry="3.5" transform="rotate(20 18.5 13)" fill="#0f172a" />
+            {/* 足（オレンジ） */}
+            <ellipse cx="9.5" cy="21" rx="2" ry="1.2" fill="#f97316" />
+            <ellipse cx="14.5" cy="21" rx="2" ry="1.2" fill="#f97316" />
+            {/* 小さな氷山・雪の結晶アクセント */}
+            <path d="M19 4l1.5 2h-3z" fill="#38bdf8" />
           </svg>
         );
       default:

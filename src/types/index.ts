@@ -27,7 +27,9 @@ export type GameId =
   | 'mariokart'
   | 'circus'
   | 'srw'
-  | 'othellonia';
+  | 'othellonia'
+  | 'digdug'
+  | 'antarctic';
 
 export type GameGenre = 'action' | 'puzzle' | 'arcade' | 'racing' | 'io';
 
