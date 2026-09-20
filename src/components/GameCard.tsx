@@ -46,6 +46,24 @@ export const GameCard: React.FC<GameCardProps> = ({
 }) => {
   const getGameIcon = () => {
     switch (game.id) {
+      case 'gwgallery':
+        return (
+          <svg className="w-6 h-6 text-amber-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            {/* ゲーム＆ウォッチ携帯ゲーム機本体 */}
+            <rect x="2" y="5" width="20" height="14" rx="2.5" fill="#78350f" stroke="#f59e0b" strokeWidth="1.5" />
+            {/* 液晶画面 */}
+            <rect x="7" y="7.5" width="10" height="9" rx="1" fill="#84cc16" stroke="#365314" strokeWidth="1" />
+            {/* LCD上のMr.ゲーム＆ウォッチ風シルエット */}
+            <circle cx="12" cy="10.5" r="1.2" fill="#14532d" />
+            <line x1="12" y1="11.7" x2="12" y2="14" stroke="#14532d" strokeWidth="1" />
+            <line x1="10.5" y1="12" x2="13.5" y2="12" stroke="#14532d" strokeWidth="0.8" />
+            {/* 十字キー (左) */}
+            <path d="M4 11h2M5 10v2" stroke="#fef08a" strokeWidth="1.2" strokeLinecap="round" />
+            {/* ボタン (右) */}
+            <circle cx="19" cy="11" r="0.8" fill="#ef4444" />
+            <circle cx="20" cy="13" r="0.8" fill="#ef4444" />
+          </svg>
+        );
       case 'digdug':
         return (
           <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

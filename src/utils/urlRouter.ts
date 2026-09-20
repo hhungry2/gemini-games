@@ -1,6 +1,7 @@
 import { GameId } from '../types';
 
 export const VALID_GAME_IDS: readonly GameId[] = [
+  'gwgallery',
   'antarctic',
   'srw',
   'circus',

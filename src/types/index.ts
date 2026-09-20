@@ -29,7 +29,8 @@ export type GameId =
   | 'srw'
   | 'othellonia'
   | 'digdug'
-  | 'antarctic';
+  | 'antarctic'
+  | 'gwgallery';
 
 export type GameGenre = 'action' | 'puzzle' | 'arcade' | 'racing' | 'io';
 

@@ -71,6 +71,7 @@ import {
   ANTARCTIC_HIGH_SCORE_KEY,
   ANTARCTIC_BEST_STAGE_KEY,
 } from './games/AntarcticGame';
+import { GameWatchGallery } from './games/GameWatchGallery';
 import { GameInfo, GameId, GameGenre } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck, Search, X, Check, ArrowLeft } from 'lucide-react';
 import { getGameIdFromUrl, syncUrlWithGame, copyGameUrl } from './utils/urlRouter';
@@ -128,6 +129,30 @@ const GENRES: { id: GameGenre | 'all'; label: string; icon: string }[] = [
 ];
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'gwgallery',
+    title: 'ゲーム＆ウォッチ ギャラリー (Game & Watch Gallery)',
+    titleEn: '4-in-1 Retro LCD Classics Collection',
+    description:
+      '任天堂が生んだ携帯ゲーム機の原点「ゲーム＆ウォッチ」の不朽の名作4タイトルを完全再現！「マンホール」「オクトパス」「ファイア」「オイルパニック」を収録！リアルな液晶残像・セグメントゴースト・ピエゾ電子ブザー音・GAME A/B難易度・上下2画面マルチスクリーン筐体・クラシックLCD＆モダンカラー表示切り替え・最高スコア記録完備！',
+    badge: '👑 超名作！ゲーム＆ウォッチ4選',
+    iconName: 'gwgallery',
+    color: 'from-amber-600 via-yellow-600 to-rose-700',
+    genre: 'arcade',
+    genres: ['arcade', 'action', 'puzzle'],
+    tags: [
+      'ゲーム＆ウォッチ',
+      'マンホール',
+      'オクトパス',
+      'ファイア',
+      'オイルパニック',
+      '上下2画面',
+      'マルチスクリーン',
+      'レトロゲーム',
+      '液晶',
+      'スマホ・PC両対応',
+    ],
+  },
   {
     id: 'antarctic',
     title: 'けっきょく南極大冒険 (Antarctic Adventure)',
@@ -948,7 +973,9 @@ export function App() {
   };
 
   useEffect(() => {
-    if (activeGame === 'antarctic') {
+    if (activeGame === 'gwgallery') {
+      document.title = 'ゲーム＆ウォッチ ギャラリー (Game & Watch Gallery) | Games Hub';
+    } else if (activeGame === 'antarctic') {
       document.title = 'けっきょく南極大冒険 (Antarctic Adventure) | Games Hub';
     } else if (activeGame === 'digdug') {
       document.title = 'ディグダグ (Dig Dug) | Games Hub';
@@ -1015,6 +1042,38 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'gwgallery') {
+      const mh = Math.max(
+        parseInt(localStorage.getItem('gw_manhole_gameA') || '0', 10),
+        parseInt(localStorage.getItem('gw_manhole_gameB') || '0', 10)
+      );
+      const oc = Math.max(
+        parseInt(localStorage.getItem('gw_octopus_gameA') || '0', 10),
+        parseInt(localStorage.getItem('gw_octopus_gameB') || '0', 10)
+      );
+      const fi = Math.max(
+        parseInt(localStorage.getItem('gw_fire_gameA') || '0', 10),
+        parseInt(localStorage.getItem('gw_fire_gameB') || '0', 10)
+      );
+      const op = Math.max(
+        parseInt(localStorage.getItem('gw_oilpanic_gameA') || '0', 10),
+        parseInt(localStorage.getItem('gw_oilpanic_gameB') || '0', 10)
+      );
+      return [
+        {
+          label: 'マンホール / オクトパス',
+          value: mh > 0 || oc > 0 ? `${mh} / ${oc} pts` : '--',
+        },
+        {
+          label: 'ファイア / オイルパニック',
+          value: fi > 0 || op > 0 ? `${fi} / ${op} pts` : '--',
+        },
+        {
+          label: '収録タイトル',
+          value: '名作4本・上下2画面完備',
+        },
+      ];
+    }
     if (gameId === 'antarctic') {
       return [
         {
@@ -1803,6 +1862,13 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'gwgallery' && (
+              <GameWatchGallery
+                onBackToHub={requestGoHome}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'antarctic' && (
               <AntarcticGame
                 onBackToHub={requestGoHome}
