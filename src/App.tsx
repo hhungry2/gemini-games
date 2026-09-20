@@ -72,6 +72,11 @@ import {
   ANTARCTIC_BEST_STAGE_KEY,
 } from './games/AntarcticGame';
 import { GameWatchGallery } from './games/GameWatchGallery';
+import {
+  SpinDoctorGame,
+  SPIN_DOCTOR_STARS_KEY,
+  SPIN_DOCTOR_HIGH_SCORE_KEY,
+} from './games/SpinDoctorGame';
 import { GameInfo, GameId, GameGenre } from './types';
 import { Gamepad2, Sparkles, Zap, ShieldCheck, Search, X, Check, ArrowLeft } from 'lucide-react';
 import { getGameIdFromUrl, syncUrlWithGame, copyGameUrl } from './utils/urlRouter';
@@ -129,6 +134,30 @@ const GENRES: { id: GameGenre | 'all'; label: string; icon: string }[] = [
 ];
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'spindoctor',
+    title: 'スピンドクター (Spin Doctor / ClockWerx)',
+    titleEn: 'Spin Doctor: Clockwork Rush',
+    description:
+      'Macintosh向け不朽の名作アクションパズルを完全再現！回転する針の支点をタイミングよく隣のピンへと飛び移らせ、酸ピンや敵蜘蛛を回避してゴールを目指せ！全15ステージ、レーザー壁とスイッチ、崩壊ピン、ワープ、オイル/タール、Undo巻き戻し機能、Web Audio精密シンセ音＆フルスクリーンダイナミック拡大完備！',
+    badge: '⚡ 最新作！伝説のMac回転パズル',
+    iconName: 'spindoctor',
+    color: 'from-sky-500 via-indigo-600 to-amber-500',
+    genre: 'puzzle',
+    genres: ['puzzle', 'action', 'arcade'],
+    tags: [
+      'スピンドクター',
+      'Spin Doctor',
+      'ClockWerx',
+      'クロックワークス',
+      'Macintosh',
+      'レトロゲーム',
+      'タイミングアクション',
+      'Undo対応',
+      '全15ステージ',
+      'スマホ・PC両対応',
+    ],
+  },
   {
     id: 'gwgallery',
     title: 'ゲーム＆ウォッチ ギャラリー (Game & Watch Gallery)',
@@ -1042,6 +1071,24 @@ export function App() {
 
   // ゲームごとのレコード一覧
   const getGameRecords = (gameId: GameId): RecordItem[] => {
+    if (gameId === 'spindoctor') {
+      const totalStars = parseInt(localStorage.getItem(SPIN_DOCTOR_STARS_KEY) || '0', 10);
+      const highScore = parseInt(localStorage.getItem(SPIN_DOCTOR_HIGH_SCORE_KEY) || '0', 10);
+      return [
+        {
+          label: 'TOTAL STARS',
+          value: totalStars > 0 ? `★ ${totalStars} / 45` : '--',
+        },
+        {
+          label: 'HIGH SCORE',
+          value: highScore > 0 ? `${highScore.toLocaleString()} pts` : '--',
+        },
+        {
+          label: '収録ステージ',
+          value: '全15ステージ・全ギミック',
+        },
+      ];
+    }
     if (gameId === 'gwgallery') {
       const mh = Math.max(
         parseInt(localStorage.getItem('gw_manhole_gameA') || '0', 10),
@@ -1862,6 +1909,13 @@ export function App() {
           </div>
         ) : (
           <div className="w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300">
+            {activeGame === 'spindoctor' && (
+              <SpinDoctorGame
+                onBackToHub={requestGoHome}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+              />
+            )}
             {activeGame === 'gwgallery' && (
               <GameWatchGallery
                 onBackToHub={requestGoHome}

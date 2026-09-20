@@ -46,6 +46,23 @@ export const GameCard: React.FC<GameCardProps> = ({
 }) => {
   const getGameIcon = () => {
     switch (game.id) {
+      case 'spindoctor':
+        return (
+          <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            {/* 回転軌跡の円弧 */}
+            <circle cx="12" cy="12" r="8.5" stroke="#38bdf8" strokeDasharray="3 3" opacity="0.6" strokeWidth="1" />
+            {/* 中心のピボットピン */}
+            <circle cx="12" cy="12" r="3.5" fill="#0284c7" stroke="#38bdf8" strokeWidth="1.5" />
+            <circle cx="12" cy="12" r="1.2" fill="#ffffff" />
+            {/* スピンするロッド（針） */}
+            <line x1="12" y1="12" x2="19" y2="6" stroke="#f59e0b" strokeWidth="2.5" strokeLinecap="round" />
+            {/* フリー側のボール */}
+            <circle cx="19" cy="6" r="3" fill="#ef4444" stroke="#fcd34d" strokeWidth="1.5" />
+            {/* もう片方のピン（近くのドット） */}
+            <circle cx="6" cy="17" r="2" fill="#10b981" stroke="#a7f3d0" strokeWidth="1" />
+            <circle cx="18" cy="18" r="2" fill="#6366f1" stroke="#c7d2fe" strokeWidth="1" />
+          </svg>
+        );
       case 'gwgallery':
         return (
           <svg className="w-6 h-6 text-amber-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">

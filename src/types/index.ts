@@ -30,7 +30,8 @@ export type GameId =
   | 'othellonia'
   | 'digdug'
   | 'antarctic'
-  | 'gwgallery';
+  | 'gwgallery'
+  | 'spindoctor';
 
 export type GameGenre = 'action' | 'puzzle' | 'arcade' | 'racing' | 'io';
 
