@@ -1,0 +1,2759 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>GAME &amp; WATCH GALLERY: GEMINI REMAKE</title>
+  <meta name="description" content="Game & Watch Gallery: Gemini Remake - 100% Single-File HTML5 masterpiece featuring Manhole, Octopus, Fire, and Oil Panic with Classic LCD & Modern Gemini modes." />
+  <style>
+    :root {
+      --bg: #0d1117;
+      --card-bg: #161b22;
+      --card-border: #30363d;
+      --gemini-cyan: #00f2fe;
+      --gemini-blue: #4facfe;
+      --gemini-purple: #7f00ff;
+      --gemini-accent: #ff007f;
+      --gold: #e6b800;
+      --gold-bg: #fef08a;
+      --lcd-green: #9fb393;
+      --lcd-ink: #1c2419;
+      --lcd-ghost: rgba(28, 36, 25, 0.05);
+      --font-mono: 'SF Pro Mono', 'Cascadia Code', 'Fira Code', 'Courier New', monospace;
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-touch-callout: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      font-family: var(--font-sans);
+      color: #f0f6fc;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+    }
+
+    /* メインコンテナ */
+    #app-container {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      max-width: 1100px;
+      max-height: 900px;
+      display: flex;
+      flex-direction: column;
+      background: #090d13;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.9), 0 0 0 1px #30363d;
+      border-radius: 16px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    /* フルスクリーンモード */
+    body.is-fullscreen #app-container {
+      max-width: 100vw !important;
+      max-height: 100vh !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      border-radius: 0 !important;
+      box-shadow: none !important;
+    }
+
+    /* ヘッダーバー */
+    header {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(22, 27, 34, 0.95);
+      border-bottom: 1px solid var(--card-border);
+      backdrop-filter: blur(8px);
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--gemini-cyan), var(--gemini-purple));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      box-shadow: 0 2px 10px rgba(0, 242, 254, 0.4);
+    }
+
+    .brand-title {
+      font-family: var(--font-mono);
+      font-size: 15px;
+      font-weight: 800;
+      letter-spacing: 1px;
+      background: linear-gradient(90deg, #fff, #8b949e);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-badge {
+      font-size: 9px;
+      font-weight: 900;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: linear-gradient(90deg, #ff007f, #7f00ff);
+      color: #fff;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      background: #21262d;
+      color: #c9d1d9;
+      border: 1px solid var(--card-border);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .btn-icon:hover {
+      background: #30363d;
+      color: #fff;
+      border-color: #8b949e;
+    }
+
+    .btn-icon:active {
+      transform: scale(0.96);
+    }
+
+    .btn-icon.active {
+      background: linear-gradient(135deg, #1f6feb, #238636);
+      color: #fff;
+      border-color: #388bfd;
+    }
+
+    /* ビュー切り替えコンテナ */
+    main {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* =======================================
+       1. ギャラリーメニュー画面
+       ======================================= */
+    #view-gallery {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      overflow-y: auto;
+      gap: 20px;
+      background: radial-gradient(circle at 50% 10%, rgba(79, 172, 254, 0.08), transparent 70%), #090d13;
+    }
+
+    .gallery-hero {
+      text-align: center;
+      margin-bottom: 5px;
+    }
+
+    .gallery-hero h1 {
+      font-family: var(--font-mono);
+      font-size: 26px;
+      font-weight: 900;
+      letter-spacing: 2px;
+      color: #fff;
+      text-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+    }
+
+    .gallery-hero p {
+      font-size: 13px;
+      color: #8b949e;
+      margin-top: 4px;
+    }
+
+    .game-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+      width: 100%;
+      max-width: 980px;
+      margin: 0 auto;
+    }
+
+    .game-card {
+      background: #161b22;
+      border: 2px solid var(--card-border);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+    }
+
+    .game-card:hover {
+      transform: translateY(-4px);
+      border-color: var(--gemini-cyan);
+      box-shadow: 0 12px 30px rgba(0, 242, 254, 0.25);
+    }
+
+    .game-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--gemini-cyan), var(--gemini-purple));
+      opacity: 0.8;
+    }
+
+    .game-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 12px;
+    }
+
+    .game-series-badge {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: #21262d;
+      color: #58a6ff;
+      border: 1px solid #30363d;
+    }
+
+    .game-year {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: #8b949e;
+    }
+
+    .game-thumb {
+      width: 100%;
+      height: 110px;
+      border-radius: 8px;
+      background: #0d1117;
+      border: 1px solid #30363d;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .game-thumb canvas {
+      width: 100%;
+      height: 100%;
+      image-rendering: pixelated;
+    }
+
+    .game-title {
+      font-family: var(--font-mono);
+      font-size: 16px;
+      font-weight: 800;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .game-desc {
+      font-size: 12px;
+      color: #8b949e;
+      line-height: 1.4;
+      margin-bottom: 12px;
+      flex: 1;
+    }
+
+    .game-scores {
+      background: #0d1117;
+      border-radius: 6px;
+      padding: 6px 10px;
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      margin-bottom: 12px;
+      border: 1px solid #21262d;
+    }
+
+    .game-scores span.val {
+      font-weight: 800;
+      color: var(--gold);
+    }
+
+    .card-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .btn-play {
+      background: #238636;
+      color: #fff;
+      border: 1px solid rgba(240, 246, 252, 0.1);
+      border-radius: 6px;
+      padding: 8px 4px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      cursor: pointer;
+      text-align: center;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+
+    .btn-play:hover {
+      background: #2ea043;
+    }
+
+    .btn-play:active {
+      transform: scale(0.97);
+    }
+
+    .btn-play.game-b {
+      background: #8957e5;
+    }
+
+    .btn-play.game-b:hover {
+      background: #a371f7;
+    }
+
+    /* =======================================
+       2. ゲームプレイ画面（筐体フレーム）
+       ======================================= */
+    #view-game {
+      position: absolute;
+      inset: 0;
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      background: radial-gradient(circle at center, #161b22 0%, #090d13 100%);
+    }
+
+    /* レトロゲーム＆ウオッチ筐体 */
+    .device-chassis {
+      position: relative;
+      width: 100%;
+      max-width: 820px;
+      max-height: 96%;
+      display: flex;
+      flex-direction: column;
+      border-radius: 20px;
+      border: 4px solid #7c2824;
+      background: #8b2b27;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.8), inset 0 2px 4px rgba(255, 255, 255, 0.4);
+      padding: 10px 14px;
+      transition: all 0.2s ease;
+    }
+
+    /* フルスクリーン時の筐体拡大 */
+    body.is-fullscreen .device-chassis {
+      max-width: min(100vw, calc(98vh * 1.55));
+      height: 98vh;
+      max-height: 98vh;
+      padding: 6px 12px;
+    }
+
+    /* マルチスクリーン用（縦長） */
+    .device-chassis.multi-screen {
+      border-color: #581c20;
+      background: #6a1b24;
+    }
+
+    body.is-fullscreen .device-chassis.multi-screen {
+      max-width: min(100vw, calc(98vh * 0.86));
+    }
+
+    /* メタリックプレート */
+    .plate {
+      border-radius: 12px;
+      border: 2px solid #eab308;
+      background: linear-gradient(180deg, #fef08a 0%, #fde047 30%, #eab308 100%);
+      padding: 8px 12px;
+      box-shadow: inset 0 1px 3px rgba(255, 255, 255, 0.8), 0 2px 5px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .plate.silver {
+      border-color: #cbd5e1;
+      background: linear-gradient(180deg, #f8fafc 0%, #e2e8f0 30%, #94a3b8 100%);
+    }
+
+    .plate.burgundy {
+      border-color: #991b1b;
+      background: linear-gradient(180deg, #fecdd3 0%, #fda4af 40%, #fb7185 100%);
+    }
+
+    /* 筐体上部ヘッダー */
+    .chassis-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      padding-bottom: 4px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.15);
+    }
+
+    .chassis-title {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 900;
+      color: #1c2419;
+      letter-spacing: 1px;
+    }
+
+    .chassis-series {
+      font-size: 9px;
+      font-weight: 800;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: #b91c1c;
+      color: #fff;
+    }
+
+    .chassis-buttons {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .mini-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 1px solid #475569;
+      background: #cbd5e1;
+      color: #0f172a;
+      font-family: var(--font-mono);
+      font-size: 9px;
+      font-weight: 900;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3), inset 0 1px 1px #fff;
+      transition: transform 0.1s ease;
+    }
+
+    .mini-btn:active {
+      transform: scale(0.9);
+    }
+
+    .mini-btn.active {
+      background: #dc2626;
+      color: #fff;
+      border-color: #991b1b;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+
+    /* 液晶ベゼル・画面エリア */
+    .lcd-screen-frame {
+      position: relative;
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+      border-radius: 8px;
+      border: 3px solid #1e293b;
+      background: var(--lcd-green);
+      overflow: hidden;
+      box-shadow: inset 0 3px 8px rgba(0, 0, 0, 0.5), 0 1px 2px rgba(255, 255, 255, 0.5);
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* モダンGeminiモード時のスクリーン */
+    .lcd-screen-frame.modern-mode {
+      background: #0a0e17;
+      border-color: #38bdf8;
+      box-shadow: inset 0 0 20px rgba(0, 242, 254, 0.15), 0 0 15px rgba(56, 189, 248, 0.3);
+    }
+
+    /* ガラス反射 */
+    .screen-glare {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0%, transparent 40%, rgba(255, 255, 255, 0.05) 100%);
+      z-index: 50;
+    }
+
+    /* スクリーン内HUD */
+    .screen-hud {
+      position: absolute;
+      top: 6px;
+      left: 10px;
+      right: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 900;
+      color: var(--lcd-ink);
+      z-index: 40;
+      pointer-events: none;
+    }
+
+    .lcd-screen-frame.modern-mode .screen-hud {
+      color: #38bdf8;
+      text-shadow: 0 0 8px rgba(56, 189, 248, 0.5);
+    }
+
+    .hud-score {
+      font-size: 20px;
+      letter-spacing: 2px;
+    }
+
+    .hud-misses {
+      display: flex;
+      gap: 4px;
+      font-size: 14px;
+    }
+
+    .hud-misses span {
+      opacity: 0.15;
+    }
+
+    .hud-misses span.active {
+      opacity: 1;
+      color: #dc2626;
+    }
+
+    /* ゲームCanvas */
+    canvas.game-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+    }
+
+    /* マルチスクリーンの上下画面レイアウト */
+    .multi-screens-wrapper {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 0;
+      gap: 6px;
+    }
+
+    .multi-hinge {
+      height: 10px;
+      background: linear-gradient(180deg, #334155, #0f172a);
+      border-radius: 4px;
+      border: 1px solid #1e293b;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .multi-hinge::after {
+      content: '';
+      width: 40px;
+      height: 2px;
+      background: #64748b;
+      border-radius: 2px;
+    }
+
+    /* コントローラ操作部 */
+    .controller-bar {
+      margin-top: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      padding: 0 8px;
+    }
+
+    .dpad-container {
+      display: grid;
+      grid-template-columns: repeat(3, 36px);
+      grid-template-rows: repeat(3, 36px);
+      gap: 3px;
+    }
+
+    .ctrl-btn {
+      background: #1e293b;
+      color: #e2e8f0;
+      border: 2px solid #0f172a;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 3px 0 #0f172a, inset 0 1px 1px rgba(255, 255, 255, 0.2);
+      transition: all 0.08s ease;
+      touch-action: manipulation;
+    }
+
+    .ctrl-btn:active, .ctrl-btn.pressed {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #0f172a;
+      background: #dc2626;
+      color: #fff;
+    }
+
+    .action-btns {
+      display: flex;
+      gap: 12px;
+    }
+
+    .action-btn {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      background: #b91c1c;
+      color: #fff;
+      border: 3px solid #7f1d1d;
+      font-family: var(--font-mono);
+      font-weight: 900;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #450a0a, inset 0 1px 2px rgba(255, 255, 255, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.08s ease;
+    }
+
+    .action-btn:active, .action-btn.pressed {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #450a0a;
+      background: #dc2626;
+    }
+
+    /* 4方向ボタン (Manhole専用) */
+    .manhole-buttons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+      max-width: 320px;
+    }
+
+    .manhole-btn {
+      padding: 8px 12px;
+      background: #1e293b;
+      color: #fef08a;
+      border: 2px solid #0f172a;
+      border-radius: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      box-shadow: 0 3px 0 #0f172a;
+    }
+
+    .manhole-btn:active, .manhole-btn.active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 #0f172a;
+      background: #dc2626;
+      color: #fff;
+    }
+
+    /* モードバナー */
+    .mode-tag {
+      position: absolute;
+      bottom: 6px;
+      right: 10px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 800;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.4);
+      color: #fef08a;
+      z-index: 40;
+      pointer-events: none;
+    }
+
+    /* 一時停止 / ゲームオーバーオーバーレイ */
+    .overlay-modal {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      z-index: 60;
+    }
+
+    .overlay-modal.show {
+      display: flex;
+    }
+
+    .overlay-title {
+      font-family: var(--font-mono);
+      font-size: 32px;
+      font-weight: 900;
+      letter-spacing: 3px;
+      color: #fef08a;
+      text-shadow: 0 0 20px rgba(254, 240, 138, 0.6);
+    }
+
+    .overlay-score {
+      font-family: var(--font-mono);
+      font-size: 16px;
+      color: #fff;
+    }
+
+    .overlay-btns {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-dialog {
+      background: #238636;
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      font-weight: 800;
+      cursor: pointer;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+      transition: all 0.15s ease;
+    }
+
+    .btn-dialog:hover {
+      background: #2ea043;
+      transform: translateY(-2px);
+    }
+
+    .btn-dialog.secondary {
+      background: #30363d;
+    }
+
+    .btn-dialog.secondary:hover {
+      background: #484f58;
+    }
+
+    /* キーボード操作ガイド */
+    .key-hint {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: #8b949e;
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    @media (max-width: 600px) {
+      header {
+        padding: 6px 10px;
+      }
+      .brand-title {
+        font-size: 13px;
+      }
+      .device-chassis {
+        padding: 6px 8px;
+        border-radius: 12px;
+      }
+      .dpad-container {
+        grid-template-columns: repeat(3, 30px);
+        grid-template-rows: repeat(3, 30px);
+      }
+      .action-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="app-container">
+    <!-- ヘッダーバー -->
+    <header>
+      <div class="brand">
+        <div class="brand-icon">🎮</div>
+        <div>
+          <div class="brand-title">GAME &amp; WATCH GALLERY</div>
+        </div>
+        <span class="brand-badge">GEMINI REMAKE</span>
+      </div>
+
+      <div class="header-actions">
+        <!-- クラシック / モダン切り替え -->
+        <button id="btn-mode-toggle" class="btn-icon" title="モード切り替え (Classic / Modern)">
+          <span>🎨</span>
+          <span id="label-mode">MODERN</span>
+        </button>
+
+        <!-- ミュート切り替え -->
+        <button id="btn-mute" class="btn-icon" title="サウンドON/OFF">
+          <span id="icon-sound">🔊</span>
+        </button>
+
+        <!-- フルスクリーン -->
+        <button id="btn-fullscreen" class="btn-icon" title="全画面表示 (F)">
+          <span>⛶</span>
+        </button>
+
+        <!-- メニューへ戻る (ゲームプレイ中のみ表示) -->
+        <button id="btn-back-menu" class="btn-icon" style="display: none;" title="ギャラリーメニューへ戻る">
+          <span>◀</span>
+          <span>MENU</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <main>
+      <!-- 1. ギャラリー選択メニュー -->
+      <section id="view-gallery">
+        <div class="gallery-hero">
+          <h1>CHOOSE A GAME</h1>
+          <p>伝説の4大ゲーム＆ウオッチ完全収録！実機クラシックLCD＆近未来Geminiリメイク両対応</p>
+        </div>
+
+        <div class="game-grid">
+          <!-- CARD 1: MANHOLE -->
+          <div class="game-card" data-game="manhole">
+            <div>
+              <div class="game-card-top">
+                <span class="game-series-badge">GOLD · 1981</span>
+                <span class="game-year">#1</span>
+              </div>
+              <div class="game-thumb">
+                <canvas id="thumb-manhole" width="200" height="110"></canvas>
+              </div>
+              <div class="game-title">MANHOLE</div>
+              <div class="game-desc">
+                上下2段の通路を急ぐ歩行者たち！4箇所の穴にマンホールマンを素早く配置し、端から端まで落とさずに渡らせろ！
+              </div>
+            </div>
+            <div>
+              <div class="game-scores">
+                <span>BEST: A <span class="val" id="best-manhole-a">0</span></span>
+                <span>B <span class="val" id="best-manhole-b">0</span></span>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="launchGame('manhole', 'gameA')">GAME A</button>
+                <button class="btn-play game-b" onclick="launchGame('manhole', 'gameB')">GAME B</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 2: OCTOPUS -->
+          <div class="game-card" data-game="octopus">
+            <div>
+              <div class="game-card-top">
+                <span class="game-series-badge">WIDE · 1981</span>
+                <span class="game-year">#2</span>
+              </div>
+              <div class="game-thumb">
+                <canvas id="thumb-octopus" width="200" height="110"></canvas>
+              </div>
+              <div class="game-title">OCTOPUS</div>
+              <div class="game-desc">
+                巨大タコのうごめく触手を掻い潜り、沈没船の宝箱からゴールドを掴み取れ！ボートへ無事生還してボーナス得点！
+              </div>
+            </div>
+            <div>
+              <div class="game-scores">
+                <span>BEST: A <span class="val" id="best-octopus-a">0</span></span>
+                <span>B <span class="val" id="best-octopus-b">0</span></span>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="launchGame('octopus', 'gameA')">GAME A</button>
+                <button class="btn-play game-b" onclick="launchGame('octopus', 'gameB')">GAME B</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 3: FIRE -->
+          <div class="game-card" data-game="fire">
+            <div>
+              <div class="game-card-top">
+                <span class="game-series-badge">WIDE · 1981</span>
+                <span class="game-year">#3</span>
+              </div>
+              <div class="game-thumb">
+                <canvas id="thumb-fire" width="200" height="110"></canvas>
+              </div>
+              <div class="game-title">FIRE</div>
+              <div class="game-desc">
+                炎上するビルから次々と飛び降りる人々をトランポリンで3回キャッチ＆バウンドさせて右の救急車へ運び込め！
+              </div>
+            </div>
+            <div>
+              <div class="game-scores">
+                <span>BEST: A <span class="val" id="best-fire-a">0</span></span>
+                <span>B <span class="val" id="best-fire-b">0</span></span>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="launchGame('fire', 'gameA')">GAME A</button>
+                <button class="btn-play game-b" onclick="launchGame('fire', 'gameB')">GAME B</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- CARD 4: OIL PANIC -->
+          <div class="game-card" data-game="oilpanic">
+            <div>
+              <div class="game-card-top">
+                <span class="game-series-badge">MULTI · 1982</span>
+                <span class="game-year">#4</span>
+              </div>
+              <div class="game-thumb">
+                <canvas id="thumb-oilpanic" width="200" height="110"></canvas>
+              </div>
+              <div class="game-title">OIL PANIC</div>
+              <div class="game-desc">
+                伝説の上下2画面！上画面で漏れ出るオイルをバケツにキャッチ（最大3滴）。溢れる前に窓から下の相棒へ流し落とせ！
+              </div>
+            </div>
+            <div>
+              <div class="game-scores">
+                <span>BEST: A <span class="val" id="best-oilpanic-a">0</span></span>
+                <span>B <span class="val" id="best-oilpanic-b">0</span></span>
+              </div>
+              <div class="card-actions">
+                <button class="btn-play" onclick="launchGame('oilpanic', 'gameA')">GAME A</button>
+                <button class="btn-play game-b" onclick="launchGame('oilpanic', 'gameB')">GAME B</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. ゲームプレイビュー（単一または上下2画面） -->
+      <section id="view-game">
+        <div id="device-chassis" class="device-chassis">
+          <div id="plate-container" class="plate">
+            <!-- 筐体上部ファンクションバー -->
+            <div class="chassis-header">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span id="disp-title" class="chassis-title">MANHOLE</span>
+                <span id="disp-series" class="chassis-series">GOLD</span>
+              </div>
+
+              <div class="chassis-buttons">
+                <span style="font-size: 9px; font-weight: 800; font-family: var(--font-mono); color: #1c2419;">GAME:</span>
+                <button id="btn-diff-a" class="mini-btn active" title="GAME A">A</button>
+                <button id="btn-diff-b" class="mini-btn" title="GAME B">B</button>
+                <button id="btn-pause" class="mini-btn" title="PAUSE (P)">⏸</button>
+                <button id="btn-restart" class="mini-btn" title="RESET (R)">↺</button>
+              </div>
+            </div>
+
+            <!-- 通常単一画面 (Manhole, Octopus, Fire) -->
+            <div id="single-screen-box" class="lcd-screen-frame">
+              <div class="screen-glare"></div>
+              <div class="screen-hud">
+                <span id="hud-mode-tag">GAME A</span>
+                <span id="hud-score" class="hud-score">0000</span>
+                <div class="hud-misses">
+                  <span id="hud-m0">✕</span>
+                  <span id="hud-m1">✕</span>
+                  <span id="hud-m2">✕</span>
+                </div>
+              </div>
+              <canvas id="main-canvas" class="game-canvas"></canvas>
+              <div id="canvas-mode-indicator" class="mode-tag">MODERN</div>
+            </div>
+
+            <!-- マルチスクリーン (Oil Panic用) -->
+            <div id="multi-screen-box" class="multi-screens-wrapper" style="display: none;">
+              <!-- 上画面 -->
+              <div class="lcd-screen-frame" style="flex: 1;">
+                <div class="screen-glare"></div>
+                <div class="screen-hud">
+                  <span id="hud-multi-diff">UPPER · GAME A</span>
+                  <span id="hud-multi-score" class="hud-score">0000</span>
+                  <div class="hud-misses">
+                    <span id="hud-mm0">✕</span>
+                    <span id="hud-mm1">✕</span>
+                    <span id="hud-mm2">✕</span>
+                  </div>
+                </div>
+                <canvas id="multi-top-canvas" class="game-canvas"></canvas>
+              </div>
+
+              <!-- 中央ヒンジ -->
+              <div class="multi-hinge"></div>
+
+              <!-- 下画面 -->
+              <div class="lcd-screen-frame" style="flex: 1;">
+                <div class="screen-glare"></div>
+                <div class="screen-hud">
+                  <span style="font-size: 10px; opacity: 0.6;">LOWER STATION</span>
+                </div>
+                <canvas id="multi-bot-canvas" class="game-canvas"></canvas>
+              </div>
+            </div>
+
+            <!-- コントローラ操作部 -->
+            <div class="controller-bar">
+              <!-- Manhole用 4方向ボタン -->
+              <div id="ctrl-manhole" class="manhole-buttons" style="display: none;">
+                <button class="manhole-btn" id="btn-mh-0">▲ 左上 (Q/7)</button>
+                <button class="manhole-btn" id="btn-mh-2">右上 ▲ (E/9)</button>
+                <button class="manhole-btn" id="btn-mh-1">▼ 左下 (A/1)</button>
+                <button class="manhole-btn" id="btn-mh-3">右下 ▼ (D/3)</button>
+              </div>
+
+              <!-- 左右/十字キー操作 (Octopus, Fire, Oil Panic) -->
+              <div id="ctrl-standard" style="display: flex; width: 100%; justify-content: space-between; align-items: center;">
+                <div style="display: flex; gap: 8px;">
+                  <button class="ctrl-btn" id="btn-move-left" style="width: 58px; height: 44px; font-size: 18px;">◀</button>
+                  <button class="ctrl-btn" id="btn-move-right" style="width: 58px; height: 44px; font-size: 18px;">▶</button>
+                </div>
+
+                <div class="key-hint" id="game-key-hint">
+                  KEY: ← → or A / D
+                </div>
+
+                <div class="action-btns">
+                  <button class="action-btn" id="btn-action" style="display: none;">ACT</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 一時停止 / ゲームオーバー モーダル -->
+        <div id="overlay-modal" class="overlay-modal">
+          <div id="overlay-title" class="overlay-title">GAME OVER</div>
+          <div id="overlay-score" class="overlay-score">SCORE: 0</div>
+          <div class="overlay-btns">
+            <button id="btn-overlay-retry" class="btn-dialog">PLAY AGAIN (R)</button>
+            <button id="btn-overlay-menu" class="btn-dialog secondary">MENU</button>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- サウンド＆ゲームロジック スクリプト -->
+  <script>
+    /* ==========================================================================
+       1. WEB AUDIO API シンセサイザー (ピエゾ音 & ネオンBGM/効果音)
+       ========================================================================== */
+    class SoundEngine {
+      constructor() {
+        this.ctx = null;
+        this.isMuted = false;
+        this.lastPlayTime = 0;
+        this.bgmTimer = null;
+        this.bgmStep = 0;
+        this.curGame = null;
+        this.isGameOver = false;
+      }
+
+      init() {
+        if (!this.ctx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            this.ctx = new AudioContextClass();
+          }
+        }
+        if (this.ctx && this.ctx.state === 'suspended') {
+          this.ctx.resume();
+        }
+      }
+
+      setMuted(muted) {
+        this.isMuted = muted;
+        if (this.isMuted) {
+          this.stopBgm();
+        } else if (app.currentGame && app.isModern) {
+          this.startBgm(app.currentGame);
+        }
+      }
+
+      playTone(freq, duration = 0.03, vol = 0.08, type = 'square') {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+
+        const now = this.ctx.currentTime;
+        if (now - this.lastPlayTime < 0.02) return; // 連打過負荷防止
+        this.lastPlayTime = now;
+
+        try {
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, now);
+
+          // ポップノイズ・クリック音を防止するADSR
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(vol, now + 0.003);
+          gain.gain.setValueAtTime(vol, now + Math.max(0, duration - 0.008));
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + duration);
+        } catch (e) {}
+      }
+
+      /* 効果音集 */
+      click() { this.playTone(1800, 0.02, 0.06); }
+      tick() { this.playTone(1350, 0.025, 0.06); }
+      step() { this.playTone(1100, 0.028, 0.06); }
+      catch() { this.playTone(1650, 0.035, 0.08); }
+
+      score() {
+        if (this.isMuted) return;
+        this.playTone(1480, 0.03, 0.08);
+        setTimeout(() => this.playTone(2200, 0.04, 0.09), 35);
+      }
+
+      bonus() {
+        if (this.isMuted) return;
+        const notes = [880, 1108, 1318, 1760];
+        notes.forEach((f, i) => {
+          setTimeout(() => this.playTone(f, 0.06, 0.09), i * 65);
+        });
+      }
+
+      miss() {
+        if (this.isMuted) return;
+        this.init();
+        if (!this.ctx) return;
+        try {
+          const now = this.ctx.currentTime;
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+
+          osc.type = 'square';
+          osc.frequency.setValueAtTime(360, now);
+          osc.frequency.exponentialRampToValueAtTime(120, now + 0.32);
+
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.linearRampToValueAtTime(0.12, now + 0.005);
+          gain.gain.setValueAtTime(0.12, now + 0.2);
+          gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
+
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+
+          osc.start(now);
+          osc.stop(now + 0.35);
+        } catch (e) {}
+      }
+
+      gameOver() {
+        if (this.isMuted || this.isGameOver) return;
+        this.isGameOver = true;
+        this.stopBgm();
+
+        // 0.4sディレイ後にメロディ
+        setTimeout(() => {
+          const melody = [
+            { f: 523, d: 0.12 }, // C5
+            { f: 440, d: 0.12 }, // A4
+            { f: 392, d: 0.14 }, // G4
+            { f: 330, d: 0.3 }   // E4
+          ];
+          let time = 0;
+          melody.forEach(m => {
+            setTimeout(() => this.playTone(m.f, m.d, 0.08), time * 1000);
+            time += m.d + 0.04;
+          });
+          setTimeout(() => { this.isGameOver = false; }, (time + 0.5) * 1000);
+        }, 400);
+      }
+
+      /* 近未来Geminiモダンモード BGM (各ゲームごとのアルペジオ/ベースライン) */
+      startBgm(gameId) {
+        this.stopBgm();
+        if (this.isMuted || !app.isModern) return;
+        this.curGame = gameId;
+        this.bgmStep = 0;
+
+        const bassManhole = [220, 220, 261, 293, 220, 220, 329, 293];
+        const bassOctopus = [164, 164, 196, 220, 146, 146, 174, 196];
+        const bassFire = [261, 261, 329, 392, 293, 293, 349, 440];
+        const bassOil = [196, 196, 246, 293, 220, 220, 261, 329];
+
+        const notes = gameId === 'octopus' ? bassOctopus :
+                      gameId === 'fire' ? bassFire :
+                      gameId === 'oilpanic' ? bassOil : bassManhole;
+
+        this.bgmTimer = setInterval(() => {
+          if (app.isPaused || this.isGameOver || !app.currentGame) return;
+          const freq = notes[this.bgmStep % notes.length];
+          this.playTone(freq, 0.06, 0.03, 'sine');
+          if (this.bgmStep % 2 === 0) {
+            this.playTone(freq * 2, 0.03, 0.015, 'triangle');
+          }
+          this.bgmStep++;
+        }, 220);
+      }
+
+      stopBgm() {
+        if (this.bgmTimer) {
+          clearInterval(this.bgmTimer);
+          this.bgmTimer = null;
+        }
+      }
+    }
+
+    const sound = new SoundEngine();
+
+    /* ==========================================================================
+       2. アプリケーション状態管理
+       ========================================================================== */
+    const app = {
+      isModern: true,
+      isPaused: false,
+      currentGame: null,
+      difficulty: 'gameA',
+      scores: {
+        manhole: { gameA: 0, gameB: 0 },
+        octopus: { gameA: 0, gameB: 0 },
+        fire: { gameA: 0, gameB: 0 },
+        oilpanic: { gameA: 0, gameB: 0 }
+      },
+
+      init() {
+        this.loadScores();
+        this.bindEvents();
+        this.updateScoreDisplay();
+        this.renderThumbnails();
+      },
+
+      loadScores() {
+        ['manhole', 'octopus', 'fire', 'oilpanic'].forEach(g => {
+          this.scores[g].gameA = parseInt(localStorage.getItem(`gw_gemini_${g}_gameA`) || '0', 10);
+          this.scores[g].gameB = parseInt(localStorage.getItem(`gw_gemini_${g}_gameB`) || '0', 10);
+        });
+      },
+
+      saveScore(game, diff, val) {
+        if (val > this.scores[game][diff]) {
+          this.scores[game][diff] = val;
+          localStorage.setItem(`gw_gemini_${game}_${diff}`, val);
+          this.updateScoreDisplay();
+        }
+      },
+
+      updateScoreDisplay() {
+        ['manhole', 'octopus', 'fire', 'oilpanic'].forEach(g => {
+          const elA = document.getElementById(`best-${g}-a`);
+          const elB = document.getElementById(`best-${g}-b`);
+          if (elA) elA.textContent = this.scores[g].gameA;
+          if (elB) elB.textContent = this.scores[g].gameB;
+        });
+      },
+
+      toggleMode() {
+        this.isModern = !this.isModern;
+        sound.click();
+        const label = document.getElementById('label-mode');
+        const tag = document.getElementById('canvas-mode-indicator');
+        const sFrame = document.getElementById('single-screen-box');
+        const mTop = document.querySelector('#multi-screen-box .lcd-screen-frame');
+
+        if (this.isModern) {
+          label.textContent = 'MODERN';
+          tag.textContent = 'MODERN';
+          sFrame.classList.add('modern-mode');
+          if (mTop) mTop.classList.add('modern-mode');
+          if (this.currentGame) sound.startBgm(this.currentGame);
+        } else {
+          label.textContent = 'CLASSIC';
+          tag.textContent = 'CLASSIC';
+          sFrame.classList.remove('modern-mode');
+          if (mTop) mTop.classList.remove('modern-mode');
+          sound.stopBgm();
+        }
+      },
+
+      toggleFullscreen() {
+        sound.click();
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+          document.body.classList.add('is-fullscreen');
+        } else {
+          document.exitFullscreen().catch(() => {});
+          document.body.classList.remove('is-fullscreen');
+        }
+      },
+
+      toggleMute() {
+        const next = !sound.isMuted;
+        sound.setMuted(next);
+        document.getElementById('icon-sound').textContent = next ? '🔇' : '🔊';
+        if (!next) sound.click();
+      },
+
+      bindEvents() {
+        document.getElementById('btn-mode-toggle').onclick = () => this.toggleMode();
+        document.getElementById('btn-fullscreen').onclick = () => this.toggleFullscreen();
+        document.getElementById('btn-mute').onclick = () => this.toggleMute();
+        document.getElementById('btn-back-menu').onclick = () => showGalleryMenu();
+
+        document.getElementById('btn-diff-a').onclick = () => {
+          if (activeGame) activeGame.setDifficulty('gameA');
+        };
+        document.getElementById('btn-diff-b').onclick = () => {
+          if (activeGame) activeGame.setDifficulty('gameB');
+        };
+        document.getElementById('btn-pause').onclick = () => {
+          if (activeGame) activeGame.togglePause();
+        };
+        document.getElementById('btn-restart').onclick = () => {
+          if (activeGame) activeGame.restart();
+        };
+
+        document.getElementById('btn-overlay-retry').onclick = () => {
+          document.getElementById('overlay-modal').classList.remove('show');
+          if (activeGame) activeGame.restart();
+        };
+        document.getElementById('btn-overlay-menu').onclick = () => {
+          document.getElementById('overlay-modal').classList.remove('show');
+          showGalleryMenu();
+        };
+
+        // キーボード操作リスナー
+        window.addEventListener('keydown', (e) => {
+          if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+            e.preventDefault();
+          }
+          if (e.key === 'f' || e.key === 'F') {
+            this.toggleFullscreen();
+          } else if (e.key === 'p' || e.key === 'P') {
+            if (activeGame) activeGame.togglePause();
+          } else if (e.key === 'r' || e.key === 'R') {
+            if (activeGame) activeGame.restart();
+          } else if (e.key === 'Escape') {
+            showGalleryMenu();
+          }
+
+          if (activeGame && !app.isPaused) {
+            activeGame.onKeyDown(e.key);
+          }
+        });
+
+        // 全画面変更の検知
+        document.addEventListener('fullscreenchange', () => {
+          if (document.fullscreenElement) {
+            document.body.classList.add('is-fullscreen');
+          } else {
+            document.body.classList.remove('is-fullscreen');
+          }
+          if (activeGame) activeGame.onResize();
+        });
+
+        window.addEventListener('resize', () => {
+          if (activeGame) activeGame.onResize();
+        });
+      },
+
+      renderThumbnails() {
+        // メニュー画面のサムネイル簡易プレビュー
+        ['manhole', 'octopus', 'fire', 'oilpanic'].forEach(name => {
+          const cvs = document.getElementById(`thumb-${name}`);
+          if (!cvs) return;
+          const ctx = cvs.getContext('2d');
+          ctx.fillStyle = '#161b22';
+          ctx.fillRect(0, 0, cvs.width, cvs.height);
+
+          ctx.strokeStyle = 'rgba(56, 189, 248, 0.3)';
+          ctx.lineWidth = 1;
+          for (let i = 0; i < cvs.width; i += 20) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, cvs.height); ctx.stroke();
+          }
+          for (let j = 0; j < cvs.height; j += 20) {
+            ctx.beginPath(); ctx.moveTo(0, j); ctx.lineTo(cvs.width, j); ctx.stroke();
+          }
+
+          ctx.fillStyle = '#38bdf8';
+          ctx.font = 'bold 14px monospace';
+          ctx.textAlign = 'center';
+          ctx.fillText(name.toUpperCase(), cvs.width / 2, cvs.height / 2 + 5);
+        });
+      }
+    };
+
+    let activeGame = null;
+
+    function showGalleryMenu() {
+      sound.click();
+      sound.stopBgm();
+      if (activeGame) {
+        activeGame.destroy();
+        activeGame = null;
+      }
+      app.currentGame = null;
+      document.getElementById('view-gallery').style.display = 'flex';
+      document.getElementById('view-game').style.display = 'none';
+      document.getElementById('btn-back-menu').style.display = 'none';
+      app.updateScoreDisplay();
+    }
+
+    function launchGame(gameId, difficulty = 'gameA') {
+      sound.click();
+      app.currentGame = gameId;
+      app.difficulty = difficulty;
+
+      document.getElementById('view-gallery').style.display = 'none';
+      document.getElementById('view-game').style.display = 'flex';
+      document.getElementById('btn-back-menu').style.display = 'flex';
+
+      const chassis = document.getElementById('device-chassis');
+      const plate = document.getElementById('plate-container');
+      const dispTitle = document.getElementById('disp-title');
+      const dispSeries = document.getElementById('disp-series');
+      const singleBox = document.getElementById('single-screen-box');
+      const multiBox = document.getElementById('multi-screen-box');
+      const ctrlMh = document.getElementById('ctrl-manhole');
+      const ctrlStd = document.getElementById('ctrl-standard');
+
+      // 筐体テーマ変更
+      chassis.classList.remove('multi-screen');
+      plate.className = 'plate';
+      singleBox.style.display = 'flex';
+      multiBox.style.display = 'none';
+      ctrlMh.style.display = 'none';
+      ctrlStd.style.display = 'flex';
+
+      if (gameId === 'manhole') {
+        dispTitle.textContent = 'MANHOLE';
+        dispSeries.textContent = 'GOLD';
+        plate.classList.add('gold');
+        ctrlMh.style.display = 'grid';
+        ctrlStd.style.display = 'none';
+        activeGame = new ManholeGame(difficulty);
+      } else if (gameId === 'octopus') {
+        dispTitle.textContent = 'OCTOPUS';
+        dispSeries.textContent = 'WIDE SCREEN';
+        plate.classList.add('silver');
+        activeGame = new OctopusGame(difficulty);
+      } else if (gameId === 'fire') {
+        dispTitle.textContent = 'FIRE';
+        dispSeries.textContent = 'WIDE SCREEN';
+        plate.classList.add('silver');
+        activeGame = new FireGame(difficulty);
+      } else if (gameId === 'oilpanic') {
+        dispTitle.textContent = 'OIL PANIC';
+        dispSeries.textContent = 'MULTI SCREEN';
+        chassis.classList.add('multi-screen');
+        plate.classList.add('burgundy');
+        singleBox.style.display = 'none';
+        multiBox.style.display = 'flex';
+        activeGame = new OilPanicGame(difficulty);
+      }
+
+      updateDiffButtons(difficulty);
+      if (app.isModern) sound.startBgm(gameId);
+    }
+
+    function updateDiffButtons(diff) {
+      document.getElementById('btn-diff-a').classList.toggle('active', diff === 'gameA');
+      document.getElementById('btn-diff-b').classList.toggle('active', diff === 'gameB');
+      const hudDiff = document.getElementById('hud-mode-tag');
+      const hudMulti = document.getElementById('hud-multi-diff');
+      if (hudDiff) hudDiff.textContent = diff.toUpperCase();
+      if (hudMulti) hudMulti.textContent = `UPPER · ${diff.toUpperCase()}`;
+    }
+
+    /* ==========================================================================
+       3. ゲーム基本クラス
+       ========================================================================== */
+    class BaseGame {
+      constructor(name, diff) {
+        this.name = name;
+        this.difficulty = diff;
+        this.score = 0;
+        this.misses = 0;
+        this.isGameOver = false;
+        this.isPaused = false;
+        this.tickTimer = null;
+        this.animFrame = null;
+        this.particles = [];
+      }
+
+      setDifficulty(diff) {
+        sound.click();
+        this.difficulty = diff;
+        updateDiffButtons(diff);
+        this.restart();
+      }
+
+      togglePause() {
+        sound.click();
+        this.isPaused = !this.isPaused;
+        app.isPaused = this.isPaused;
+        document.getElementById('btn-pause').textContent = this.isPaused ? '▶' : '⏸';
+      }
+
+      updateHUD() {
+        const pad = (n) => n.toString().padStart(4, '0');
+        const sEl = document.getElementById('hud-score');
+        const msEl = document.getElementById('hud-multi-score');
+        if (sEl) sEl.textContent = pad(this.score);
+        if (msEl) msEl.textContent = pad(this.score);
+
+        [0, 1, 2].forEach(i => {
+          const mEl = document.getElementById(`hud-m${i}`);
+          const mmEl = document.getElementById(`hud-mm${i}`);
+          const isHit = i < this.misses;
+          if (mEl) mEl.className = isHit ? 'active' : '';
+          if (mmEl) mmEl.className = isHit ? 'active' : '';
+        });
+      }
+
+      triggerMiss() {
+        this.misses++;
+        sound.miss();
+        this.updateHUD();
+
+        if (this.misses >= 3) {
+          this.triggerGameOver();
+        }
+      }
+
+      triggerGameOver() {
+        this.isGameOver = true;
+        sound.gameOver();
+        app.saveScore(this.name, this.difficulty, this.score);
+
+        setTimeout(() => {
+          document.getElementById('overlay-title').textContent = 'GAME OVER';
+          document.getElementById('overlay-score').textContent = `FINAL SCORE: ${this.score}`;
+          document.getElementById('overlay-modal').classList.add('show');
+        }, 1200);
+      }
+
+      spawnParticles(x, y, color = '#00f2fe', count = 12) {
+        if (!app.isModern) return;
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 1 + Math.random() * 3.5;
+          this.particles.push({
+            x, y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed,
+            life: 1.0,
+            color,
+            size: 2 + Math.random() * 3
+          });
+        }
+      }
+
+      updateParticles(ctx) {
+        for (let i = this.particles.length - 1; i >= 0; i--) {
+          const p = this.particles[i];
+          p.x += p.vx;
+          p.y += p.vy;
+          p.life -= 0.03;
+          if (p.life <= 0) {
+            this.particles.splice(i, 1);
+            continue;
+          }
+          ctx.save();
+          ctx.globalAlpha = p.life;
+          ctx.fillStyle = p.color;
+          ctx.shadowColor = p.color;
+          ctx.shadowBlur = 6;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+      }
+
+      destroy() {
+        if (this.tickTimer) clearInterval(this.tickTimer);
+        if (this.animFrame) cancelAnimationFrame(this.animFrame);
+        this.particles = [];
+      }
+    }
+
+    /* ==========================================================================
+       4. GAME 1: MANHOLE (マンホール)
+       ========================================================================== */
+    class ManholeGame extends BaseGame {
+      constructor(diff) {
+        super('manhole', diff);
+        this.canvas = document.getElementById('main-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.playerPos = 1; // 0: 上左, 1: 下左, 2: 上右, 3: 下右
+        this.pedestrians = [];
+        this.nextId = 1;
+        this.tickCount = 0;
+        this.missAnimation = null;
+        this.isMissSequence = false;
+
+        // 全10ステップのX座標 (35〜465 端から端まで)
+        this.STEPS_L2R = [35, 80, 125, 190, 235, 265, 310, 375, 420, 465];
+        this.STEPS_R2L = [465, 420, 375, 310, 265, 235, 190, 125, 80, 35];
+
+        this.initControls();
+        this.onResize();
+        this.startLoop();
+      }
+
+      initControls() {
+        const bind = (id, pos) => {
+          const btn = document.getElementById(id);
+          if (!btn) return;
+          btn.onclick = () => {
+            if (!this.isGameOver && !this.isPaused && !this.isMissSequence) {
+              sound.catch();
+              this.playerPos = pos;
+            }
+          };
+        };
+        bind('btn-mh-0', 0);
+        bind('btn-mh-1', 1);
+        bind('btn-mh-2', 2);
+        bind('btn-mh-3', 3);
+
+        // 画面タップ直接操作
+        this.canvas.onpointerdown = (e) => {
+          if (this.isGameOver || this.isPaused || this.isMissSequence) return;
+          const rect = this.canvas.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width;
+          const y = (e.clientY - rect.top) / rect.height;
+          if (x < 0.5 && y < 0.5) this.playerPos = 0;
+          else if (x < 0.5 && y >= 0.5) this.playerPos = 1;
+          else if (x >= 0.5 && y < 0.5) this.playerPos = 2;
+          else this.playerPos = 3;
+          sound.catch();
+        };
+      }
+
+      onKeyDown(key) {
+        if (this.isGameOver || this.isPaused || this.isMissSequence) return;
+        switch (key) {
+          case 'q': case 'Q': case '7': case 'ArrowUp':
+            this.playerPos = (this.playerPos === 2 || this.playerPos === 3) ? 2 : 0;
+            sound.catch(); break;
+          case 'a': case 'A': case '1': case 'ArrowDown':
+            this.playerPos = (this.playerPos === 2 || this.playerPos === 3) ? 3 : 1;
+            sound.catch(); break;
+          case 'e': case 'E': case '9': case 'ArrowRight':
+            this.playerPos = (this.playerPos === 0 || this.playerPos === 1) ? 2 : this.playerPos;
+            sound.catch(); break;
+          case 'd': case 'D': case '3': case 'ArrowLeft':
+            this.playerPos = (this.playerPos === 2 || this.playerPos === 3) ? 0 : this.playerPos;
+            sound.catch(); break;
+        }
+      }
+
+      onResize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
+      }
+
+      restart() {
+        this.destroy();
+        this.score = 0;
+        this.misses = 0;
+        this.isGameOver = false;
+        this.pedestrians = [];
+        this.playerPos = 1;
+        this.isMissSequence = false;
+        this.missAnimation = null;
+        this.updateHUD();
+        this.startLoop();
+      }
+
+      startLoop() {
+        const baseSpeed = this.difficulty === 'gameA' ? 440 : 330;
+        const tick = () => {
+          if (this.isGameOver || this.isPaused || this.isMissSequence) return;
+          this.updateLogic();
+          const speed = Math.max(160, baseSpeed - Math.floor(this.score / 25) * 15);
+          this.tickTimer = setTimeout(tick, speed);
+        };
+        this.tickTimer = setTimeout(tick, baseSpeed);
+
+        const render = () => {
+          this.draw();
+          this.animFrame = requestAnimationFrame(render);
+        };
+        this.animFrame = requestAnimationFrame(render);
+      }
+
+      updateLogic() {
+        this.tickCount++;
+
+        // 歩行者出現
+        const interval = this.difficulty === 'gameA' ? 4 : 3;
+        if (this.tickCount % interval === 0) {
+          const activeStarts = new Set(
+            this.pedestrians.filter(p => p.step <= 2).map(p => `${p.street}-${p.direction}`)
+          );
+          const combos = [
+            { street: 'upper', direction: 'left-to-right' },
+            { street: 'upper', direction: 'right-to-left' },
+            { street: 'lower', direction: 'left-to-right' },
+            { street: 'lower', direction: 'right-to-left' }
+          ].filter(c => !activeStarts.has(`${c.street}-${c.direction}`));
+
+          if (combos.length > 0) {
+            const chosen = combos[Math.floor(Math.random() * combos.length)];
+            this.pedestrians.push({
+              id: this.nextId++,
+              street: chosen.street,
+              direction: chosen.direction,
+              step: 0
+            });
+          }
+        }
+
+        const nextList = [];
+        let scoreGain = 0;
+        let newMiss = false;
+        let missHole = null;
+        let walkedAny = false;
+
+        for (const p of this.pedestrians) {
+          const nextStep = p.step + 1;
+          let reqHole = null;
+
+          if (p.direction === 'left-to-right') {
+            if (nextStep === 3) reqHole = p.street === 'upper' ? 0 : 1; // 左穴
+            else if (nextStep === 6) reqHole = p.street === 'upper' ? 2 : 3; // 右穴
+          } else {
+            if (nextStep === 3) reqHole = p.street === 'upper' ? 2 : 3; // 右穴
+            else if (nextStep === 6) reqHole = p.street === 'upper' ? 0 : 1; // 左穴
+          }
+
+          if (reqHole !== null) {
+            if (this.playerPos === reqHole) {
+              scoreGain += 1;
+              sound.score();
+              nextList.push({ ...p, step: nextStep });
+              // パーティクル演出
+              const holeX = (reqHole === 0 || reqHole === 1) ? 190 : 310;
+              const holeY = (reqHole === 0 || reqHole === 2) ? 120 : 230;
+              this.spawnParticles(holeX, holeY, '#f59e0b', 8);
+            } else {
+              newMiss = true;
+              missHole = reqHole;
+            }
+          } else if (nextStep === 10) {
+            // 端から端まで渡り切って建物内へゴール！
+            scoreGain += 2;
+            sound.score();
+            this.spawnParticles(p.direction === 'left-to-right' ? 470 : 30, p.street === 'upper' ? 100 : 210, '#00f2fe', 16);
+          } else if (nextStep < 10) {
+            walkedAny = true;
+            nextList.push({ ...p, step: nextStep });
+          }
+        }
+
+        if (scoreGain > 0) {
+          this.score += scoreGain;
+          this.updateHUD();
+          app.saveScore(this.name, this.difficulty, this.score);
+        } else if (walkedAny && !newMiss) {
+          sound.tick();
+        }
+
+        if (newMiss && missHole !== null) {
+          this.isMissSequence = true;
+          this.missAnimation = missHole;
+          this.triggerMiss();
+
+          setTimeout(() => {
+            this.missAnimation = null;
+            this.pedestrians = [];
+            this.isMissSequence = false;
+          }, 1100);
+        } else {
+          this.pedestrians = nextList;
+        }
+      }
+
+      draw() {
+        const { ctx, canvas } = this;
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const scale = Math.min(w / 500, h / 340);
+        ctx.save();
+        ctx.translate((w - 500 * scale) / 2, (h - 340 * scale) / 2);
+        ctx.scale(scale, scale);
+
+        const isMod = app.isModern;
+        const ink = isMod ? '#e2e8f0' : '#1c2419';
+        const ghost = isMod ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
+        const accent = isMod ? '#00f2fe' : '#1c2419';
+        const playerCol = isMod ? '#38bdf8' : '#1c2419';
+
+        // 背景ストリート通路
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = ink;
+        ctx.lineCap = 'round';
+
+        // 上段 (y: 120)
+        ctx.beginPath(); ctx.moveTo(10, 120); ctx.lineTo(164, 120); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(216, 120); ctx.lineTo(284, 120); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(336, 120); ctx.lineTo(490, 120); ctx.stroke();
+
+        // 下段 (y: 230)
+        ctx.beginPath(); ctx.moveTo(10, 230); ctx.lineTo(164, 230); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(216, 230); ctx.lineTo(284, 230); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(336, 230); ctx.lineTo(490, 230); ctx.stroke();
+
+        // 左右のビル（出入口ドア）
+        ctx.fillStyle = isMod ? '#1e293b' : 'rgba(28,36,25,0.25)';
+        ctx.fillRect(0, 50, 25, 230);
+        ctx.fillRect(475, 50, 25, 230);
+
+        // ドア
+        ctx.fillStyle = isMod ? '#334155' : 'rgba(28,36,25,0.6)';
+        ctx.fillRect(5, 86, 16, 34); ctx.fillRect(5, 196, 16, 34);
+        ctx.fillRect(479, 86, 16, 34); ctx.fillRect(479, 196, 16, 34);
+
+        // 水面と波
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = isMod ? '#0284c7' : 'rgba(28,36,25,0.5)';
+        ctx.beginPath(); ctx.arc(250, 310, 230, Math.PI * 0.9, Math.PI * 0.1, true); ctx.stroke();
+
+        // 4箇所のマンホール足場（プレイヤー位置で閉じる）
+        const drawHole = (hx, hy, active) => {
+          ctx.fillStyle = active ? (isMod ? '#f59e0b' : ink) : ghost;
+          if (active && isMod) {
+            ctx.shadowColor = '#f59e0b';
+            ctx.shadowBlur = 10;
+          }
+          ctx.fillRect(hx - 26, hy - 2, 52, 5);
+          ctx.shadowBlur = 0;
+        };
+        drawHole(190, 120, this.playerPos === 0);
+        drawHole(190, 230, this.playerPos === 1);
+        drawHole(310, 120, this.playerPos === 2);
+        drawHole(310, 230, this.playerPos === 3);
+
+        // プレイヤー（中央でマンホールを持ち上げる作業員マン / サイバーGeminiボット）
+        const px = 250;
+        const py = 180;
+        ctx.fillStyle = playerCol;
+        ctx.strokeStyle = playerCol;
+        ctx.lineWidth = 5;
+
+        // 頭部
+        ctx.beginPath(); ctx.arc(px, py - 10, 8, 0, Math.PI * 2); ctx.fill();
+        // 胴体
+        ctx.beginPath(); ctx.moveTo(px, py - 2); ctx.lineTo(px, py + 35); ctx.stroke();
+        // 脚
+        ctx.beginPath(); ctx.moveTo(px, py + 35); ctx.lineTo(px - 12, py + 55); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px, py + 35); ctx.lineTo(px + 12, py + 55); ctx.stroke();
+
+        // 腕（選択されたマンホールへ腕を伸ばす）
+        const targetHoles = [
+          { x: 190, y: 120 }, // 0
+          { x: 190, y: 230 }, // 1
+          { x: 310, y: 120 }, // 2
+          { x: 310, y: 230 }  // 3
+        ];
+        const th = targetHoles[this.playerPos];
+        ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.moveTo(px, py + 8); ctx.lineTo(th.x, th.y); ctx.stroke();
+
+        // 歩行者描画（全10ステップ、シルクハットとステッキの紳士）
+        const drawGentleman = (cx, cy, isRight, isLeft, isActive) => {
+          ctx.save();
+          ctx.globalAlpha = isActive ? 1 : 0.04;
+          ctx.fillStyle = isMod ? (isActive ? '#00f2fe' : ghost) : ink;
+          ctx.strokeStyle = isMod ? (isActive ? '#00f2fe' : ghost) : ink;
+
+          // ハット
+          ctx.beginPath(); ctx.arc(cx, cy - 12, 5, 0, Math.PI * 2); ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.beginPath(); ctx.moveTo(cx - 7, cy - 15); ctx.lineTo(cx + 7, cy - 15); ctx.stroke();
+          ctx.fillRect(cx - 3.5, cy - 19, 7, 4);
+
+          // 体幹
+          ctx.lineWidth = 3.5;
+          const tilt = isRight ? 2 : isLeft ? -2 : 0;
+          ctx.beginPath(); ctx.moveTo(cx - tilt / 2, cy - 7); ctx.lineTo(cx + tilt, cy + 7); ctx.stroke();
+
+          // ステッキ・腕
+          ctx.lineWidth = 2;
+          if (isRight) {
+            ctx.beginPath(); ctx.moveTo(cx, cy - 2); ctx.lineTo(cx + 6, cy + 5); ctx.lineTo(cx + 8, cy + 16); ctx.stroke();
+            // 脚
+            ctx.beginPath(); ctx.moveTo(cx + 2, cy + 7); ctx.lineTo(cx + 7, cy + 18); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx + 2, cy + 7); ctx.lineTo(cx - 5, cy + 17); ctx.stroke();
+          } else if (isLeft) {
+            ctx.beginPath(); ctx.moveTo(cx, cy - 2); ctx.lineTo(cx - 6, cy + 5); ctx.lineTo(cx - 8, cy + 16); ctx.stroke();
+            // 脚
+            ctx.beginPath(); ctx.moveTo(cx - 2, cy + 7); ctx.lineTo(cx - 7, cy + 18); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx - 2, cy + 7); ctx.lineTo(cx + 5, cy + 17); ctx.stroke();
+          } else {
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + 5, cy + 10); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx, cy + 7); ctx.lineTo(cx - 5, cy + 18); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(cx, cy + 7); ctx.lineTo(cx + 5, cy + 18); ctx.stroke();
+          }
+          ctx.restore();
+        };
+
+        // 上段歩行者 (y: 100)
+        this.STEPS_L2R.forEach((cx, idx) => {
+          const actL2R = this.pedestrians.some(p => p.street === 'upper' && p.direction === 'left-to-right' && p.step === idx);
+          const r2lIdx = this.STEPS_R2L.indexOf(cx);
+          const actR2L = this.pedestrians.some(p => p.street === 'upper' && p.direction === 'right-to-left' && p.step === r2lIdx);
+          drawGentleman(cx, 100, actL2R, actR2L, actL2R || actR2L);
+        });
+
+        // 下段歩行者 (y: 210)
+        this.STEPS_L2R.forEach((cx, idx) => {
+          const actL2R = this.pedestrians.some(p => p.street === 'lower' && p.direction === 'left-to-right' && p.step === idx);
+          const r2lIdx = this.STEPS_R2L.indexOf(cx);
+          const actR2L = this.pedestrians.some(p => p.street === 'lower' && p.direction === 'right-to-left' && p.step === r2lIdx);
+          drawGentleman(cx, 210, actL2R, actR2L, actL2R || actR2L);
+        });
+
+        // 落下ミスアニメーション
+        if (this.missAnimation !== null) {
+          const mx = (this.missAnimation === 0 || this.missAnimation === 1) ? 190 : 310;
+          ctx.fillStyle = '#ef4444';
+          ctx.beginPath(); ctx.ellipse(mx, 295, 18, 4, 0, 0, Math.PI * 2); ctx.fill();
+          // 跳ねる魚
+          ctx.fillStyle = '#f59e0b';
+          ctx.beginPath(); ctx.arc(mx + (this.tickCount % 2 === 0 ? 10 : -10), 275, 4, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // パーティクル
+        this.updateParticles(ctx);
+
+        ctx.restore();
+      }
+    }
+
+    /* ==========================================================================
+       5. GAME 2: OCTOPUS (オクトパス)
+       ========================================================================== */
+    class OctopusGame extends BaseGame {
+      constructor(diff) {
+        super('octopus', diff);
+        this.canvas = document.getElementById('main-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.diverPos = 0; // 0: ボート, 1: ロープ, 2: 海底1, 3: 海底2, 4: 海底3, 5: 宝箱前
+        this.tentacles = [0, 0, 0, 0]; // 4本 (0: 短, 1: 中, 2: 危険)
+        this.goldInBag = 0;
+        this.isCaught = false;
+
+        this.initControls();
+        this.onResize();
+        this.startLoop();
+      }
+
+      initControls() {
+        const leftBtn = document.getElementById('btn-move-left');
+        const rightBtn = document.getElementById('btn-move-right');
+        if (leftBtn) leftBtn.onclick = () => this.moveLeft();
+        if (rightBtn) rightBtn.onclick = () => this.moveRight();
+
+        this.canvas.onpointerdown = (e) => {
+          const rect = this.canvas.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width;
+          if (x < 0.5) this.moveLeft();
+          else this.moveRight();
+        };
+
+        document.getElementById('game-key-hint').textContent = 'KEY: ← 帰還 / → 前進・宝取得';
+      }
+
+      onKeyDown(key) {
+        if (['ArrowLeft', 'a', 'A'].includes(key)) this.moveLeft();
+        else if (['ArrowRight', 'd', 'D', ' '].includes(key)) this.moveRight();
+      }
+
+      moveRight() {
+        if (this.isGameOver || this.isPaused || this.isCaught) return;
+        if (this.diverPos < 5) {
+          this.diverPos++;
+          sound.step();
+          this.checkCollision();
+        } else {
+          // 宝箱からゴールド取得
+          if (this.tentacles[3] === 2) {
+            this.triggerCaught();
+          } else {
+            this.goldInBag++;
+            this.score++;
+            sound.score();
+            this.updateHUD();
+            app.saveScore(this.name, this.difficulty, this.score);
+            this.spawnParticles(400, 240, '#eab308', 8);
+          }
+        }
+      }
+
+      moveLeft() {
+        if (this.isGameOver || this.isPaused || this.isCaught) return;
+        if (this.diverPos > 0) {
+          this.diverPos--;
+          this.checkCollision();
+          if (this.diverPos === 0) {
+            if (this.goldInBag > 0) {
+              const bonus = this.goldInBag * 3;
+              this.score += bonus;
+              this.goldInBag = 0;
+              sound.bonus();
+              this.updateHUD();
+              app.saveScore(this.name, this.difficulty, this.score);
+              this.spawnParticles(70, 70, '#00f2fe', 20);
+            } else {
+              sound.tick();
+            }
+          } else {
+            sound.step();
+          }
+        }
+      }
+
+      checkCollision() {
+        if (
+          (this.diverPos === 2 && this.tentacles[0] === 2) ||
+          (this.diverPos === 3 && this.tentacles[1] === 2) ||
+          (this.diverPos === 4 && this.tentacles[2] === 2) ||
+          (this.diverPos === 5 && this.tentacles[3] === 2)
+        ) {
+          this.triggerCaught();
+        }
+      }
+
+      triggerCaught() {
+        this.isCaught = true;
+        this.triggerMiss();
+        this.goldInBag = 0;
+
+        setTimeout(() => {
+          this.diverPos = 0;
+          this.isCaught = false;
+        }, 1200);
+      }
+
+      onResize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
+      }
+
+      restart() {
+        this.destroy();
+        this.score = 0;
+        this.misses = 0;
+        this.isGameOver = false;
+        this.diverPos = 0;
+        this.tentacles = [0, 0, 0, 0];
+        this.goldInBag = 0;
+        this.isCaught = false;
+        this.updateHUD();
+        this.startLoop();
+      }
+
+      startLoop() {
+        const baseSpeed = this.difficulty === 'gameA' ? 480 : 360;
+        const tick = () => {
+          if (this.isGameOver || this.isPaused || this.isCaught) return;
+          this.updateLogic();
+          const speed = Math.max(180, baseSpeed - Math.floor(this.score / 25) * 15);
+          this.tickTimer = setTimeout(tick, speed);
+        };
+        this.tickTimer = setTimeout(tick, baseSpeed);
+
+        const render = () => {
+          this.draw();
+          this.animFrame = requestAnimationFrame(render);
+        };
+        this.animFrame = requestAnimationFrame(render);
+      }
+
+      updateLogic() {
+        // タコの触手伸縮
+        let moved = false;
+        const chance = this.difficulty === 'gameA' ? 0.45 : 0.65;
+        for (let i = 0; i < 4; i++) {
+          if (Math.random() < chance) {
+            moved = true;
+            if (this.tentacles[i] === 0) this.tentacles[i] = 1;
+            else if (this.tentacles[i] === 1) this.tentacles[i] = Math.random() < 0.6 ? 2 : 0;
+            else this.tentacles[i] = 1;
+          }
+        }
+        if (moved) sound.step();
+        this.checkCollision();
+      }
+
+      draw() {
+        const { ctx, canvas } = this;
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const scale = Math.min(w / 500, h / 340);
+        ctx.save();
+        ctx.translate((w - 500 * scale) / 2, (h - 340 * scale) / 2);
+        ctx.scale(scale, scale);
+
+        const isMod = app.isModern;
+        const ink = isMod ? '#e2e8f0' : '#1c2419';
+        const octoCol = isMod ? '#ef4444' : ink;
+        const diverCol = isMod ? '#38bdf8' : ink;
+
+        // 海水面
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = isMod ? '#0284c7' : ink;
+        ctx.beginPath(); ctx.moveTo(0, 75); ctx.lineTo(500, 75); ctx.stroke();
+
+        // ボート (x: 50, y: 60)
+        ctx.fillStyle = isMod ? '#ca8a04' : ink;
+        ctx.beginPath();
+        ctx.moveTo(30, 60); ctx.lineTo(95, 60); ctx.lineTo(85, 75); ctx.lineTo(40, 75);
+        ctx.closePath(); ctx.fill();
+
+        // 宝箱 (x: 410, y: 240)
+        ctx.fillStyle = isMod ? '#eab308' : ink;
+        ctx.fillRect(410, 240, 40, 28);
+        if (isMod) {
+          ctx.fillStyle = '#fff';
+          ctx.beginPath(); ctx.arc(430, 254, 3, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // 大ダコ本体 (右側 x: 380, y: 110)
+        ctx.fillStyle = octoCol;
+        if (isMod) {
+          ctx.shadowColor = '#ef4444'; ctx.shadowBlur = 12;
+        }
+        ctx.beginPath(); ctx.arc(390, 110, 42, 0, Math.PI * 2); ctx.fill();
+        ctx.shadowBlur = 0;
+
+        // タコの目
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(370, 105, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(400, 105, 8, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(368, 105, 4, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(398, 105, 4, 0, Math.PI * 2); ctx.fill();
+
+        // 4本の触手
+        const tentacleCoords = [
+          { start: [350, 130], mid: [250, 170], end: [170, 220] }, // 0: 海底1
+          { start: [360, 140], mid: [290, 180], end: [235, 230] }, // 1: 海底2
+          { start: [380, 150], mid: [340, 190], end: [305, 230] }, // 2: 海底3
+          { start: [410, 145], mid: [420, 190], end: [395, 240] }  // 3: 宝箱前
+        ];
+
+        tentacleCoords.forEach((tc, idx) => {
+          const state = this.tentacles[idx];
+          ctx.lineWidth = 12;
+          ctx.lineCap = 'round';
+          ctx.strokeStyle = octoCol;
+          ctx.beginPath();
+          ctx.moveTo(tc.start[0], tc.start[1]);
+          if (state === 1) {
+            ctx.lineTo(tc.mid[0], tc.mid[1]);
+          } else if (state === 2) {
+            ctx.lineTo(tc.mid[0], tc.mid[1]);
+            ctx.lineTo(tc.end[0], tc.end[1]);
+          }
+          ctx.stroke();
+        });
+
+        // ダイバー潜水士
+        const diverCoords = [
+          { x: 65, y: 55 },   // 0: ボート上
+          { x: 105, y: 130 }, // 1: ロープ
+          { x: 170, y: 220 }, // 2: 海底1
+          { x: 235, y: 230 }, // 3: 海底2
+          { x: 305, y: 230 }, // 4: 海底3
+          { x: 385, y: 240 }  // 5: 宝箱前
+        ];
+        const dc = diverCoords[this.diverPos];
+
+        ctx.fillStyle = diverCol;
+        ctx.strokeStyle = diverCol;
+        ctx.lineWidth = 3;
+
+        // ダイバーヘルメット & 体
+        ctx.beginPath(); ctx.arc(dc.x, dc.y - 12, 7, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(dc.x - 5, dc.y - 4, 10, 16);
+        // 足
+        ctx.beginPath(); ctx.moveTo(dc.x - 3, dc.y + 12); ctx.lineTo(dc.x - 6, dc.y + 24); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(dc.x + 3, dc.y + 12); ctx.lineTo(dc.x + 6, dc.y + 24); ctx.stroke();
+
+        // 宝袋の表示
+        if (this.goldInBag > 0) {
+          ctx.fillStyle = '#eab308';
+          ctx.beginPath(); ctx.arc(dc.x - 8, dc.y + 5, 5, 0, Math.PI * 2); ctx.fill();
+        }
+
+        // 入水ロープ
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = isMod ? 'rgba(255,255,255,0.3)' : ink;
+        ctx.beginPath(); ctx.moveTo(70, 75); ctx.lineTo(105, 140); ctx.stroke();
+
+        this.updateParticles(ctx);
+        ctx.restore();
+      }
+    }
+
+    /* ==========================================================================
+       6. GAME 3: FIRE (ファイア)
+       ========================================================================== */
+    class FireGame extends BaseGame {
+      constructor(diff) {
+        super('fire', diff);
+        this.canvas = document.getElementById('main-canvas');
+        this.ctx = this.canvas.getContext('2d');
+        this.playerPos = 1; // 0: 左, 1: 中, 2: 右
+        this.victims = [];
+        this.nextId = 1;
+        this.tickCount = 0;
+        this.isMissSeq = false;
+
+        this.initControls();
+        this.onResize();
+        this.startLoop();
+      }
+
+      initControls() {
+        const leftBtn = document.getElementById('btn-move-left');
+        const rightBtn = document.getElementById('btn-move-right');
+        if (leftBtn) leftBtn.onclick = () => this.moveLeft();
+        if (rightBtn) rightBtn.onclick = () => this.moveRight();
+
+        this.canvas.onpointerdown = (e) => {
+          const rect = this.canvas.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width;
+          if (x < 0.33) this.playerPos = 0;
+          else if (x < 0.66) this.playerPos = 1;
+          else this.playerPos = 2;
+          sound.catch();
+        };
+
+        document.getElementById('game-key-hint').textContent = 'KEY: ← / → or 1, 2, 3';
+      }
+
+      onKeyDown(key) {
+        if (['ArrowLeft', 'a', 'A'].includes(key)) this.moveLeft();
+        else if (['ArrowRight', 'd', 'D'].includes(key)) this.moveRight();
+        else if (key === '1') { this.playerPos = 0; sound.catch(); }
+        else if (key === '2') { this.playerPos = 1; sound.catch(); }
+        else if (key === '3') { this.playerPos = 2; sound.catch(); }
+      }
+
+      moveLeft() {
+        if (this.isGameOver || this.isPaused || this.isMissSeq) return;
+        if (this.playerPos > 0) {
+          this.playerPos--;
+          sound.catch();
+        }
+      }
+
+      moveRight() {
+        if (this.isGameOver || this.isPaused || this.isMissSeq) return;
+        if (this.playerPos < 2) {
+          this.playerPos++;
+          sound.catch();
+        }
+      }
+
+      onResize() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
+      }
+
+      restart() {
+        this.destroy();
+        this.score = 0;
+        this.misses = 0;
+        this.isGameOver = false;
+        this.playerPos = 1;
+        this.victims = [];
+        this.isMissSeq = false;
+        this.updateHUD();
+        this.startLoop();
+      }
+
+      startLoop() {
+        const baseSpeed = this.difficulty === 'gameA' ? 440 : 330;
+        const tick = () => {
+          if (this.isGameOver || this.isPaused || this.isMissSeq) return;
+          this.updateLogic();
+          const speed = Math.max(160, baseSpeed - Math.floor(this.score / 20) * 15);
+          this.tickTimer = setTimeout(tick, speed);
+        };
+        this.tickTimer = setTimeout(tick, baseSpeed);
+
+        const render = () => {
+          this.draw();
+          this.animFrame = requestAnimationFrame(render);
+        };
+        this.animFrame = requestAnimationFrame(render);
+      }
+
+      updateLogic() {
+        this.tickCount++;
+
+        // 飛び降り出現
+        const interval = this.difficulty === 'gameA' ? 5 : 3;
+        if (this.tickCount % interval === 0) {
+          if (!this.victims.some(v => v.step === 0)) {
+            this.victims.push({ id: this.nextId++, step: 0 });
+          }
+        }
+
+        const nextList = [];
+        let scoreGain = 0;
+        let newMiss = false;
+        let missX = 0;
+
+        for (const v of this.victims) {
+          const nextStep = v.step + 1;
+          if (nextStep === 2) {
+            if (this.playerPos === 0) {
+              sound.score();
+              scoreGain++;
+              nextList.push({ ...v, step: nextStep });
+              this.spawnParticles(150, 220, '#00f2fe', 8);
+            } else { newMiss = true; missX = 140; }
+          } else if (nextStep === 4) {
+            if (this.playerPos === 1) {
+              sound.score();
+              scoreGain++;
+              nextList.push({ ...v, step: nextStep });
+              this.spawnParticles(260, 220, '#00f2fe', 8);
+            } else { newMiss = true; missX = 250; }
+          } else if (nextStep === 6) {
+            if (this.playerPos === 2) {
+              sound.score();
+              scoreGain++;
+              nextList.push({ ...v, step: nextStep });
+              this.spawnParticles(370, 220, '#00f2fe', 8);
+            } else { newMiss = true; missX = 360; }
+          } else if (nextStep === 7) {
+            // 救急車到着！救助完了！
+            sound.bonus();
+            scoreGain += 2;
+            this.spawnParticles(440, 220, '#22c55e', 14);
+          } else {
+            nextList.push({ ...v, step: nextStep });
+          }
+        }
+
+        if (scoreGain > 0) {
+          this.score += scoreGain;
+          this.updateHUD();
+          app.saveScore(this.name, this.difficulty, this.score);
+        }
+
+        if (newMiss) {
+          this.isMissSeq = true;
+          this.triggerMiss();
+          setTimeout(() => {
+            this.victims = [];
+            this.isMissSeq = false;
+          }, 1100);
+        } else {
+          this.victims = nextList;
+        }
+      }
+
+      draw() {
+        const { ctx, canvas } = this;
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        const scale = Math.min(w / 500, h / 340);
+        ctx.save();
+        ctx.translate((w - 500 * scale) / 2, (h - 340 * scale) / 2);
+        ctx.scale(scale, scale);
+
+        const isMod = app.isModern;
+        const ink = isMod ? '#e2e8f0' : '#1c2419';
+
+        // 炎上ビル (左側 x: 0〜80)
+        ctx.fillStyle = isMod ? '#1e293b' : 'rgba(28,36,25,0.3)';
+        ctx.fillRect(0, 50, 80, 240);
+        // 炎アニメ
+        ctx.fillStyle = isMod ? '#ef4444' : ink;
+        ctx.fillRect(50, 55 + (this.tickCount % 2) * 3, 20, 10);
+        ctx.fillRect(65, 75 + (this.tickCount % 3) * 2, 12, 10);
+
+        // 救急車 (右側 x: 410〜490, y: 200)
+        ctx.fillStyle = isMod ? '#f8fafc' : ink;
+        ctx.fillRect(410, 200, 80, 45);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(445, 215, 10, 15); ctx.fillRect(442, 218, 16, 9); // 赤十字
+
+        // 落下ピープル座標 (step 0..6)
+        const victimCoords = [
+          { x: 80, y: 80 },   // 0: 飛び降り直後
+          { x: 110, y: 150 }, // 1: 落下1
+          { x: 150, y: 220 }, // 2: 救助位置1 (バウンド)
+          { x: 200, y: 140 }, // 3: 上昇・落下2
+          { x: 260, y: 220 }, // 4: 救助位置2 (バウンド)
+          { x: 315, y: 140 }, // 5: 上昇・落下3
+          { x: 370, y: 220 }  // 6: 救助位置3 (バウンド)
+        ];
+
+        victimCoords.forEach((vc, step) => {
+          const active = this.victims.some(v => v.step === step);
+          ctx.save();
+          ctx.globalAlpha = active ? 1 : 0.04;
+          ctx.fillStyle = isMod ? '#f59e0b' : ink;
+          ctx.beginPath(); ctx.arc(vc.x, vc.y - 8, 5, 0, Math.PI * 2); ctx.fill();
+          ctx.fillRect(vc.x - 3, vc.y - 2, 6, 12);
+          ctx.restore();
+        });
+
+        // 救助隊員2人＆トランポリン
+        const playerXPositions = [140, 250, 360];
+        const curPx = playerXPositions[this.playerPos];
+
+        ctx.fillStyle = isMod ? '#38bdf8' : ink;
+        ctx.strokeStyle = isMod ? '#38bdf8' : ink;
+        ctx.lineWidth = 3;
+
+        // 左隊員
+        ctx.beginPath(); ctx.arc(curPx - 24, 220, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(curPx - 28, 227, 8, 18);
+        // 右隊員
+        ctx.beginPath(); ctx.arc(curPx + 24, 220, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(curPx + 20, 227, 8, 18);
+
+        // トランポリン
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = isMod ? '#00f2fe' : ink;
+        ctx.beginPath(); ctx.moveTo(curPx - 22, 232); ctx.lineTo(curPx + 22, 232); ctx.stroke();
+
+        this.updateParticles(ctx);
+        ctx.restore();
+      }
+    }
+
+    /* ==========================================================================
+       7. GAME 4: OIL PANIC (オイルパニック)
+       ========================================================================== */
+    class OilPanicGame extends BaseGame {
+      constructor(diff) {
+        super('oilpanic', diff);
+        this.topCanvas = document.getElementById('multi-top-canvas');
+        this.botCanvas = document.getElementById('multi-bot-canvas');
+        this.topCtx = this.topCanvas.getContext('2d');
+        this.botCtx = this.botCanvas.getContext('2d');
+
+        this.playerPos = 1; // -1: 窓, 0..3: パイプ4本
+        this.bucketAmount = 0; // 0..3滴 (4滴で溢れてミス)
+        this.helperPos = 1; // 0: 窓下, 1: 中央, 2: 右
+        this.drops = []; // 上画面のオイル滴
+        this.fallings = []; // 下画面のオイル流し
+        this.tickCount = 0;
+
+        this.initControls();
+        this.onResize();
+        this.startLoop();
+      }
+
+      initControls() {
+        const leftBtn = document.getElementById('btn-move-left');
+        const rightBtn = document.getElementById('btn-move-right');
+        if (leftBtn) leftBtn.onclick = () => this.moveLeft();
+        if (rightBtn) rightBtn.onclick = () => this.moveRight();
+
+        // 画面タップ操作
+        this.topCanvas.onpointerdown = (e) => {
+          const rect = this.topCanvas.getBoundingClientRect();
+          const x = (e.clientX - rect.left) / rect.width;
+          if (x < 0.2) {
+            this.playerPos = -1;
+            this.dumpOil();
+          } else if (x < 0.4) this.playerPos = 0;
+          else if (x < 0.6) this.playerPos = 1;
+          else if (x < 0.8) this.playerPos = 2;
+          else this.playerPos = 3;
+          sound.catch();
+        };
+
+        document.getElementById('game-key-hint').textContent = 'KEY: ← 窓で流す / → 移動';
+      }
+
+      onKeyDown(key) {
+        if (['ArrowLeft', 'a', 'A'].includes(key)) this.moveLeft();
+        else if (['ArrowRight', 'd', 'D'].includes(key)) this.moveRight();
+      }
+
+      moveLeft() {
+        if (this.isGameOver || this.isPaused) return;
+        if (this.playerPos > -1) {
+          this.playerPos--;
+          sound.catch();
+          if (this.playerPos === -1 && this.bucketAmount > 0) {
+            this.dumpOil();
+          }
+        }
+      }
+
+      moveRight() {
+        if (this.isGameOver || this.isPaused) return;
+        if (this.playerPos < 3) {
+          this.playerPos++;
+          sound.catch();
+        }
+      }
+
+      dumpOil() {
+        if (this.bucketAmount <= 0) return;
+        sound.catch();
+        this.fallings.push({ step: 0, amount: this.bucketAmount });
+        this.bucketAmount = 0;
+      }
+
+      onResize() {
+        const rTop = this.topCanvas.parentElement.getBoundingClientRect();
+        this.topCanvas.width = rTop.width;
+        this.topCanvas.height = rTop.height;
+
+        const rBot = this.botCanvas.parentElement.getBoundingClientRect();
+        this.botCanvas.width = rBot.width;
+        this.botCanvas.height = rBot.height;
+      }
+
+      restart() {
+        this.destroy();
+        this.score = 0;
+        this.misses = 0;
+        this.isGameOver = false;
+        this.playerPos = 1;
+        this.bucketAmount = 0;
+        this.helperPos = 1;
+        this.drops = [];
+        this.fallings = [];
+        this.updateHUD();
+        this.startLoop();
+      }
+
+      startLoop() {
+        const baseSpeed = this.difficulty === 'gameA' ? 460 : 340;
+        const tick = () => {
+          if (this.isGameOver || this.isPaused) return;
+          this.updateLogic();
+          const speed = Math.max(170, baseSpeed - Math.floor(this.score / 25) * 15);
+          this.tickTimer = setTimeout(tick, speed);
+        };
+        this.tickTimer = setTimeout(tick, baseSpeed);
+
+        const render = () => {
+          this.draw();
+          this.animFrame = requestAnimationFrame(render);
+        };
+        this.animFrame = requestAnimationFrame(render);
+      }
+
+      updateLogic() {
+        this.tickCount++;
+
+        // 1. 上画面: パイプからオイル滴下生成
+        const spawnInt = this.difficulty === 'gameA' ? 4 : 3;
+        if (this.tickCount % spawnInt === 0) {
+          const pipe = Math.floor(Math.random() * 4);
+          this.drops.push({ pipe, step: 0 });
+        }
+
+        // 2. 上画面: 滴の落下
+        const nextDrops = [];
+        for (const d of this.drops) {
+          const ns = d.step + 1;
+          if (ns === 3) {
+            // キャッチ判定
+            if (this.playerPos === d.pipe) {
+              this.bucketAmount++;
+              sound.score();
+              if (this.bucketAmount > 3) {
+                // バケツから溢れた！ミス！
+                this.triggerMiss();
+                this.bucketAmount = 0;
+              }
+            } else {
+              // キャッチできず床へ激突！ミス！
+              this.triggerMiss();
+            }
+          } else {
+            nextDrops.push({ ...d, step: ns });
+          }
+        }
+        this.drops = nextDrops;
+
+        // 3. 下画面: 相棒の自動徘徊
+        if (Math.random() < 0.6) {
+          this.helperPos = Math.floor(Math.random() * 3);
+        }
+
+        // 4. 下画面: 窓から落としたオイルの落下判定
+        const nextFall = [];
+        for (const f of this.fallings) {
+          const ns = f.step + 1;
+          if (ns === 3) {
+            // 窓下 (helperPos === 0) でキャッチ成功！
+            if (this.helperPos === 0) {
+              const pts = f.amount * 5;
+              this.score += pts;
+              sound.bonus();
+              this.updateHUD();
+              app.saveScore(this.name, this.difficulty, this.score);
+              this.spawnParticles(80, 160, '#22c55e', 16);
+            } else {
+              // 相棒がおらず地面/通行人にバシャッ！ミス！
+              this.triggerMiss();
+            }
+          } else {
+            nextFall.push({ ...f, step: ns });
+          }
+        }
+        this.fallings = nextFall;
+      }
+
+      draw() {
+        const isMod = app.isModern;
+        const ink = isMod ? '#e2e8f0' : '#1c2419';
+
+        // --- A. 上画面描画 ---
+        const tc = this.topCtx;
+        const tw = this.topCanvas.width;
+        const th = this.topCanvas.height;
+        tc.clearRect(0, 0, tw, th);
+
+        const sTop = Math.min(tw / 400, th / 200);
+        tc.save();
+        tc.translate((tw - 400 * sTop) / 2, (th - 200 * sTop) / 2);
+        tc.scale(sTop, sTop);
+
+        // 天井配管
+        tc.lineWidth = 6;
+        tc.strokeStyle = isMod ? '#64748b' : ink;
+        tc.beginPath(); tc.moveTo(80, 30); tc.lineTo(360, 30); tc.stroke();
+        const pipeX = [120, 180, 240, 300];
+        pipeX.forEach(px => {
+          tc.beginPath(); tc.moveTo(px, 30); tc.lineTo(px, 45); tc.stroke();
+        });
+
+        // オイル滴下
+        this.drops.forEach(d => {
+          const x = pipeX[d.pipe];
+          const y = 45 + d.step * 35;
+          tc.fillStyle = isMod ? '#38bdf8' : ink;
+          tc.beginPath(); tc.arc(x, y, 4, 0, Math.PI * 2); tc.fill();
+        });
+
+        // プレイヤー (上画面)
+        const curPx = this.playerPos === -1 ? 60 : pipeX[this.playerPos];
+        tc.fillStyle = isMod ? '#00f2fe' : ink;
+        tc.fillRect(curPx - 6, 125, 12, 25);
+        // バケツ
+        tc.fillStyle = isMod ? '#f59e0b' : ink;
+        tc.fillRect(curPx - 8, 115, 16, 10);
+        // バケツの中の滴インジケータ
+        for (let b = 0; b < this.bucketAmount; b++) {
+          tc.fillStyle = '#ef4444';
+          tc.beginPath(); tc.arc(curPx - 4 + b * 4, 112, 2.5, 0, Math.PI * 2); tc.fill();
+        }
+
+        tc.restore();
+
+        // --- B. 下画面描画 ---
+        const bc = this.botCtx;
+        const bw = this.botCanvas.width;
+        const bh = this.botCanvas.height;
+        bc.clearRect(0, 0, bw, bh);
+
+        const sBot = Math.min(bw / 400, bh / 200);
+        bc.save();
+        bc.translate((bw - 400 * sBot) / 2, (bh - 200 * sBot) / 2);
+        bc.scale(sBot, sBot);
+
+        // 窓から落ちてくるオイル
+        this.fallings.forEach(f => {
+          const fy = 20 + f.step * 45;
+          bc.fillStyle = isMod ? '#38bdf8' : ink;
+          bc.beginPath(); bc.arc(60, fy, 6, 0, Math.PI * 2); bc.fill();
+        });
+
+        // 相棒ドラム缶オッサン
+        const helperX = [60, 160, 260];
+        const hx = helperX[this.helperPos];
+        bc.fillStyle = isMod ? '#22c55e' : ink;
+        bc.fillRect(hx - 8, 130, 16, 26);
+        // ドラム缶
+        bc.fillStyle = isMod ? '#ca8a04' : ink;
+        bc.fillRect(hx - 12, 120, 24, 14);
+
+        this.updateParticles(bc);
+        bc.restore();
+      }
+    }
+
+    // アプリ起動
+    window.addEventListener('DOMContentLoaded', () => {
+      app.init();
+    });
+  </script>
+</body>
+</html>
