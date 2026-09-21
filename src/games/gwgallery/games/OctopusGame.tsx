@@ -25,7 +25,16 @@ export const OctopusGame: React.FC<GwCommonGameProps> = ({
   onChangeDifficulty,
 }) => {
   const [diverPos, setDiverPos] = useState<DiverPosition>(0);
+  const diverPosRef = useRef<DiverPosition>(0);
+  useEffect(() => {
+    diverPosRef.current = diverPos;
+  }, [diverPos]);
+
   const [tentacles, setTentacles] = useState<TentacleState>([0, 0, 0, 0]);
+  const tentaclesRef = useRef<TentacleState>([0, 0, 0, 0]);
+  useEffect(() => {
+    tentaclesRef.current = tentacles;
+  }, [tentacles]);
   const [goldInBag, setGoldInBag] = useState<number>(0);
   const [score, setScore] = useState<number>(0);
   const [misses, setMisses] = useState<number>(0);
@@ -64,21 +73,50 @@ export const OctopusGame: React.FC<GwCommonGameProps> = ({
     }
   }, [misses, onMissChange, onGameOver, score]);
 
+  // 捕獲トリガー
+  const triggerCaught = useCallback(() => {
+    setIsCaught(true);
+    gwSound.miss();
+    setMisses((m) => m + 1);
+    setGoldInBag(0);
+
+    setTimeout(() => {
+      setDiverPos(0);
+      setIsCaught(false);
+    }, 1200);
+  }, []);
+
   // 前進 or 宝取得
   const handleRight = useCallback(() => {
     if (misses >= 3 || isPaused || isCaught) return;
 
     if (diverPos < 5) {
-      // 1歩進む
-      setDiverPos((prev) => (prev + 1) as DiverPosition);
+      const nextPos = (diverPos + 1) as DiverPosition;
+      setDiverPos(nextPos);
       gwSound.tick();
+
+      // 飛び込み衝突判定 (触手が伸びている位置に突っ込んだら即捕獲)
+      const curTentacles = tentaclesRef.current;
+      if (
+        (nextPos === 2 && curTentacles[0] === 2) ||
+        (nextPos === 3 && curTentacles[1] === 2) ||
+        (nextPos === 4 && curTentacles[2] === 2) ||
+        (nextPos === 5 && curTentacles[3] === 2)
+      ) {
+        triggerCaught();
+      }
     } else {
       // 宝箱からゴールドを掴む！
-      setGoldInBag((prev) => prev + 1);
-      setScore((prev) => prev + 1);
-      gwSound.score();
+      // 触手3（宝箱）が最長なら捕獲
+      if (tentaclesRef.current[3] === 2) {
+        triggerCaught();
+      } else {
+        setGoldInBag((prev) => prev + 1);
+        setScore((prev) => prev + 1);
+        gwSound.score();
+      }
     }
-  }, [diverPos, misses, isPaused, isCaught]);
+  }, [diverPos, misses, isPaused, isCaught, triggerCaught]);
 
   // 後退 or ボート帰還
   const handleLeft = useCallback(() => {
@@ -87,6 +125,17 @@ export const OctopusGame: React.FC<GwCommonGameProps> = ({
     if (diverPos > 0) {
       const nextPos = (diverPos - 1) as DiverPosition;
       setDiverPos(nextPos);
+
+      // 後退時の衝突判定
+      const curTentacles = tentaclesRef.current;
+      if (
+        (nextPos === 2 && curTentacles[0] === 2) ||
+        (nextPos === 3 && curTentacles[1] === 2) ||
+        (nextPos === 4 && curTentacles[2] === 2)
+      ) {
+        triggerCaught();
+        return;
+      }
 
       if (nextPos === 0) {
         // ボートへ生還！ボーナス得点
@@ -102,7 +151,7 @@ export const OctopusGame: React.FC<GwCommonGameProps> = ({
         gwSound.tick();
       }
     }
-  }, [diverPos, goldInBag, misses, isPaused, isCaught]);
+  }, [diverPos, goldInBag, misses, isPaused, isCaught, triggerCaught]);
 
   // キーボード操作
   useEffect(() => {
@@ -120,55 +169,45 @@ export const OctopusGame: React.FC<GwCommonGameProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleRight, handleLeft]);
 
-  // タコの動きと衝突判定ループ
+  // タコの動きと衝突判定ループ (diverPosを依存配列から排除し安定稼働)
   useEffect(() => {
     if (misses >= 3 || isPaused || isCaught) return;
 
     const timer = setInterval(() => {
       tickRef.current += 1;
-      gwSound.octoStep();
 
       setTentacles((prev) => {
-        // 4本の触手について、ランダムまたは周期的に伸縮
         const next: TentacleState = [...prev];
+        let movedAny = false;
 
         for (let i = 0; i < 4; i++) {
           const changeChance = difficulty === 'gameA' ? 0.45 : 0.65;
           if (Math.random() < changeChance) {
-            // 伸びるか縮むか
+            movedAny = true;
             if (next[i] === 0) {
               next[i] = 1;
             } else if (next[i] === 1) {
               next[i] = Math.random() < 0.6 ? 2 : 0;
             } else {
-              // 2（最長）からは戻る
               next[i] = 1;
             }
           }
         }
 
+        if (movedAny) {
+          gwSound.octoStep();
+        }
+
         // 捕獲判定
-        // 触手0 は 位置2 (海底1)
-        // 触手1 は 位置3 (海底2)
-        // 触手2 は 位置4 (海底3)
-        // 触手3 は 位置5 (宝箱前)
+        const curDiver = diverPosRef.current;
         let caught = false;
-        if (next[0] === 2 && diverPos === 2) caught = true;
-        if (next[1] === 2 && diverPos === 3) caught = true;
-        if (next[2] === 2 && diverPos === 4) caught = true;
-        if (next[3] === 2 && diverPos === 5) caught = true;
+        if (next[0] === 2 && curDiver === 2) caught = true;
+        if (next[1] === 2 && curDiver === 3) caught = true;
+        if (next[2] === 2 && curDiver === 4) caught = true;
+        if (next[3] === 2 && curDiver === 5) caught = true;
 
         if (caught) {
-          setIsCaught(true);
-          gwSound.miss();
-          setMisses((m) => m + 1);
-          setGoldInBag(0);
-
-          // 捕まった後のリスポーン
-          setTimeout(() => {
-            setDiverPos(0);
-            setIsCaught(false);
-          }, 1200);
+          triggerCaught();
         }
 
         return next;
@@ -176,7 +215,7 @@ export const OctopusGame: React.FC<GwCommonGameProps> = ({
     }, currentSpeed);
 
     return () => clearInterval(timer);
-  }, [misses, isPaused, isCaught, currentSpeed, difficulty, diverPos]);
+  }, [misses, isPaused, isCaught, currentSpeed, difficulty, triggerCaught]);
 
   const isClassic = screenMode === 'classic';
   const activeColor = isClassic ? '#1c2419' : '#0f172a';

@@ -26,10 +26,16 @@ export const ManholeGame: React.FC<GwCommonGameProps> = ({
   onChangeDifficulty,
 }) => {
   const [playerPos, setPlayerPos] = useState<Position>(1); // 初期位置は下段左
+  const playerPosRef = useRef<Position>(1);
+  useEffect(() => {
+    playerPosRef.current = playerPos;
+  }, [playerPos]);
+
   const [pedestrians, setPedestrians] = useState<Pedestrian[]>([]);
   const [score, setScore] = useState<number>(0);
   const [misses, setMisses] = useState<number>(0);
   const [missAnimation, setMissAnimation] = useState<Position | null>(null);
+  const [isMissSequence, setIsMissSequence] = useState<boolean>(false);
   const [bonusTriggered, setBonusTriggered] = useState<boolean>(false);
   const [highScore, setHighScore] = useState<number>(() => {
     return parseInt(localStorage.getItem(`gw_manhole_${difficulty}`) || '0', 10);
@@ -127,68 +133,78 @@ export const ManholeGame: React.FC<GwCommonGameProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [movePlayer, misses, isPaused]);
 
-  // ゲームループ Tick
+  // ゲームループ Tick (依存配列からpedestriansとplayerPosを排除し安定周期を保証)
   useEffect(() => {
-    if (misses >= 3 || isPaused) return;
+    if (misses >= 3 || isPaused || isMissSequence) return;
 
     const timer = setInterval(() => {
       tickRef.current += 1;
 
-      // 歩行者生成ロジック
-      const spawnRate = difficulty === 'gameA' ? 4 : 3;
-      if (tickRef.current % spawnRate === 0) {
-        // まだ穴の手前にいないレーンを候補にする
-        const occupiedLanes = new Set(pedestrians.filter((p) => p.step <= 2).map((p) => p.lane));
-        const freeLanes: Position[] = ([0, 1, 2, 3] as Position[]).filter((l) => !occupiedLanes.has(l));
-
-        if (freeLanes.length > 0) {
-          // ランダムにレーンを選択
-          const chosenLane = freeLanes[Math.floor(Math.random() * freeLanes.length)];
-          setPedestrians((prev) => [
-            ...prev,
-            { id: nextIdRef.current++, lane: chosenLane, step: 0 },
-          ]);
-        }
-      }
-
       // 歩行者進行と判定
       setPedestrians((prev) => {
+        let currentPedestrians = prev;
+
+        // 歩行者生成ロジック
+        const spawnRate = difficulty === 'gameA' ? 4 : 3;
+        if (tickRef.current % spawnRate === 0) {
+          const occupiedLanes = new Set(currentPedestrians.filter((p) => p.step <= 2).map((p) => p.lane));
+          const freeLanes: Position[] = ([0, 1, 2, 3] as Position[]).filter((l) => !occupiedLanes.has(l));
+          if (freeLanes.length > 0) {
+            const chosenLane = freeLanes[Math.floor(Math.random() * freeLanes.length)];
+            currentPedestrians = [
+              ...currentPedestrians,
+              { id: nextIdRef.current++, lane: chosenLane, step: 0 },
+            ];
+          }
+        }
+
         const nextList: Pedestrian[] = [];
         let scoreGain = 0;
         let newMiss = false;
         let missLane: Position | null = null;
+        let walkedAny = false;
 
-        for (const p of prev) {
+        const curPlayerPos = playerPosRef.current;
+
+        for (const p of currentPedestrians) {
           const nextStep = p.step + 1;
 
           if (nextStep === 3) {
             // 穴の上に踏み出した！マンホールマンがいるか？
-            if (playerPos === p.lane) {
-              // セーフ！
+            if (curPlayerPos === p.lane) {
               scoreGain += 1;
               gwSound.score();
               nextList.push({ ...p, step: nextStep });
             } else {
-              // アウト！落ちる！
               newMiss = true;
               missLane = p.lane;
               gwSound.miss();
             }
           } else if (nextStep <= 4) {
-            // 歩行継続
-            gwSound.tick();
+            walkedAny = true;
             nextList.push({ ...p, step: nextStep });
           }
-          // step > 4 は無事退場（リストから消去）
         }
 
         if (scoreGain > 0) {
           setScore((s) => s + scoreGain);
+        } else if (walkedAny && !newMiss) {
+          gwSound.tick(); // 1Tickに1回だけ鳴らす（音割れ防止）
         }
+
         if (newMiss && missLane !== null) {
           setMisses((m) => m + 1);
           setMissAnimation(missLane);
-          setTimeout(() => setMissAnimation(null), 800);
+          setIsMissSequence(true);
+
+          // ミス演出中は仕切り直し（連続即死を防止）
+          setTimeout(() => {
+            setMissAnimation(null);
+            setPedestrians([]); // 歩行者をクリアして安全に再開
+            setIsMissSequence(false);
+          }, 1000);
+
+          return [];
         }
 
         return nextList;
@@ -196,7 +212,7 @@ export const ManholeGame: React.FC<GwCommonGameProps> = ({
     }, currentSpeed);
 
     return () => clearInterval(timer);
-  }, [misses, isPaused, difficulty, currentSpeed, playerPos, pedestrians]);
+  }, [misses, isPaused, isMissSequence, difficulty, currentSpeed]);
 
   // クラシック/モダン用のスタイル設定
   const isClassic = screenMode === 'classic';

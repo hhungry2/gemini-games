@@ -38,14 +38,30 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
   onChangeDifficulty,
 }) => {
   const [playerPos, setPlayerPos] = useState<UpperPosition>(1);
+  const playerPosRef = useRef<UpperPosition>(1);
+  useEffect(() => {
+    playerPosRef.current = playerPos;
+  }, [playerPos]);
+
   const [bucketAmount, setBucketAmount] = useState<number>(0); // 0..3
+  const bucketAmountRef = useRef<number>(0);
+  useEffect(() => {
+    bucketAmountRef.current = bucketAmount;
+  }, [bucketAmount]);
+
   const [oilDrops, setOilDrops] = useState<OilDrop[]>([]);
   const [helperPos, setHelperPos] = useState<HelperPosition>(1);
+  const helperPosRef = useRef<HelperPosition>(1);
+  useEffect(() => {
+    helperPosRef.current = helperPos;
+  }, [helperPos]);
+
   const [fallingOil, setFallingOil] = useState<FallingOil[]>([]);
   const [score, setScore] = useState<number>(0);
   const [misses, setMisses] = useState<number>(0);
   const [bonusTriggered, setBonusTriggered] = useState<boolean>(false);
   const [missEffect, setMissEffect] = useState<{ screen: 'top' | 'bottom'; x: number } | null>(null);
+  const [isMissSequence, setIsMissSequence] = useState<boolean>(false);
   const [highScore, setHighScore] = useState<number>(() => {
     return parseInt(localStorage.getItem(`gw_oilpanic_${difficulty}`) || '0', 10);
   });
@@ -99,36 +115,32 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
     });
   }, [misses, isPaused]);
 
-  // オイルを窓から流すアクション
+  // オイルを窓から流すアクション (手動操作時のみ実行)
   const dumpOil = useCallback(() => {
-    if (misses >= 3 || isPaused || bucketAmount === 0) return;
-    if (playerPos === -1) {
+    if (misses >= 3 || isPaused || isMissSequence) return;
+    const curBucket = bucketAmountRef.current;
+    const curPos = playerPosRef.current;
+
+    if (curBucket === 0) return;
+
+    if (curPos === -1) {
       // 左窓から流す
       gwSound.dump();
       setFallingOil((prev) => [
         ...prev,
-        { id: nextFallId.current++, side: 'left', step: 0, amount: bucketAmount },
+        { id: nextFallId.current++, side: 'left', step: 0, amount: curBucket },
       ]);
       setBucketAmount(0);
-    } else if (playerPos === 3) {
+    } else if (curPos === 3) {
       // 右窓から流す
       gwSound.dump();
       setFallingOil((prev) => [
         ...prev,
-        { id: nextFallId.current++, side: 'right', step: 0, amount: bucketAmount },
+        { id: nextFallId.current++, side: 'right', step: 0, amount: curBucket },
       ]);
       setBucketAmount(0);
     }
-  }, [misses, isPaused, bucketAmount, playerPos]);
-
-  // 窓の位置に移動した時に自動または手動で流す補助
-  useEffect(() => {
-    if (playerPos === -1 && bucketAmount > 0) {
-      dumpOil();
-    } else if (playerPos === 3 && bucketAmount > 0) {
-      dumpOil();
-    }
-  }, [playerPos, bucketAmount, dumpOil]);
+  }, [misses, isPaused, isMissSequence]);
 
   // キーボード操作
   useEffect(() => {
@@ -148,9 +160,9 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [moveLeft, moveRight, dumpOil]);
 
-  // メインゲームループ Tick
+  // メインゲームループ Tick (依存配列からstateを排除し安定稼働)
   useEffect(() => {
-    if (misses >= 3 || isPaused) return;
+    if (misses >= 3 || isPaused || isMissSequence) return;
 
     const timer = setInterval(() => {
       tickRef.current += 1;
@@ -160,10 +172,8 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
         setHelperPos(() => {
           const rand = Math.random();
           if (difficulty === 'gameA') {
-            // 比較的素直な往復
             return rand < 0.5 ? 0 : rand < 0.8 ? 1 : 2;
           } else {
-            // GAME B: ランダム激しい
             return (Math.floor(Math.random() * 3)) as HelperPosition;
           }
         });
@@ -172,16 +182,16 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
       // 上画面オイル滴下生成
       const spawnInterval = difficulty === 'gameA' ? 4 : 3;
       if (tickRef.current % spawnInterval === 0) {
-        const availableLanes = ([0, 1, 2] as const).filter(
-          (l) => !oilDrops.some((d) => d.lane === l && d.step <= 1)
-        );
-        if (availableLanes.length > 0) {
-          const chosen = availableLanes[Math.floor(Math.random() * availableLanes.length)];
-          setOilDrops((prev) => [
-            ...prev,
-            { id: nextDropId.current++, lane: chosen, step: 0 },
-          ]);
-        }
+        setOilDrops((prev) => {
+          const availableLanes = ([0, 1, 2] as const).filter(
+            (l) => !prev.some((d) => d.lane === l && d.step <= 1)
+          );
+          if (availableLanes.length > 0) {
+            const chosen = availableLanes[Math.floor(Math.random() * availableLanes.length)];
+            return [...prev, { id: nextDropId.current++, lane: chosen, step: 0 }];
+          }
+          return prev;
+        });
       }
 
       // 上画面オイルの落下進行と判定
@@ -189,15 +199,18 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
         const nextList: OilDrop[] = [];
         let newMiss = false;
         let missX = 0;
+        let droppedAny = false;
+
+        const curPlayer = playerPosRef.current;
+        const curBucket = bucketAmountRef.current;
 
         for (const drop of prev) {
           const nextStep = drop.step + 1;
 
           if (nextStep === 3) {
             // キャッチ判定！
-            if (playerPos === drop.lane) {
-              // プレイヤーの真上！
-              if (bucketAmount >= 3) {
+            if (curPlayer === drop.lane) {
+              if (curBucket >= 3) {
                 // バケツ満杯なのにキャッチして溢れた！ミス！
                 newMiss = true;
                 missX = drop.lane === 0 ? 120 : drop.lane === 1 ? 250 : 380;
@@ -215,15 +228,28 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
               gwSound.miss();
             }
           } else if (nextStep < 3) {
-            gwSound.drop();
+            droppedAny = true;
             nextList.push({ ...drop, step: nextStep });
           }
+        }
+
+        if (droppedAny && !newMiss) {
+          gwSound.drop(); // 1Tickに1回のみ（音割れ防止）
         }
 
         if (newMiss) {
           setMisses((m) => m + 1);
           setMissEffect({ screen: 'top', x: missX });
-          setTimeout(() => setMissEffect(null), 1000);
+          setIsMissSequence(true);
+
+          setTimeout(() => {
+            setMissEffect(null);
+            setOilDrops([]); // 未キャッチの雫をクリアして安全に再開
+            setFallingOil([]);
+            setIsMissSequence(false);
+          }, 1100);
+
+          return [];
         }
 
         return nextList;
@@ -236,21 +262,18 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
         let newMiss = false;
         let missX = 0;
 
+        const curHelper = helperPosRef.current;
+
         for (const item of prev) {
           const nextStep = item.step + 1;
 
           if (nextStep >= 3) {
             // 下画面のオッサンがキャッチできたか？
-            // 左窓からのオイル (side === 'left') は helperPos === 0 でキャッチ！
-            // 右窓からのオイル (side === 'right') は helperPos === 2 でキャッチ！
             const targetPos = item.side === 'left' ? 0 : 2;
-            if (helperPos === targetPos) {
-              // ドラム缶で大成功キャッチ！
-              // オイル量に応じたボーナス
+            if (curHelper === targetPos) {
               scoreGain += item.amount * 2 + 1;
               gwSound.score();
             } else {
-              // 通行人に直撃！ミス！
               newMiss = true;
               missX = item.side === 'left' ? 90 : 410;
               gwSound.miss();
@@ -264,7 +287,16 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
         if (newMiss) {
           setMisses((m) => m + 1);
           setMissEffect({ screen: 'bottom', x: missX });
-          setTimeout(() => setMissEffect(null), 1000);
+          setIsMissSequence(true);
+
+          setTimeout(() => {
+            setMissEffect(null);
+            setOilDrops([]);
+            setFallingOil([]);
+            setIsMissSequence(false);
+          }, 1100);
+
+          return [];
         }
 
         return nextList;
@@ -272,7 +304,7 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
     }, currentSpeed);
 
     return () => clearInterval(timer);
-  }, [misses, isPaused, difficulty, currentSpeed, playerPos, bucketAmount, oilDrops, helperPos, fallingOil]);
+  }, [misses, isPaused, isMissSequence, difficulty, currentSpeed]);
 
   const isClassic = screenMode === 'classic';
   const oilColor = isClassic ? '#1c2419' : '#000000';
@@ -318,6 +350,30 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
                 </span>
               ))}
             </div>
+          </div>
+
+          {/* 画面直接タップ領域 (左半分で左移動、右半分で右移動、窓では流す) */}
+          <div className="absolute inset-0 grid grid-cols-2 z-10">
+            <div
+              onClick={() => {
+                if (playerPos === -1 && bucketAmount > 0) {
+                  dumpOil();
+                } else {
+                  moveLeft();
+                }
+              }}
+              className="cursor-pointer active:bg-black/5"
+            />
+            <div
+              onClick={() => {
+                if (playerPos === 3 && bucketAmount > 0) {
+                  dumpOil();
+                } else {
+                  moveRight();
+                }
+              }}
+              className="cursor-pointer active:bg-black/5"
+            />
           </div>
 
           <svg viewBox="0 0 500 240" className="w-full h-full select-none" preserveAspectRatio="xMidYMid meet">
@@ -576,21 +632,25 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
             <button
               onClick={moveLeft}
               disabled={misses >= 3}
-              className="py-2 px-3 rounded-xl border-2 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-amber-300 border-neutral-900 shadow font-black text-xs transition-all disabled:opacity-50"
+              className="py-2.5 px-3 rounded-xl border-2 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-amber-300 border-neutral-900 shadow font-black text-xs transition-all disabled:opacity-50"
             >
               ◀ LEFT
             </button>
             <button
               onClick={dumpOil}
               disabled={misses >= 3 || bucketAmount === 0 || (playerPos !== -1 && playerPos !== 3)}
-              className="py-2 px-3 rounded-xl border-2 bg-amber-500 hover:bg-amber-400 active:scale-95 text-neutral-950 border-amber-600 shadow font-black text-xs transition-all disabled:opacity-40"
+              className={`py-2.5 px-3 rounded-xl border-2 font-black text-xs shadow transition-all active:scale-95 ${
+                (playerPos === -1 || playerPos === 3) && bucketAmount > 0
+                  ? 'bg-amber-400 text-neutral-950 border-amber-200 ring-4 ring-amber-400/60 animate-bounce'
+                  : 'bg-neutral-800 text-neutral-500 border-neutral-900 opacity-50'
+              }`}
             >
               🛢️ DUMP OIL
             </button>
             <button
               onClick={moveRight}
               disabled={misses >= 3}
-              className="py-2 px-3 rounded-xl border-2 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-amber-300 border-neutral-900 shadow font-black text-xs transition-all disabled:opacity-50"
+              className="py-2.5 px-3 rounded-xl border-2 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-amber-300 border-neutral-900 shadow font-black text-xs transition-all disabled:opacity-50"
             >
               RIGHT ▶
             </button>

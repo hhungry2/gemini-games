@@ -26,11 +26,17 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
   onChangeDifficulty,
 }) => {
   const [playerPos, setPlayerPos] = useState<RescuePosition>(1);
+  const playerPosRef = useRef<RescuePosition>(1);
+  useEffect(() => {
+    playerPosRef.current = playerPos;
+  }, [playerPos]);
+
   const [victims, setVictims] = useState<Victim[]>([]);
   const [score, setScore] = useState<number>(0);
   const [misses, setMisses] = useState<number>(0);
   const [bonusTriggered, setBonusTriggered] = useState<boolean>(false);
   const [missAnimation, setMissAnimation] = useState<number | null>(null);
+  const [isMissSequence, setIsMissSequence] = useState<boolean>(false);
   const [highScore, setHighScore] = useState<number>(() => {
     return parseInt(localStorage.getItem(`gw_fire_${difficulty}`) || '0', 10);
   });
@@ -100,38 +106,38 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [moveLeft, moveRight]);
 
-  // ゲームループ
+  // ゲームループ (依存配列からplayerPosとvictimsを排除)
   useEffect(() => {
-    if (misses >= 3 || isPaused) return;
+    if (misses >= 3 || isPaused || isMissSequence) return;
 
     const timer = setInterval(() => {
       tickRef.current += 1;
 
-      // 飛び降り生成
-      const spawnInterval = difficulty === 'gameA' ? 5 : 3;
-      if (tickRef.current % spawnInterval === 0) {
-        // すでに step 0 に誰もいなければ飛び降りる
-        const hasStarting = victims.some((v) => v.step === 0);
-        if (!hasStarting) {
-          setVictims((prev) => [...prev, { id: nextIdRef.current++, step: 0 }]);
-        }
-      }
-
       setVictims((prev) => {
+        let currentVictims = prev;
+
+        // 飛び降り生成
+        const spawnInterval = difficulty === 'gameA' ? 5 : 3;
+        if (tickRef.current % spawnInterval === 0) {
+          const hasStarting = currentVictims.some((v) => v.step === 0);
+          if (!hasStarting) {
+            currentVictims = [...currentVictims, { id: nextIdRef.current++, step: 0 }];
+          }
+        }
+
         const nextList: Victim[] = [];
         let scoreGain = 0;
         let newMiss = false;
         let missX: number | null = null;
+        let bouncedOrMoved = false;
 
-        for (const v of prev) {
+        const curPlayerPos = playerPosRef.current;
+
+        for (const v of currentVictims) {
           const nextStep = v.step + 1;
 
-          // バウンド判定
-          // step 2: 左ネット (playerPos === 0)
-          // step 4: 中央ネット (playerPos === 1)
-          // step 6: 右ネット (playerPos === 2)
           if (nextStep === 2) {
-            if (playerPos === 0) {
+            if (curPlayerPos === 0) {
               scoreGain += 1;
               gwSound.score();
               nextList.push({ ...v, step: nextStep });
@@ -141,7 +147,7 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
               gwSound.miss();
             }
           } else if (nextStep === 4) {
-            if (playerPos === 1) {
+            if (curPlayerPos === 1) {
               scoreGain += 1;
               gwSound.score();
               nextList.push({ ...v, step: nextStep });
@@ -151,7 +157,7 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
               gwSound.miss();
             }
           } else if (nextStep === 6) {
-            if (playerPos === 2) {
+            if (curPlayerPos === 2) {
               scoreGain += 1;
               gwSound.score();
               nextList.push({ ...v, step: nextStep });
@@ -165,16 +171,29 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
             scoreGain += 1;
             gwSound.bonus();
           } else if (nextStep < 7) {
-            gwSound.tick();
+            bouncedOrMoved = true;
             nextList.push({ ...v, step: nextStep });
           }
         }
 
-        if (scoreGain > 0) setScore((s) => s + scoreGain);
+        if (scoreGain > 0) {
+          setScore((s) => s + scoreGain);
+        } else if (bouncedOrMoved && !newMiss) {
+          gwSound.tick(); // 1Tickにつき1回のみ鳴らす（音割れ防止）
+        }
+
         if (newMiss && missX !== null) {
           setMisses((m) => m + 1);
           setMissAnimation(missX);
-          setTimeout(() => setMissAnimation(null), 1000);
+          setIsMissSequence(true);
+
+          setTimeout(() => {
+            setMissAnimation(null);
+            setVictims([]); // 他の避難者をクリアして安全に再開（即死防止）
+            setIsMissSequence(false);
+          }, 1100);
+
+          return [];
         }
 
         return nextList;
@@ -182,7 +201,7 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
     }, currentSpeed);
 
     return () => clearInterval(timer);
-  }, [misses, isPaused, difficulty, currentSpeed, playerPos, victims]);
+  }, [misses, isPaused, isMissSequence, difficulty, currentSpeed]);
 
   const isClassic = screenMode === 'classic';
   const activeColor = isClassic ? '#1c2419' : '#0f172a';
