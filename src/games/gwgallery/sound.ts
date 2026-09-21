@@ -178,22 +178,33 @@ class GwSoundEngine {
     } catch {}
   }
 
-  /** ゲームオーバー メロディ */
+  private isGameOverPlaying: boolean = false;
+
+  /** ゲームオーバー メロディ (ミス音と被らないようディレイし多重再生を完全防止) */
   public gameOver() {
-    if (this.isMuted) return;
+    if (this.isMuted || this.isGameOverPlaying) return;
+    this.isGameOverPlaying = true;
+
+    // ミスブザーの余韻が終わってからメロディ開始
+    const startDelay = 0.4;
     const notes = [
       { f: 523, d: 0.12 }, // C5
       { f: 440, d: 0.12 }, // A4
       { f: 392, d: 0.14 }, // G4
-      { f: 330, d: 0.3 },  // E4
+      { f: 330, d: 0.28 }, // E4
     ];
-    let offset = 0;
+    let offset = startDelay;
     notes.forEach((n) => {
       setTimeout(() => {
-        this.playBeep(n.f, n.d, 0.1, 'square', 0);
+        this.playBeep(n.f, n.d, 0.075, 'square', 0);
       }, offset * 1000);
-      offset += n.d + 0.04;
+      offset += n.d + 0.05;
     });
+
+    // メロディ終了後にロック解除
+    setTimeout(() => {
+      this.isGameOverPlaying = false;
+    }, (offset + 0.5) * 1000);
   }
 
   /** 300点ボーナス / ミス消去ファンファーレ */

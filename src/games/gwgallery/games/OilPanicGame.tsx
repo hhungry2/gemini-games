@@ -66,6 +66,7 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
     return parseInt(localStorage.getItem(`gw_oilpanic_${difficulty}`) || '0', 10);
   });
 
+  const hasGameOverRef = useRef<boolean>(false);
   const nextDropId = useRef<number>(1);
   const nextFallId = useRef<number>(1);
   const tickRef = useRef<number>(0);
@@ -89,7 +90,8 @@ export const OilPanicGame: React.FC<GwCommonGameProps> = ({
 
   useEffect(() => {
     onMissChange(misses);
-    if (misses >= 3) {
+    if (misses >= 3 && !hasGameOverRef.current) {
+      hasGameOverRef.current = true;
       gwSound.gameOver();
       onGameOver(score);
     }

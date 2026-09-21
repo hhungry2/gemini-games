@@ -44,6 +44,7 @@ export const OctopusGame: React.FC<GwCommonGameProps> = ({
     return parseInt(localStorage.getItem(`gw_octopus_${difficulty}`) || '0', 10);
   });
 
+  const hasGameOverRef = useRef<boolean>(false);
   const tickRef = useRef<number>(0);
 
   // 速度設定 (ms)
@@ -67,7 +68,8 @@ export const OctopusGame: React.FC<GwCommonGameProps> = ({
 
   useEffect(() => {
     onMissChange(misses);
-    if (misses >= 3) {
+    if (misses >= 3 && !hasGameOverRef.current) {
+      hasGameOverRef.current = true;
       gwSound.gameOver();
       onGameOver(score);
     }
