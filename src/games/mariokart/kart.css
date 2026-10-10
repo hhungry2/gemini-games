@@ -1,0 +1,11 @@
+/* Keep controls on one row on short touch screens so the race can grow. */
+@media (pointer: coarse) and (max-height: 500px) {
+  .mario-kart-canvas {
+    bottom: 5rem;
+  }
+
+  .mario-kart-steering {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+}

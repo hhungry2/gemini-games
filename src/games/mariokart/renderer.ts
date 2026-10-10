@@ -77,7 +77,11 @@ export function renderGameView(params: RenderParams) {
   }
 
   // 5. Render HUD (MiniMap, Rank, Laps, Speed, Items, Rear-view mirror)
-  renderHUD(ctx, width, height, player, allKarts, track, countdownState);
+  // Keep the HUD legible at every backing-store resolution.
+  ctx.save();
+  ctx.scale(width / 640, height / 360);
+  renderHUD(ctx, 640, 360, player, allKarts, track, countdownState, params.raceTime);
+  ctx.restore();
 }
 
 function renderSpeedLines(ctx: CanvasRenderingContext2D, width: number, height: number) {
@@ -168,6 +172,8 @@ function renderSkyAndPanorama(
 }
 
 // 2. Mode 7 3D Perspective Ground
+const groundBuffers = new WeakMap<HTMLCanvasElement, ImageData>();
+
 function renderMode7Ground(
   ctx: CanvasRenderingContext2D,
   width: number,
@@ -195,8 +201,14 @@ function renderMode7Ground(
 
   // Screen ImageData
   const groundHeight = height - horizonY;
-  const imgData = ctx.createImageData(width, groundHeight);
+  let imgData = groundBuffers.get(ctx.canvas);
+  if (!imgData || imgData.width !== width || imgData.height !== groundHeight) {
+    imgData = ctx.createImageData(width, groundHeight);
+    groundBuffers.set(ctx.canvas, imgData);
+  }
   const screenPixels = new Uint32Array(imgData.data.buffer);
+  // Camera height changes during a hop; clear scanlines outside the far plane.
+  screenPixels.fill(0);
 
   const cosA = Math.cos(camAngle);
   const sinA = Math.sin(camAngle);
@@ -647,7 +659,8 @@ function renderHUD(
   player: KartState,
   allKarts: KartState[],
   track: TrackData,
-  countdownState: number
+  countdownState: number,
+  raceTime: number
 ) {
   // A. Item Slot (Top Left)
   renderItemSlot(ctx, 24, 20, player);
@@ -660,6 +673,17 @@ function renderHUD(
 
   // D. Speedometer (Bottom Center-Right)
   renderSpeedometer(ctx, width - 180, height - 32, player);
+
+  ctx.save();
+  ctx.font = 'bold 17px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#0f172a';
+  ctx.lineWidth = 4;
+  const time = `${Math.floor(raceTime / 60)}:${(raceTime % 60).toFixed(2).padStart(5, '0')}`;
+  ctx.strokeText(time, width / 2, 30);
+  ctx.fillText(time, width / 2, 30);
+  ctx.restore();
 
   // E. MiniMap Radar (Top-Right / Bottom-Right)
   if (track.minimapCanvas) {

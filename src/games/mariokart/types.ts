@@ -58,6 +58,8 @@ export interface KartState {
   isPlayer: boolean;
   x: number; // World coord (0 to 1024)
   y: number; // World coord (0 to 1024)
+  previousX: number;
+  previousY: number;
   z: number; // Altitude (0 is ground)
   vz: number;
   angle: number; // Radians, 0 is right, Math.PI/2 is down

@@ -58,6 +58,7 @@ export function updatePlayerKart(
   allKarts: KartState[],
   dt: number
 ) {
+  if (kart.finished) return;
   const stats = CHARACTERS[kart.charId];
   const engineMult = ENGINE_SPEED_MULT[engineClass];
 
@@ -110,6 +111,28 @@ export function updatePlayerKart(
   let surfaceSpeedFactor = 1.0;
   let isOffroad = false;
 
+  if (surface === 'void' && !kart.isAirborne) {
+    // Falling and world boundaries still apply while boosted or invincible.
+    const waypoint = track.waypoints[kart.checkpointIndex];
+    const next = track.waypoints[(kart.checkpointIndex + 1) % track.waypoints.length];
+    kart.x = waypoint.x;
+    kart.y = waypoint.y;
+    kart.previousX = kart.x;
+    kart.previousY = kart.y;
+    kart.angle = Math.atan2(next.y - waypoint.y, next.x - waypoint.x);
+    kart.speed = 0;
+    kart.z = 0;
+    kart.vz = 0;
+    kart.driftDir = 0;
+    kart.driftTime = 0;
+    kart.miniTurboLevel = 0;
+    kart.boostTimer = 0;
+    kart.spinTimer = 0.9;
+    kart.invulnerableTimer = 2;
+    marioKartAudio.playExplosion();
+    return;
+  }
+
   if (kart.starTimer > 0 || kart.boostTimer > 0) {
     // Star or Boost ignores offroad slowdown!
     surfaceSpeedFactor = 1.3;
@@ -136,20 +159,6 @@ export function updatePlayerKart(
     if (Math.abs(kart.speed) > 1.5) {
       createDustParticles(particles, kart.x, kart.y, '#15803d', 1);
     }
-  } else if (surface === 'void') {
-    // Fall into void (Rainbow Road)
-    if (kart.z === 0 && kart.spinTimer <= 0) {
-      triggerCrash(kart, 'crash', particles);
-      marioKartAudio.playExplosion();
-      // Respawn at nearest waypoint pointing toward next waypoint
-      const nearestWp = track.waypoints[kart.checkpointIndex];
-      const nextWp = track.waypoints[(kart.checkpointIndex + 1) % track.waypoints.length];
-      kart.x = nearestWp.x;
-      kart.y = nearestWp.y;
-      kart.speed = 0;
-      kart.angle = Math.atan2(nextWp.y - nearestWp.y, nextWp.x - nearestWp.x);
-      kart.invulnerableTimer = 2.0;
-    }
   }
 
   // Coin speed bonus (+1.5% per coin up to +15%)
@@ -166,22 +175,18 @@ export function updatePlayerKart(
   const friction = isOffroad ? 5.5 : 2.0;
 
   // Acceleration / Braking
-  if (inputs.accelerate) {
+  if (inputs.brake) {
+    if (kart.speed > 0) {
+      kart.speed = Math.max(0, kart.speed - brakeRate * dt);
+    } else {
+      kart.speed = Math.max(-2.5, kart.speed - accelRate * 0.6 * dt);
+    }
+  } else if (inputs.accelerate) {
     if (kart.speed < baseMaxSpeed) {
       kart.speed += accelRate * dt;
       if (kart.speed > baseMaxSpeed) kart.speed = baseMaxSpeed;
     } else {
       kart.speed -= friction * dt;
-    }
-  } else if (inputs.brake) {
-    if (kart.speed > 0) {
-      kart.speed -= brakeRate * dt;
-      if (kart.speed < 0) kart.speed = 0;
-    } else {
-      // Reverse
-      const maxReverse = -2.5;
-      kart.speed -= accelRate * 0.6 * dt;
-      if (kart.speed < maxReverse) kart.speed = maxReverse;
     }
   } else {
     // Coasting friction
@@ -271,6 +276,13 @@ export function updatePlayerKart(
   // Update position
   kart.x += Math.cos(kart.angle) * kart.speed * 60 * dt;
   kart.y += Math.sin(kart.angle) * kart.speed * 60 * dt;
+  if (track.theme !== 'rainbow') {
+    const boundedX = Math.max(12, Math.min(track.worldSize - 12, kart.x));
+    const boundedY = Math.max(12, Math.min(track.worldSize - 12, kart.y));
+    if (boundedX !== kart.x || boundedY !== kart.y) kart.speed = 0;
+    kart.x = boundedX;
+    kart.y = boundedY;
+  }
 
   // Audio update
   const speedNorm = Math.abs(kart.speed) / (baseMaxSpeed || 1);
@@ -297,6 +309,7 @@ export function updateRivalAI(
   particles: Particle[],
   dt: number
 ) {
+  if (ai.finished) return;
   const stats = CHARACTERS[ai.charId];
   const engineMult = ENGINE_SPEED_MULT[engineClass];
 
@@ -318,50 +331,16 @@ export function updateRivalAI(
   if (ai.spinTimer > 0) {
     ai.spinTimer -= dt;
     ai.speed *= 0.9;
-    ai.angle += Math.PI * 4 * dt;
+    // Keep the navigation heading so a hit cannot send AI into endless circles.
     return;
   }
 
-  // Target waypoint navigation
-  const wpCount = track.waypoints.length;
-  let wp = track.waypoints[ai.targetWpIndex];
-  let nextWp = track.waypoints[(ai.targetWpIndex + 1) % wpCount];
-
-  let dx = wp.x - ai.x;
-  let dy = wp.y - ai.y;
-  let distSq = dx * dx + dy * dy;
-
-  // Segment vector from current wp to next wp
-  const segX = nextWp.x - wp.x;
-  const segY = nextWp.y - wp.y;
-  // Vector from current wp to AI kart
-  const toKartX = ai.x - wp.x;
-  const toKartY = ai.y - wp.y;
-  // Dot product: if > 0, AI kart has already crossed the waypoint plane towards next waypoint
-  const dotForward = toKartX * segX + toKartY * segY;
-
-  // Advance to next waypoint if within proximity OR already crossed the waypoint plane
-  if (distSq < 65 * 65 || (dotForward > 0 && distSq < 120 * 120)) {
-    ai.targetWpIndex = (ai.targetWpIndex + 1) % wpCount;
-    wp = track.waypoints[ai.targetWpIndex];
-    dx = wp.x - ai.x;
-    dy = wp.y - ai.y;
-  } else if (distSq > 280 * 280) {
-    // Recovery: if heavily pushed away, find nearest forward waypoint
-    let bestIdx = ai.targetWpIndex;
-    let bestDist = Infinity;
-    for (let i = 0; i < wpCount; i++) {
-      const d = Math.hypot(track.waypoints[i].x - ai.x, track.waypoints[i].y - ai.y);
-      if (d < bestDist) {
-        bestDist = d;
-        bestIdx = (i + 1) % wpCount;
-      }
-    }
-    ai.targetWpIndex = bestIdx;
-    wp = track.waypoints[ai.targetWpIndex];
-    dx = wp.x - ai.x;
-    dy = wp.y - ai.y;
-  }
+  // Navigation and lap validation must use the same next checkpoint.
+  // Advancing the steering target early lets AI skip a hairpin permanently.
+  ai.targetWpIndex = (ai.checkpointIndex + 1) % track.waypoints.length;
+  const waypoint = track.waypoints[ai.targetWpIndex];
+  const dx = waypoint.x - ai.x;
+  const dy = waypoint.y - ai.y;
 
   const targetAngle = Math.atan2(dy, dx);
   let angleDiff = targetAngle - ai.angle;
@@ -383,6 +362,8 @@ export function updateRivalAI(
 
   // AI speed with rubber-banding around player
   let targetSpeed = (5.2 + stats.speed * 0.6) * engineMult;
+  // Slow down before sharp corners instead of circling past the checkpoint.
+  targetSpeed *= Math.max(0.22, Math.cos(angleDiff));
   if (ai.boostTimer > 0) targetSpeed *= 1.35;
   if (ai.starTimer > 0) targetSpeed *= 1.25;
   if (ai.lightningTimer > 0) targetSpeed *= 0.55;
@@ -395,11 +376,7 @@ export function updateRivalAI(
     targetSpeed *= 0.95; // Wait up
   }
 
-  if (ai.speed < targetSpeed) {
-    ai.speed += 3.5 * dt;
-  } else {
-    ai.speed -= 2.0 * dt;
-  }
+  ai.speed += Math.max(-12 * dt, Math.min(3.5 * dt, targetSpeed - ai.speed));
 
   // Move
   ai.x += Math.cos(ai.angle) * ai.speed * 60 * dt;
@@ -431,7 +408,7 @@ export function useKartItem(
     createBoostParticles(particles, user.x, user.y);
   } else if (item === 'star') {
     user.starTimer = 8.0;
-    marioKartAudio.startStarBgm();
+    if (user.isPlayer) marioKartAudio.startStarBgm();
   } else if (item === 'lightning') {
     marioKartAudio.playLightning();
     // Shock all opponents!
@@ -650,6 +627,7 @@ export function updateActiveItems(
     // Check hit against all karts
     let hit = false;
     for (const kart of karts) {
+      if (kart.finished) continue;
       if (kart.invulnerableTimer > 0) continue;
       // Immunity for owner during ownerSafeTimer
       if (kart.id === it.ownerId && it.ownerSafeTimer > 0) continue;
@@ -693,11 +671,12 @@ function explodeBomb(item: ActiveItem, karts: KartState[], particles: Particle[]
 
 // Trigger kart crash / spin
 export function triggerCrash(kart: KartState, type: 'slip' | 'crash', particles: Particle[]) {
-  if (kart.starTimer > 0 || kart.invulnerableTimer > 0) return;
+  if (kart.finished || kart.starTimer > 0 || kart.invulnerableTimer > 0) return;
   kart.spinTimer = type === 'crash' ? 1.4 : 0.9;
   kart.spinType = type;
   kart.invulnerableTimer = 2.5;
   kart.driftDir = 0;
+  kart.driftTime = 0;
   kart.miniTurboLevel = 0;
   kart.speed = 0;
 
@@ -715,6 +694,7 @@ export function checkKartCollisions(karts: KartState[], particles: Particle[]) {
     for (let j = i + 1; j < karts.length; j++) {
       const k1 = karts[i];
       const k2 = karts[j];
+      if (k1.finished || k2.finished) continue;
 
       const dx = k2.x - k1.x;
       const dy = k2.y - k1.y;
@@ -738,7 +718,7 @@ export function checkKartCollisions(karts: KartState[], particles: Particle[]) {
         const w2 = CHARACTERS[k2.charId].weight;
         const totalW = w1 + w2;
 
-        const overlap = (minSpacing - dist) * 0.5;
+        const overlap = minSpacing - dist;
         const nx = dx / dist;
         const ny = dy / dist;
 
@@ -806,44 +786,54 @@ export function updateTrackPickups(track: TrackData, dt: number) {
 }
 
 // Update Lap & Race Progress & Ranks
-export function updateRaceProgress(karts: KartState[], track: TrackData) {
+export function updateRaceProgress(karts: KartState[], track: TrackData, raceTime = 0, dt = 1 / 60) {
   const numCp = track.checkpoints.length;
-
-  for (const k of karts) {
-    // Check distance to next expected checkpoint
-    const nextCpIdx = (k.checkpointIndex + 1) % numCp;
-    const cp = track.checkpoints[nextCpIdx];
-    const dist = Math.hypot(k.x - cp.x, k.y - cp.y);
-
-    if (dist < cp.radius) {
-      k.checkpointIndex = nextCpIdx;
-      // If we just passed checkpoint 0, we completed a lap!
-      if (nextCpIdx === 0) {
-        k.lap++;
-        if (k.isPlayer) {
-          if (k.lap === track.laps) {
-            marioKartAudio.playFinalLap();
-          } else if (k.lap > track.laps && !k.finished) {
-            k.finished = true;
-            marioKartAudio.playVictoryFanfare();
-          }
+  for (const kart of karts) {
+    if (kart.finished) continue;
+    const nextIndex = (kart.checkpointIndex + 1) % numCp;
+    const checkpoint = track.checkpoints[nextIndex];
+    let passed = Math.hypot(kart.x - checkpoint.x, kart.y - checkpoint.y) < checkpoint.radius;
+    let crossingFraction = 1;
+    if (nextIndex === 0) {
+      // A lap ends at the actual line, crossed in the direction of travel.
+      const forwardX = Math.cos(track.startPos.angle);
+      const forwardY = Math.sin(track.startPos.angle);
+      const before = (kart.previousX - checkpoint.x) * forwardX + (kart.previousY - checkpoint.y) * forwardY;
+      const after = (kart.x - checkpoint.x) * forwardX + (kart.y - checkpoint.y) * forwardY;
+      crossingFraction = after > before ? Math.max(0, Math.min(1, -before / (after - before))) : 1;
+      const crossingX = kart.previousX + (kart.x - kart.previousX) * crossingFraction;
+      const crossingY = kart.previousY + (kart.y - kart.previousY) * crossingFraction;
+      const lateral = Math.abs(-(crossingX - checkpoint.x) * forwardY + (crossingY - checkpoint.y) * forwardX);
+      passed = before <= 0 && after > 0 && lateral < checkpoint.radius;
+    }
+    if (passed) {
+      kart.checkpointIndex = nextIndex;
+      if (nextIndex === 0) {
+        kart.lap++;
+        if (kart.lap > track.laps) {
+          kart.finished = true;
+          kart.finishTime = Math.max(0, raceTime - dt * (1 - crossingFraction));
+          if (kart.isPlayer) marioKartAudio.playVictoryFanfare();
+        } else if (kart.isPlayer && kart.lap === track.laps) {
+          marioKartAudio.playFinalLap();
         }
       }
     }
-
-    // Distance to next checkpoint for sorting
-    const targetCp = track.checkpoints[(k.checkpointIndex + 1) % numCp];
-    const distToNext = Math.hypot(k.x - targetCp.x, k.y - targetCp.y);
-
-    // Continuous progress metric: lap * 10000 + checkpoint * 100 - distToNext
-    k.totalDistance = k.lap * 10000 + k.checkpointIndex * 100 - distToNext * 0.05;
+    const from = track.checkpoints[kart.checkpointIndex];
+    const to = track.checkpoints[(kart.checkpointIndex + 1) % numCp];
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    kart.progress = Math.max(0, Math.min(0.999, ((kart.x - from.x) * dx + (kart.y - from.y) * dy) / (dx * dx + dy * dy || 1)));
+    kart.totalDistance = (kart.lap - 1) * numCp + kart.checkpointIndex + kart.progress;
+    kart.previousX = kart.x;
+    kart.previousY = kart.y;
   }
-
-  // Sort karts by totalDistance descending
-  const sorted = [...karts].sort((a, b) => b.totalDistance - a.totalDistance);
-  sorted.forEach((kart, index) => {
-    kart.rank = index + 1;
+  const sorted = [...karts].sort((a, b) => {
+    if (a.finished !== b.finished) return a.finished ? -1 : 1;
+    if (a.finished && b.finished) return a.finishTime - b.finishTime || a.rank - b.rank;
+    return b.totalDistance - a.totalDistance || a.rank - b.rank;
   });
+  sorted.forEach((kart, index) => { kart.rank = index + 1; });
 }
 
 // Particle generators

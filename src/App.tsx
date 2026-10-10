@@ -1963,6 +1963,7 @@ export function App() {
                 onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
+                onToggleFullscreen={toggleFullscreen}
               />
             )}
             {activeGame === 'agario' && (
