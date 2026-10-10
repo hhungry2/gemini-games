@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Spin Doctor 全15ステージ・ブラウザクリアテスト</title>
+  </head>
+  <body style="margin:0;background:#020617;color:#e2e8f0;font-family:system-ui">
+    <header style="padding:12px 20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+      <strong>Spin Doctor 全15ステージ・ブラウザクリアテスト</strong>
+      <button id="run" style="padding:8px 16px">最初から全15ステージを再生</button>
+      <span id="status" role="status">待機中・音声 OFF</span>
+    </header>
+    <p style="margin:0 20px 10px;color:#94a3b8;font-size:13px">実物のゲームに通常のキー入力を送ります。敵・衝突・崩壊・制限時間を有効にし、60 Hz の時計を1フレームずつ進めます。テストのセーブデータは分離しています。</p>
+    <main style="display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:12px;padding:0 12px">
+      <div id="game" style="height:calc(100dvh - 120px);min-height:380px;display:flex;min-width:0"></div>
+      <aside><table style="width:100%;font-size:13px;text-align:right;border-collapse:collapse"><thead><tr><th>Stage</th><th>結果</th><th>秒</th><th>★</th></tr></thead><tbody id="results"></tbody></table><p id="proof" style="font-size:13px;color:#86efac"></p></aside>
+    </main>
+    <script type="module" src="./spin-doctor-browser.tsx"></script>
+  </body>
+</html>

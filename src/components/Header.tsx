@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Gamepad2,
   Volume2,
@@ -35,9 +35,10 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const [isMuted, setIsMuted] = useState(sound.getMuted());
   const [showHelp, setShowHelp] = useState(false);
+  useEffect(() => sound.subscribeMute(setIsMuted), []);
 
   const toggleSound = () => {
-    const next = !isMuted;
+    const next = !sound.getMuted();
     sound.setMuted(next);
     setIsMuted(next);
   };
@@ -182,7 +183,10 @@ export const Header: React.FC<HeaderProps> = ({
             {/* 操作方法ボタン (ゲームプレイ時に表示) */}
             {activeGame && (
               <button
-                onClick={() => setShowHelp(true)}
+                onClick={() => {
+                  if (activeGame === 'spindoctor') window.dispatchEvent(new Event('spindoctor:help'));
+                  else setShowHelp(true);
+                }}
                 className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition ${
                   isDark
                     ? 'text-slate-300 bg-slate-900 hover:bg-slate-800 border-slate-700'

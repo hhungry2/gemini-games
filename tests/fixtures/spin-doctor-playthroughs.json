@@ -1,0 +1,584 @@
+[
+  {
+    "stage": 1,
+    "frames": 177,
+    "inputs": [
+      {
+        "frame": 0,
+        "code": "Space"
+      },
+      {
+        "frame": 59,
+        "code": "Space"
+      },
+      {
+        "frame": 118,
+        "code": "Space"
+      },
+      {
+        "frame": 177,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 2,
+    "frames": 341,
+    "inputs": [
+      {
+        "frame": 0,
+        "code": "Space"
+      },
+      {
+        "frame": 90,
+        "code": "Space"
+      },
+      {
+        "frame": 92,
+        "code": "KeyS"
+      },
+      {
+        "frame": 123,
+        "code": "Space"
+      },
+      {
+        "frame": 182,
+        "code": "Space"
+      },
+      {
+        "frame": 184,
+        "code": "KeyS"
+      },
+      {
+        "frame": 215,
+        "code": "Space"
+      },
+      {
+        "frame": 341,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 3,
+    "frames": 295,
+    "inputs": [
+      {
+        "frame": 0,
+        "code": "Space"
+      },
+      {
+        "frame": 59,
+        "code": "Space"
+      },
+      {
+        "frame": 118,
+        "code": "Space"
+      },
+      {
+        "frame": 177,
+        "code": "Space"
+      },
+      {
+        "frame": 236,
+        "code": "Space"
+      },
+      {
+        "frame": 295,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 4,
+    "frames": 200,
+    "inputs": [
+      {
+        "frame": 0,
+        "code": "Space"
+      },
+      {
+        "frame": 2,
+        "code": "KeyS"
+      },
+      {
+        "frame": 51,
+        "code": "Space"
+      },
+      {
+        "frame": 53,
+        "code": "KeyS"
+      },
+      {
+        "frame": 102,
+        "code": "Space"
+      },
+      {
+        "frame": 149,
+        "code": "Space"
+      },
+      {
+        "frame": 151,
+        "code": "KeyS"
+      },
+      {
+        "frame": 200,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 5,
+    "frames": 242,
+    "inputs": [
+      {
+        "frame": 0,
+        "code": "Space"
+      },
+      {
+        "frame": 29,
+        "code": "Space"
+      },
+      {
+        "frame": 31,
+        "code": "KeyS"
+      },
+      {
+        "frame": 32,
+        "code": "Space"
+      },
+      {
+        "frame": 34,
+        "code": "KeyS"
+      },
+      {
+        "frame": 65,
+        "code": "Space"
+      },
+      {
+        "frame": 124,
+        "code": "Space"
+      },
+      {
+        "frame": 183,
+        "code": "Space"
+      },
+      {
+        "frame": 242,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 6,
+    "frames": 295,
+    "inputs": [
+      {
+        "frame": 0,
+        "code": "Space"
+      },
+      {
+        "frame": 59,
+        "code": "Space"
+      },
+      {
+        "frame": 118,
+        "code": "Space"
+      },
+      {
+        "frame": 177,
+        "code": "Space"
+      },
+      {
+        "frame": 236,
+        "code": "Space"
+      },
+      {
+        "frame": 295,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 7,
+    "frames": 177,
+    "inputs": [
+      {
+        "frame": 0,
+        "code": "Space"
+      },
+      {
+        "frame": 59,
+        "code": "Space"
+      },
+      {
+        "frame": 118,
+        "code": "Space"
+      },
+      {
+        "frame": 177,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 8,
+    "frames": 297,
+    "inputs": [
+      {
+        "frame": 0,
+        "code": "Space"
+      },
+      {
+        "frame": 26,
+        "code": "Space"
+      },
+      {
+        "frame": 85,
+        "code": "Space"
+      },
+      {
+        "frame": 195,
+        "code": "Space"
+      },
+      {
+        "frame": 197,
+        "code": "KeyS"
+      },
+      {
+        "frame": 246,
+        "code": "Space"
+      },
+      {
+        "frame": 248,
+        "code": "KeyS"
+      },
+      {
+        "frame": 297,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 9,
+    "frames": 134,
+    "inputs": [
+      {
+        "frame": 22,
+        "code": "KeyW"
+      },
+      {
+        "frame": 22,
+        "code": "KeyS"
+      },
+      {
+        "frame": 30,
+        "code": "Space"
+      },
+      {
+        "frame": 30,
+        "code": "KeyS"
+      },
+      {
+        "frame": 56,
+        "code": "Space"
+      },
+      {
+        "frame": 82,
+        "code": "Space"
+      },
+      {
+        "frame": 82,
+        "code": "KeyS"
+      },
+      {
+        "frame": 108,
+        "code": "Space"
+      },
+      {
+        "frame": 108,
+        "code": "KeyS"
+      },
+      {
+        "frame": 134,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 10,
+    "frames": 272,
+    "inputs": [
+      {
+        "frame": 0,
+        "code": "KeyS"
+      },
+      {
+        "frame": 8,
+        "code": "Space"
+      },
+      {
+        "frame": 8,
+        "code": "Space"
+      },
+      {
+        "frame": 8,
+        "code": "KeyS"
+      },
+      {
+        "frame": 28,
+        "code": "Space"
+      },
+      {
+        "frame": 76,
+        "code": "Space"
+      },
+      {
+        "frame": 125,
+        "code": "Space"
+      },
+      {
+        "frame": 125,
+        "code": "KeyS"
+      },
+      {
+        "frame": 179,
+        "code": "Space"
+      },
+      {
+        "frame": 179,
+        "code": "KeyS"
+      },
+      {
+        "frame": 224,
+        "code": "Space"
+      },
+      {
+        "frame": 224,
+        "code": "KeyS"
+      },
+      {
+        "frame": 272,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 11,
+    "frames": 104,
+    "inputs": [
+      {
+        "frame": 0,
+        "code": "KeyW"
+      },
+      {
+        "frame": 0,
+        "code": "Space"
+      },
+      {
+        "frame": 26,
+        "code": "Space"
+      },
+      {
+        "frame": 52,
+        "code": "Space"
+      },
+      {
+        "frame": 78,
+        "code": "Space"
+      },
+      {
+        "frame": 78,
+        "code": "KeyS"
+      },
+      {
+        "frame": 104,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 12,
+    "frames": 219,
+    "inputs": [
+      {
+        "frame": 0,
+        "code": "KeyS"
+      },
+      {
+        "frame": 8,
+        "code": "Space"
+      },
+      {
+        "frame": 41,
+        "code": "Space"
+      },
+      {
+        "frame": 41,
+        "code": "KeyS"
+      },
+      {
+        "frame": 97,
+        "code": "Space"
+      },
+      {
+        "frame": 130,
+        "code": "Space"
+      },
+      {
+        "frame": 130,
+        "code": "KeyS"
+      },
+      {
+        "frame": 186,
+        "code": "Space"
+      },
+      {
+        "frame": 219,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 13,
+    "frames": 216,
+    "inputs": [
+      {
+        "frame": 0,
+        "code": "Space"
+      },
+      {
+        "frame": 0,
+        "code": "KeyS"
+      },
+      {
+        "frame": 54,
+        "code": "Space"
+      },
+      {
+        "frame": 108,
+        "code": "Space"
+      },
+      {
+        "frame": 162,
+        "code": "Space"
+      },
+      {
+        "frame": 216,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 14,
+    "frames": 233,
+    "inputs": [
+      {
+        "frame": 66,
+        "code": "KeyW"
+      },
+      {
+        "frame": 89,
+        "code": "Space"
+      },
+      {
+        "frame": 89,
+        "code": "KeyS"
+      },
+      {
+        "frame": 122,
+        "code": "Space"
+      },
+      {
+        "frame": 122,
+        "code": "KeyS"
+      },
+      {
+        "frame": 160,
+        "code": "Space"
+      },
+      {
+        "frame": 181,
+        "code": "Space"
+      },
+      {
+        "frame": 207,
+        "code": "Space"
+      },
+      {
+        "frame": 207,
+        "code": "KeyS"
+      },
+      {
+        "frame": 233,
+        "code": "Space"
+      }
+    ]
+  },
+  {
+    "stage": 15,
+    "frames": 223,
+    "inputs": [
+      {
+        "frame": 37,
+        "code": "KeyW"
+      },
+      {
+        "frame": 37,
+        "code": "KeyS"
+      },
+      {
+        "frame": 47,
+        "code": "Space"
+      },
+      {
+        "frame": 47,
+        "code": "Space"
+      },
+      {
+        "frame": 47,
+        "code": "KeyS"
+      },
+      {
+        "frame": 91,
+        "code": "Space"
+      },
+      {
+        "frame": 91,
+        "code": "KeyS"
+      },
+      {
+        "frame": 107,
+        "code": "Space"
+      },
+      {
+        "frame": 139,
+        "code": "Space"
+      },
+      {
+        "frame": 165,
+        "code": "Space"
+      },
+      {
+        "frame": 177,
+        "code": "Space"
+      },
+      {
+        "frame": 177,
+        "code": "KeyS"
+      },
+      {
+        "frame": 193,
+        "code": "Space"
+      },
+      {
+        "frame": 193,
+        "code": "KeyS"
+      },
+      {
+        "frame": 223,
+        "code": "Space"
+      }
+    ]
+  }
+]

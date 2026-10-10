@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sound } from '../utils/audio';
 import {
+  ROD_LENGTH as BASE_ROD_LENGTH, LATCH_RADIUS as LATCH_TOLERANCE,
+  pointSegmentDistance, segmentDistance, canReachPin, findLatchTarget,
+  advanceEnemy, getStarCount, fitCanvas, normalizeSaveData,
+} from './spinDoctorLogic';
+import {
   RotateCcw,
   Undo2,
   Compass,
@@ -10,6 +15,8 @@ import {
   Star,
   Clock,
   HelpCircle,
+  Pause,
+  Play,
 } from 'lucide-react';
 
 // ==========================================
@@ -21,8 +28,6 @@ const GAME_STORAGE_KEY = 'spindoctor_save_v1';
 
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 560;
-const BASE_ROD_LENGTH = 70; // 針の長さ (2つの球の中心間距離)
-const LATCH_TOLERANCE = 24; // ピン吸着許容半径
 const BASE_SPEED = 0.052; // 基本回転角速度 (rad/frame)
 const TURBO_SPEED = 0.11; // ターボ時角速度
 const OIL_SPEED = 0.12; // オイルピン角速度
@@ -151,7 +156,12 @@ interface HistorySnapshot {
   angle: number;
   direction: number;
   score: number;
+  combo: number;
+  lastLatchTime: number | null;
+  elapsedTime: number;
   timeRemaining: number;
+  tickCounter: number;
+  enemies: BugEnemy[];
   pinsState: { id: number; isDecayed?: boolean; decayTimer?: number }[];
   laserGatesState: { id: number; isOpen: boolean }[];
   gearsState: { id: number; collected: boolean }[];
@@ -211,8 +221,10 @@ export const STAGES: StageData[] = [
       { id: 7, x: 540, y: 210, type: 'goal' },
     ],
     walls: [
-      { x1: 340, y1: 290, x2: 380, y2: 290 },
-      { x1: 420, y1: 290, x2: 460, y2: 290 },
+      // Keep the vertical route's full rotation clear; the left wall still
+      // teaches reversing at the approach pin without trapping the next pivot.
+      { x1: 290, y1: 290, x2: 310, y2: 290 },
+      { x1: 490, y1: 290, x2: 530, y2: 290 },
     ],
     gears: [
       { id: 1, x: 365, y: 390, collected: false },
@@ -274,7 +286,7 @@ export const STAGES: StageData[] = [
     pins: [
       { id: 1, x: 220, y: 350, type: 'normal' },
       { id: 2, x: 290, y: 350, type: 'normal' },
-      { id: 3, x: 290, y: 210, type: 'switch', switchGateId: 1 }, // スイッチ
+      { id: 3, x: 290, y: 280, type: 'switch', switchGateId: 1 }, // 70px上のスイッチ
       { id: 4, x: 360, y: 350, type: 'normal' },
       { id: 5, x: 430, y: 350, type: 'normal' },
       { id: 6, x: 500, y: 350, type: 'normal' },
@@ -284,7 +296,7 @@ export const STAGES: StageData[] = [
       { id: 1, x1: 395, y1: 290, x2: 395, y2: 410, isOpen: false, color: '#ef4444' },
     ],
     gears: [
-      { id: 1, x: 290, y: 160, collected: false },
+      { id: 1, x: 290, y: 230, collected: false },
       { id: 2, x: 360, y: 395, collected: false },
       { id: 3, x: 535, y: 310, collected: false },
     ],
@@ -414,12 +426,12 @@ export const STAGES: StageData[] = [
     startPinId: 1,
     pins: [
       { id: 1, x: 180, y: 280, type: 'normal' },
-      { id: 2, x: 250, y: 210, type: 'switch', switchGateId: 1 },
-      { id: 3, x: 250, y: 350, type: 'normal' },
+      { id: 2, x: 250, y: 230, type: 'switch', switchGateId: 1 },
+      { id: 3, x: 250, y: 330, type: 'normal' },
       { id: 4, x: 320, y: 350, type: 'normal' },
       { id: 5, x: 390, y: 350, type: 'switch', switchGateId: 2 },
       { id: 6, x: 460, y: 350, type: 'normal' },
-      { id: 7, x: 530, y: 280, type: 'normal' },
+      { id: 7, x: 530, y: 300, type: 'normal' },
       { id: 8, x: 600, y: 280, type: 'goal' },
     ],
     laserGates: [
@@ -488,13 +500,13 @@ export const STAGES: StageData[] = [
     startPinId: 1,
     pins: [
       { id: 1, x: 160, y: 280, type: 'normal' },
-      { id: 2, x: 230, y: 210, type: 'normal' },
+      { id: 2, x: 230, y: 230, type: 'normal' },
       { id: 3, x: 230, y: 350, type: 'acid' },
       { id: 4, x: 300, y: 280, type: 'normal' },
       { id: 5, x: 370, y: 210, type: 'acid' },
-      { id: 6, x: 370, y: 350, type: 'normal' },
+      { id: 6, x: 370, y: 330, type: 'normal' },
       { id: 7, x: 440, y: 280, type: 'normal' },
-      { id: 8, x: 510, y: 210, type: 'normal' },
+      { id: 8, x: 510, y: 230, type: 'normal' },
       { id: 9, x: 510, y: 350, type: 'acid' },
       { id: 10, x: 580, y: 280, type: 'goal' },
     ],
@@ -541,8 +553,8 @@ export const STAGES: StageData[] = [
     pins: [
       { id: 1, x: 150, y: 280, type: 'normal' },
       { id: 2, x: 220, y: 280, type: 'speed' },
-      { id: 3, x: 290, y: 210, type: 'switch', switchGateId: 1 },
-      { id: 4, x: 290, y: 350, type: 'normal' },
+      { id: 3, x: 290, y: 230, type: 'switch', switchGateId: 1 },
+      { id: 4, x: 290, y: 330, type: 'normal' },
       { id: 5, x: 360, y: 280, type: 'decay', decayTimer: 2.2, maxDecayTimer: 2.2 },
       { id: 6, x: 430, y: 280, type: 'normal' },
       { id: 7, x: 500, y: 280, type: 'slow' },
@@ -580,13 +592,13 @@ export const STAGES: StageData[] = [
     startPinId: 1,
     pins: [
       { id: 1, x: 140, y: 280, type: 'normal' },
-      { id: 2, x: 210, y: 210, type: 'speed' },
-      { id: 3, x: 210, y: 350, type: 'switch', switchGateId: 1 },
+      { id: 2, x: 210, y: 230, type: 'speed' },
+      { id: 3, x: 210, y: 330, type: 'switch', switchGateId: 1 },
       { id: 4, x: 280, y: 280, type: 'decay', decayTimer: 2.0, maxDecayTimer: 2.0 },
       { id: 5, x: 350, y: 280, type: 'warp', warpTargetId: 6 },
       { id: 6, x: 420, y: 180, type: 'warp', warpTargetId: 5 },
       { id: 7, x: 490, y: 180, type: 'slow' },
-      { id: 8, x: 490, y: 380, type: 'normal' },
+      { id: 8, x: 490, y: 250, type: 'normal' },
       { id: 9, x: 560, y: 280, type: 'normal' },
       { id: 10, x: 630, y: 280, type: 'goal' },
     ],
@@ -642,28 +654,40 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const canvasAreaRef = useRef<HTMLDivElement | null>(null);
+  const turboInputsRef = useRef(new Set<string>());
+  const [canvasSize, setCanvasSize] = useState({ width: CANVAS_WIDTH, height: CANVAS_HEIGHT });
 
   // 画面・UI状態
   const [currentStageIdx, setCurrentStageIdx] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [isGameOver, setIsGameOver] = useState<boolean>(false);
   const [isCleared, setIsCleared] = useState<boolean>(false);
-  const [isPaused] = useState<boolean>(false);
+  const [isManuallyPaused, setIsManuallyPaused] = useState(false);
+  const [isPageActive, setIsPageActive] = useState(!document.hidden);
   const [showStageSelect, setShowStageSelect] = useState<boolean>(false);
   const [showHelp, setShowHelp] = useState<boolean>(false);
+  const isPaused = isManuallyPaused || !isPageActive || showStageSelect || showHelp;
+  const controlsBlockedRef = useRef(isPaused);
+  controlsBlockedRef.current = isPaused;
 
   // ステータス表示
   const [score, setScore] = useState<number>(0);
   const [combo, setCombo] = useState<number>(0);
   const [timeRemaining, setTimeRemaining] = useState<number>(40);
   const [gearsCollected, setGearsCollected] = useState<number>(0);
-  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [isMuted, setIsMuted] = useState(() => sound.getMuted());
+  const [clearStars, setClearStars] = useState(0);
+  const [clearTimeBonus, setClearTimeBonus] = useState(0);
+  const [undoCount, setUndoCount] = useState(0);
+  const [missReason, setMissReason] = useState('');
+  useEffect(() => sound.subscribeMute(setIsMuted), []);
 
   // セーブデータ
   const [saveData, setSaveData] = useState<SpinDoctorSaveData>(() => {
     try {
       const stored = localStorage.getItem(GAME_STORAGE_KEY);
-      if (stored) return JSON.parse(stored);
+      if (stored) return normalizeSaveData(JSON.parse(stored), STAGES.length);
     } catch (e) {
       console.warn('Failed to load save data:', e);
     }
@@ -713,15 +737,16 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
   // ゲーム内部可変ステート (Ref)
   // ==========================================
   const gameStateRef = useRef({
+    status: 'playing' as 'playing' | 'miss' | 'cleared',
     stage: STAGES[0],
     pivotPinId: 1,
     angle: 0,
-    angularSpeed: BASE_SPEED,
     direction: 1, // 1: CW, -1: CCW
     isTurbo: false,
     score: 0,
     combo: 0,
-    lastLatchTime: 0,
+    lastLatchTime: null as number | null,
+    elapsedTime: 0,
     timeRemaining: 40,
     pins: [] as Pin[],
     laserGates: [] as LaserGate[],
@@ -746,7 +771,12 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
       angle: s.angle,
       direction: s.direction,
       score: s.score,
+      combo: s.combo,
+      lastLatchTime: s.lastLatchTime,
+      elapsedTime: s.elapsedTime,
       timeRemaining: s.timeRemaining,
+      tickCounter: s.tickCounter,
+      enemies: s.enemies.map((enemy) => ({ ...enemy })),
       pinsState: s.pins.map((p) => ({
         id: p.id,
         isDecayed: p.isDecayed,
@@ -755,18 +785,32 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
       laserGatesState: s.laserGates.map((g) => ({ id: g.id, isOpen: g.isOpen })),
       gearsState: s.gears.map((g) => ({ id: g.id, collected: g.collected })),
     });
+    setUndoCount(s.history.length);
   }, []);
 
   // Undo (1手戻し)
   const handleUndo = useCallback(() => {
     const s = gameStateRef.current;
-    if (s.history.length === 0) return;
+    if (controlsBlockedRef.current || s.status === 'cleared' || s.history.length === 0) return;
     const snap = s.history.pop()!;
     s.pivotPinId = snap.pivotPinId;
     s.angle = snap.angle;
     s.direction = snap.direction;
     s.score = snap.score;
+    s.combo = snap.combo;
+    s.lastLatchTime = snap.lastLatchTime;
+    s.elapsedTime = snap.elapsedTime;
     s.timeRemaining = snap.timeRemaining;
+    s.tickCounter = snap.tickCounter;
+    s.enemies = snap.enemies.map((enemy) => ({ ...enemy }));
+    s.status = 'playing';
+    s.isTurbo = false;
+    turboInputsRef.current.clear();
+    s.nearTargetPin = null;
+    s.trail = [];
+    s.particles = [];
+    s.shockwaves = [];
+    s.floatingTexts = [];
 
     // ギミック状態の復元
     snap.pinsState.forEach((ps) => {
@@ -787,11 +831,14 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 
     sound.playSpinFlip();
     setScore(s.score);
+    setCombo(s.combo);
+    setUndoCount(s.history.length);
     setTimeRemaining(Math.ceil(s.timeRemaining));
     setGearsCollected(s.gears.filter((g) => g.collected).length);
     setIsGameOver(false);
     setIsPlaying(true);
     setIsCleared(false);
+    setIsManuallyPaused(false);
 
     s.floatingTexts.push({
       id: Date.now(),
@@ -809,21 +856,24 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
     (stageIdx: number) => {
       const stage = STAGES[stageIdx] || STAGES[0];
       const s = gameStateRef.current;
+      s.status = 'playing';
       s.stage = stage;
       s.pivotPinId = stage.startPinId;
       s.angle = 0;
-      s.angularSpeed = BASE_SPEED;
       s.direction = 1;
       s.isTurbo = false;
+      turboInputsRef.current.clear();
       s.score = 0;
       s.combo = 0;
-      s.lastLatchTime = 0;
+      s.lastLatchTime = null;
+      s.elapsedTime = 0;
       s.timeRemaining = stage.timeLimit;
       s.pins = stage.pins.map((p) => ({ ...p, isDecayed: false }));
       s.laserGates = (stage.laserGates || []).map((g) => ({ ...g }));
       s.walls = stage.walls || [];
       s.gears = (stage.gears || []).map((g) => ({ ...g, collected: false }));
       s.enemies = (stage.enemies || []).map((e) => ({ ...e }));
+      s.enemies.forEach((enemy) => advanceEnemy(enemy, 0));
       s.floatingTexts = [];
       s.particles = [];
       s.shockwaves = [];
@@ -839,6 +889,9 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
       setIsGameOver(false);
       setIsCleared(false);
       setIsPlaying(true);
+      setIsManuallyPaused(false);
+      setClearStars(0);
+      setClearTimeBonus(0);
       setShowStageSelect(false);
 
       // 初手でもUndoで初期状態に戻れるよう初期スナップショットを記録
@@ -849,8 +902,8 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 
   // 反転操作 (Flip)
   const handleFlip = useCallback(() => {
-    if (!isPlaying || isGameOver || isCleared || isPaused) return;
     const s = gameStateRef.current;
+    if (s.status !== 'playing' || controlsBlockedRef.current) return;
     s.direction *= -1;
     sound.playSpinFlip();
 
@@ -866,49 +919,38 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
         color: '#38bdf8',
       });
     }
-  }, [isPlaying, isGameOver, isCleared, isPaused]);
+  }, []);
 
   // ターボトグル
-  const setTurbo = useCallback((turbo: boolean) => {
+  const setTurbo = useCallback((turbo: boolean, source = 'pointer') => {
     const s = gameStateRef.current;
-    if (s.isTurbo !== turbo) {
-      s.isTurbo = turbo;
-      if (turbo) sound.playSpinTurbo();
+    if (turbo && (s.status !== 'playing' || controlsBlockedRef.current)) return;
+    if (turbo) turboInputsRef.current.add(source);
+    else turboInputsRef.current.delete(source);
+    const active = turboInputsRef.current.size > 0;
+    if (s.isTurbo !== active) {
+      s.isTurbo = active;
+      if (active) sound.playSpinTurbo();
     }
   }, []);
 
   // ラッチ（ピン吸着・飛び移り）実行
   const handleLatch = useCallback(() => {
-    if (!isPlaying || isGameOver || isCleared || isPaused) return;
     const s = gameStateRef.current;
+    if (s.status !== 'playing' || controlsBlockedRef.current) return;
     const currentPin = s.pins.find((p) => p.id === s.pivotPinId);
     if (!currentPin) return;
 
-    // 現在の先端座標
-    const freeX = currentPin.x + Math.cos(s.angle) * BASE_ROD_LENGTH;
-    const freeY = currentPin.y + Math.sin(s.angle) * BASE_ROD_LENGTH;
-
-    // 吸着可能なピンを探す
-    let bestPin: Pin | null = null;
-    let minDist = LATCH_TOLERANCE;
-
-    for (const pin of s.pins) {
-      if (pin.id === s.pivotPinId || pin.isDecayed) continue;
-      const d = Math.hypot(freeX - pin.x, freeY - pin.y);
-      if (d <= minDist) {
-        minDist = d;
-        bestPin = pin;
-      }
-    }
+    const bestPin = findLatchTarget(s.pins, currentPin, s.angle, s);
 
     if (bestPin) {
       // 履歴を保存 (Undo用)
       pushHistorySnapshot();
 
       // コンボ計算 (1.2秒以内の連続ラッチでコンボボーナス)
-      const now = performance.now();
+      const now = s.elapsedTime;
       let nextCombo = 1;
-      if (now - s.lastLatchTime < 1400) {
+      if (s.lastLatchTime !== null && now - s.lastLatchTime < 1.4) {
         nextCombo = s.combo + 1;
       }
       s.combo = nextCombo;
@@ -921,6 +963,8 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 
       // 新しい角度: 新ピボットから見た旧先端（または元ピボットの逆）
       s.angle = Math.atan2(oldPin.y - bestPin.y, oldPin.x - bestPin.x);
+      s.nearTargetPin = null;
+      s.trail = [];
 
       // スコア加算
       const point = 100 * nextCombo;
@@ -951,6 +995,9 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 
       // ギミック判定
       if (bestPin.type === 'goal') {
+        s.status = 'cleared';
+        s.isTurbo = false;
+        turboInputsRef.current.clear();
         // ステージクリア！
         setIsCleared(true);
         setIsPlaying(false);
@@ -959,14 +1006,15 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
         // 残り時間ボーナス
         const timeBonus = Math.round(s.timeRemaining * 50);
         const finalScore = s.score + timeBonus;
+        s.score = finalScore;
         setScore(finalScore);
+        setTimeRemaining(Math.ceil(s.timeRemaining));
+        setClearTimeBonus(timeBonus);
 
         // 星評価 (ギア収集数基準 + タイム)
         const collectedGears = s.gears.filter((g) => g.collected).length;
-        let starCount = 1;
-        if (collectedGears >= 2) starCount = 2;
-        if (collectedGears === 3 && s.timeRemaining >= s.stage.timeLimit * 0.25)
-          starCount = 3;
+        const starCount = getStarCount(collectedGears, s.timeRemaining, s.stage.timeLimit);
+        setClearStars(starCount);
 
         updateSaveData(
           s.stage.stageNumber,
@@ -1021,28 +1069,34 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
         }
       }
     }
-  }, [
-    isPlaying,
-    isGameOver,
-    isCleared,
-    isPaused,
-    pushHistorySnapshot,
-    updateSaveData,
-  ]);
+  }, [pushHistorySnapshot, updateSaveData]);
 
   // キーボードイベント処理
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey || e.metaKey || e.altKey
+        || (e.target instanceof HTMLElement && e.target.closest('input, textarea, select, [contenteditable="true"]'))) return;
+      if (showStageSelect || showHelp) {
+        if (e.code === 'Escape') { setShowStageSelect(false); setShowHelp(false); }
+        return;
+      }
+      if (e.code === 'KeyP' || e.code === 'Escape') {
+        e.preventDefault();
+        if (!e.repeat && gameStateRef.current.status === 'playing') setIsManuallyPaused((paused) => !paused);
+        return;
+      }
+      if (controlsBlockedRef.current) return;
       if (['Space', 'ArrowUp', 'ArrowDown', 'KeyW', 'KeyS'].includes(e.code)) {
         e.preventDefault();
       }
+      if (e.repeat && e.code !== 'ArrowUp' && e.code !== 'KeyW') return;
 
       if (e.code === 'Space') {
         handleLatch();
       } else if (e.code === 'ArrowDown' || e.code === 'KeyS') {
         handleFlip();
       } else if (e.code === 'ArrowUp' || e.code === 'KeyW') {
-        setTurbo(true);
+        setTurbo(true, e.code);
       } else if (e.code === 'KeyZ') {
         handleUndo();
       } else if (e.code === 'KeyR') {
@@ -1052,7 +1106,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 
     const handleKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'ArrowUp' || e.code === 'KeyW') {
-        setTurbo(false);
+        setTurbo(false, e.code);
       }
     };
 
@@ -1062,7 +1116,52 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [handleLatch, handleFlip, setTurbo, handleUndo, initStage, currentStageIdx]);
+  }, [handleLatch, handleFlip, setTurbo, handleUndo, initStage, currentStageIdx, showStageSelect, showHelp]);
+
+  useEffect(() => {
+    const openHelp = () => setShowHelp(true);
+    window.addEventListener('spindoctor:help', openHelp);
+    return () => window.removeEventListener('spindoctor:help', openHelp);
+  }, []);
+
+  useEffect(() => {
+    if (isPaused) {
+      gameStateRef.current.isTurbo = false;
+      turboInputsRef.current.clear();
+    }
+  }, [isPaused]);
+
+  useEffect(() => {
+    const suspend = () => {
+      gameStateRef.current.isTurbo = false;
+      turboInputsRef.current.clear();
+      setIsManuallyPaused(true);
+      setIsPageActive(false);
+    };
+    const focus = () => { setIsPageActive(!document.hidden); setIsMuted(sound.getMuted()); };
+    const visibility = () => { if (document.hidden) suspend(); else focus(); };
+    window.addEventListener('blur', suspend);
+    window.addEventListener('focus', focus);
+    document.addEventListener('visibilitychange', visibility);
+    return () => {
+      window.removeEventListener('blur', suspend);
+      window.removeEventListener('focus', focus);
+      document.removeEventListener('visibilitychange', visibility);
+    };
+  }, []);
+
+  useEffect(() => {
+    const area = canvasAreaRef.current;
+    if (!area) return;
+    const resize = () => {
+      const next = fitCanvas(area.clientWidth, area.clientHeight, isFullscreen);
+      setCanvasSize((previous) => previous.width === next.width && previous.height === next.height ? previous : next);
+    };
+    const observer = new ResizeObserver(resize);
+    observer.observe(area);
+    resize();
+    return () => observer.disconnect();
+  }, [isFullscreen]);
 
   // ステージ切り替え時の開始
   useEffect(() => {
@@ -1077,7 +1176,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
     let lastTime = performance.now();
 
     const loop = (time: number) => {
-      const dt = Math.min((time - lastTime) / 1000, 0.05); // 最大50ms
+      const elapsed = Math.max(0, Math.min((time - lastTime) / 1000, 0.25));
       lastTime = time;
 
       const s = gameStateRef.current;
@@ -1085,10 +1184,25 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
       const ctx = canvas?.getContext('2d');
 
       if (ctx && canvas) {
-        // 1. 更新処理 (プレイ中のみ)
-        if (isPlaying && !isGameOver && !isCleared && !isPaused) {
+        ctx.setTransform(canvas.width / CANVAS_WIDTH, 0, 0, canvas.height / CANVAS_HEIGHT, 0, 0);
+        // Substeps keep collision checks reliable even at low frame rates or in turbo.
+        let remaining = elapsed;
+        while (remaining > 0 && s.status === 'playing' && !isPaused) {
+          const dt = Math.min(remaining, 1 / 120);
+          remaining -= dt;
+          const miss = (reason: string) => {
+            if (s.status !== 'playing') return;
+            s.status = 'miss';
+            s.isTurbo = false;
+            turboInputsRef.current.clear();
+            setMissReason(reason);
+            setIsGameOver(true);
+            setIsPlaying(false);
+            sound.playSpinHit();
+          };
           // タイマー進行
           s.timeRemaining -= dt;
+          s.elapsedTime += dt;
           s.tickCounter += dt;
           if (s.tickCounter >= 1.0) {
             s.tickCounter -= 1.0;
@@ -1097,9 +1211,9 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 
           if (s.timeRemaining <= 0) {
             s.timeRemaining = 0;
-            setIsGameOver(true);
-            setIsPlaying(false);
-            sound.playSpinHit();
+            miss('時間切れです。Undoで巻き戻すか、もう一度挑戦しましょう。');
+            setTimeRemaining(0);
+            break;
           }
           setTimeRemaining(Math.ceil(s.timeRemaining));
 
@@ -1113,11 +1227,24 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
             else if (currentPin.type === 'slow') speed = TAR_SPEED;
             if (s.isTurbo) speed = TURBO_SPEED;
 
-            s.angle += speed * s.direction;
+            const previousAngle = s.angle;
+            s.angle = (s.angle + speed * s.direction * dt * 60) % (Math.PI * 2);
 
             // 先端座標
-            const freeX = currentPin.x + Math.cos(s.angle) * BASE_ROD_LENGTH;
-            const freeY = currentPin.y + Math.sin(s.angle) * BASE_ROD_LENGTH;
+            let freeX = currentPin.x + Math.cos(s.angle) * BASE_ROD_LENGTH;
+            let freeY = currentPin.y + Math.sin(s.angle) * BASE_ROD_LENGTH;
+
+            // Resolve walls before item/hazard checks, rolling back to a safe pose.
+            const wallHit = s.walls.some((wall) => segmentDistance(currentPin.x, currentPin.y,
+              freeX, freeY, wall.x1, wall.y1, wall.x2, wall.y2) <= 7
+              || pointSegmentDistance(freeX, freeY, wall.x1, wall.y1, wall.x2, wall.y2) <= 14);
+            if (wallHit) {
+              s.angle = previousAngle;
+              s.direction *= -1;
+              freeX = currentPin.x + Math.cos(s.angle) * BASE_ROD_LENGTH;
+              freeY = currentPin.y + Math.sin(s.angle) * BASE_ROD_LENGTH;
+              sound.playSpinFlip();
+            }
 
             // トレイル追加
             s.trail.push({ x: freeX, y: freeY, alpha: 0.7 });
@@ -1133,35 +1260,20 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
                 currentPin.isDecayed = true;
                 sound.playSpinDecay();
                 // ピボットが消滅したのでミス！
-                setIsGameOver(true);
-                setIsPlaying(false);
-                sound.playSpinHit();
+                miss('支点のピンが崩れました。次のピンへ早めに飛び移りましょう。');
+                break;
               }
             }
 
             // 吸着可能候補ピンの検出 (Lock-on 表示用)
-            let nearPin: Pin | null = null;
-            let minDist = LATCH_TOLERANCE;
-            for (const pin of s.pins) {
-              if (pin.id === s.pivotPinId || pin.isDecayed) continue;
-              const d = Math.hypot(freeX - pin.x, freeY - pin.y);
-              if (d <= minDist) {
-                minDist = d;
-                nearPin = pin;
-              }
-            }
-            s.nearTargetPin = nearPin;
+            s.nearTargetPin = findLatchTarget(s.pins, currentPin, s.angle, s);
 
             // ギア（星）の収集判定
             s.gears.forEach((gear) => {
               if (!gear.collected) {
                 // ロッド線分とギア中心の距離を判定
                 const distFree = Math.hypot(freeX - gear.x, freeY - gear.y);
-                const distPivot = Math.hypot(
-                  currentPin.x - gear.x,
-                  currentPin.y - gear.y
-                );
-                const rodDist = Math.min(distFree, distPivot);
+                const rodDist = pointSegmentDistance(gear.x, gear.y, currentPin.x, currentPin.y, freeX, freeY);
                 if (rodDist < 20 || distFree < 26) {
                   gear.collected = true;
                   sound.playSpinGear();
@@ -1202,10 +1314,8 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
             for (const pin of s.pins) {
               if (pin.type === 'acid') {
                 const distToAcid = Math.hypot(freeX - pin.x, freeY - pin.y);
-                if (distToAcid < 22) {
-                  setIsGameOver(true);
-                  setIsPlaying(false);
-                  sound.playSpinHit();
+                if (distToAcid < 22 || pointSegmentDistance(pin.x, pin.y, currentPin.x, currentPin.y, freeX, freeY) < 18) {
+                  miss('赤い酸ピンに触れました。反転やUndoで軌道を変えましょう。');
                   break;
                 }
               }
@@ -1214,80 +1324,20 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
             // レーザーゲートとの接触判定
             for (const gate of s.laserGates) {
               if (!gate.isOpen) {
-                // 先端または中点がレーザー線分と交差するか判定
-                const isHit = checkLineCircleIntersection(
-                  gate.x1,
-                  gate.y1,
-                  gate.x2,
-                  gate.y2,
-                  freeX,
-                  freeY,
-                  10
-                );
+                // 針全体と、先端の球を判定する
+                const isHit = segmentDistance(currentPin.x, currentPin.y, freeX, freeY,
+                  gate.x1, gate.y1, gate.x2, gate.y2) <= 6
+                  || pointSegmentDistance(freeX, freeY, gate.x1, gate.y1, gate.x2, gate.y2) <= 13;
                 if (isHit) {
-                  setIsGameOver(true);
-                  setIsPlaying(false);
-                  sound.playSpinHit();
+                  miss('レーザーに触れました。黄色いスイッチでゲートを開けましょう。');
                   break;
                 }
               }
             }
 
-            // 壁との接触判定 (跳ね返り・反転)
-            for (const wall of s.walls) {
-              const isHit = checkLineCircleIntersection(
-                wall.x1,
-                wall.y1,
-                wall.x2,
-                wall.y2,
-                freeX,
-                freeY,
-                10
-              );
-              if (isHit) {
-                // 壁に弾かれて反転
-                s.direction *= -1;
-                s.angle += s.direction * 0.08;
-                sound.playSpinFlip();
-                // 火花パーティクル
-                for (let i = 0; i < 6; i++) {
-                  s.particles.push({
-                    x: freeX,
-                    y: freeY,
-                    vx: (Math.random() - 0.5) * 4,
-                    vy: (Math.random() - 0.5) * 4,
-                    life: 0.6,
-                    maxLife: 0.6,
-                    color: '#f59e0b',
-                    size: 2.5,
-                  });
-                }
-                break;
-              }
-            }
-
             // 敵キャラクターの更新＆当たり判定
             for (const enemy of s.enemies) {
-              if (enemy.type === 'patrol' && enemy.p1 && enemy.p2) {
-                enemy.progress = (enemy.progress || 0) + dt * 0.4 * (enemy.dir || 1);
-                if (enemy.progress >= 1) {
-                  enemy.progress = 1;
-                  enemy.dir = -1;
-                } else if (enemy.progress <= 0) {
-                  enemy.progress = 0;
-                  enemy.dir = 1;
-                }
-                enemy.x = enemy.p1.x + (enemy.p2.x - enemy.p1.x) * enemy.progress;
-                enemy.y = enemy.p1.y + (enemy.p2.y - enemy.p1.y) * enemy.progress;
-              } else if (enemy.type === 'orbit') {
-                enemy.angle = (enemy.angle || 0) + (enemy.orbitSpeed || 0.04);
-                enemy.x =
-                  (enemy.centerX || 0) +
-                  Math.cos(enemy.angle) * (enemy.orbitRadius || 40);
-                enemy.y =
-                  (enemy.centerY || 0) +
-                  Math.sin(enemy.angle) * (enemy.orbitRadius || 40);
-              }
+              advanceEnemy(enemy, dt);
 
               // プレイヤーの先端または中心との当たり判定
               const distFree = Math.hypot(freeX - enemy.x, freeY - enemy.y);
@@ -1295,10 +1345,9 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
                 currentPin.x - enemy.x,
                 currentPin.y - enemy.y
               );
-              if (distFree < enemy.radius + 8 || distPivot < enemy.radius + 6) {
-                setIsGameOver(true);
-                setIsPlaying(false);
-                sound.playSpinHit();
+              if (distFree < enemy.radius + 8 || distPivot < enemy.radius + 6
+                || pointSegmentDistance(enemy.x, enemy.y, currentPin.x, currentPin.y, freeX, freeY) < enemy.radius + 3) {
+                miss('敵に針が触れました。敵の動きを見てタイミングを変えましょう。');
                 break;
               }
             }
@@ -1313,15 +1362,15 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 
           // パーティクルの更新
           s.particles.forEach((p) => {
-            p.x += p.vx;
-            p.y += p.vy;
+            p.x += p.vx * dt * 60;
+            p.y += p.vy * dt * 60;
             p.life -= dt;
           });
           s.particles = s.particles.filter((p) => p.life > 0);
 
           // 浮遊テキストの更新
           s.floatingTexts.forEach((ft) => {
-            ft.y += ft.vy;
+            ft.y += ft.vy * dt * 60;
             ft.opacity -= 1.2 * dt;
           });
           s.floatingTexts = s.floatingTexts.filter((ft) => ft.opacity > 0);
@@ -1338,30 +1387,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [isPlaying, isGameOver, isCleared, isPaused, isDark]);
-
-  // 線分と円の衝突補助関数
-  function checkLineCircleIntersection(
-    x1: number,
-    y1: number,
-    x2: number,
-    y2: number,
-    cx: number,
-    cy: number,
-    r: number
-  ) {
-    const dx = x2 - x1;
-    const dy = y2 - y1;
-    const lenSq = dx * dx + dy * dy;
-    if (lenSq === 0) return Math.hypot(cx - x1, cy - y1) <= r;
-    const t = Math.max(
-      0,
-      Math.min(1, ((cx - x1) * dx + (cy - y1) * dy) / lenSq)
-    );
-    const projX = x1 + t * dx;
-    const projY = y1 + t * dy;
-    return Math.hypot(cx - projX, cy - projY) <= r;
-  }
+  }, [isPaused, isDark]);
 
   // ==========================================
   // Canvas レンダリング本体
@@ -1468,8 +1494,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
     ctx.setLineDash([2, 4]);
     for (let i = 0; i < s.pins.length; i++) {
       for (let j = i + 1; j < s.pins.length; j++) {
-        const d = Math.hypot(s.pins[i].x - s.pins[j].x, s.pins[i].y - s.pins[j].y);
-        if (d >= BASE_ROD_LENGTH - 15 && d <= BASE_ROD_LENGTH + 15) {
+        if (canReachPin(s.pins[i], s.pins[j])) {
           ctx.beginPath();
           ctx.moveTo(s.pins[i].x, s.pins[i].y);
           ctx.lineTo(s.pins[j].x, s.pins[j].y);
@@ -1618,8 +1643,8 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
           radius = 9;
           break;
         case 'slow':
-          pinColor = '#7c3aed';
-          outerColor = '#c4b5fd';
+          pinColor = '#92400e';
+          outerColor = '#d6a66d';
           radius = 9;
           break;
         case 'warp':
@@ -1784,22 +1809,21 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 
   // サウンドミュート切り替え
   const toggleMute = () => {
-    sound.toggleMute();
-    setIsMuted(!isMuted);
+    setIsMuted(sound.toggleMute());
   };
 
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full flex flex-col items-center justify-between select-none overflow-hidden transition-colors duration-200 ${
+      className={`relative w-full h-full min-h-0 flex flex-col items-center select-none overflow-hidden transition-colors duration-200 ${
         isFullscreen
-          ? 'p-0 w-full h-[calc(100dvh-3.5rem)] sm:h-[calc(100dvh-4rem)] max-w-none'
+          ? 'p-0 max-w-none'
           : 'max-w-5xl mx-auto p-2 sm:p-4'
       }`}
     >
       {/* 画面上部ヘッダー (HUD) */}
       <div
-        className={`w-full flex items-center justify-between px-3 py-2 sm:px-5 sm:py-2.5 rounded-2xl border backdrop-blur-md z-10 shrink-0 ${
+        className={`w-full flex flex-wrap items-center justify-between gap-2 px-2 py-1.5 sm:px-5 sm:py-2.5 rounded-2xl border backdrop-blur-md z-10 shrink-0 ${
           isDark
             ? 'bg-slate-900/80 border-slate-800 text-slate-100 shadow-lg shadow-black/40'
             : 'bg-white/90 border-slate-200 text-slate-800 shadow-md'
@@ -1819,7 +1843,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
         </div>
 
         {/* タイム・スコア・ギアHUD */}
-        <div className="flex items-center gap-4 sm:gap-6">
+        <div className="flex flex-1 flex-wrap items-center justify-end gap-2 sm:gap-4">
           {/* タイム */}
           <div className="flex items-center gap-1.5">
             <Clock
@@ -1867,9 +1891,19 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
           {/* コントロールボタン */}
           <div className="flex items-center gap-1.5 ml-1">
             <button
+              onClick={() => setIsManuallyPaused((paused) => !paused)}
+              aria-label={isManuallyPaused ? '再開 (P)' : '一時停止 (P)'}
+              title="一時停止・再開 (P / Esc)"
+              disabled={!isPlaying}
+              className="p-2 rounded-lg bg-slate-700/40 text-sky-400 cursor-pointer disabled:opacity-40"
+            >
+              {isManuallyPaused ? <Play className="w-4 h-4" /> : <Pause className="w-4 h-4" />}
+            </button>
+            <button
               onClick={() => handleUndo()}
               title="1手戻す (Zキー)"
-              className="p-1.5 rounded-lg bg-slate-800/40 hover:bg-slate-700/50 text-slate-300 transition cursor-pointer border border-slate-700/40"
+              disabled={undoCount === 0 || isCleared || isPaused}
+              className="p-2 rounded-lg bg-slate-800/40 hover:bg-slate-700/50 text-slate-300 transition cursor-pointer border border-slate-700/40 disabled:opacity-30 disabled:cursor-default"
             >
               <Undo2 className="w-4 h-4" />
             </button>
@@ -1882,12 +1916,14 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
             </button>
             <button
               onClick={toggleMute}
+              aria-label={isMuted ? 'サウンドをONにする' : 'サウンドをミュートにする'}
               className="p-1.5 rounded-lg bg-slate-800/40 hover:bg-slate-700/50 text-slate-300 transition cursor-pointer border border-slate-700/40"
             >
               {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
             </button>
             <button
               onClick={() => setShowHelp(true)}
+              aria-label="スピンドクターの遊び方"
               className="p-1.5 rounded-lg bg-slate-800/40 hover:bg-slate-700/50 text-slate-300 transition cursor-pointer border border-slate-700/40"
             >
               <HelpCircle className="w-4 h-4" />
@@ -1898,33 +1934,48 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 
       {/* ゲームCanvasエリア (フルスクリーン時は最大化スケーリング) */}
       <div
+        ref={canvasAreaRef}
         className={`relative flex-1 w-full flex items-center justify-center min-h-0 my-1 sm:my-2 ${
           isFullscreen ? 'h-full w-full' : ''
         }`}
-        onClick={handleLatch}
       >
         <canvas
           ref={canvasRef}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          className={`rounded-2xl border shadow-2xl transition-all object-contain cursor-crosshair ${
+          width={Math.max(1, Math.round(canvasSize.width * Math.min(window.devicePixelRatio || 1, 2)))}
+          height={Math.max(1, Math.round(canvasSize.height * Math.min(window.devicePixelRatio || 1, 2)))}
+          tabIndex={0}
+          aria-label="スピンドクターのゲーム盤。スペースで飛び移り、上下キーで加速・反転、Pで一時停止。"
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            event.currentTarget.focus();
+            handleLatch();
+          }}
+          className={`rounded-2xl border shadow-2xl cursor-crosshair touch-none shrink-0 ${
             isDark
               ? 'border-slate-800/80 shadow-sky-950/20'
               : 'border-slate-200 shadow-slate-300'
-          } ${
-            isFullscreen
-              ? 'w-full h-full max-w-none max-h-none'
-              : 'max-w-full max-h-full'
           }`}
           style={{
+            width: canvasSize.width,
+            height: canvasSize.height,
             aspectRatio: `${CANVAS_WIDTH} / ${CANVAS_HEIGHT}`,
           }}
         />
 
         {/* ヒントバー (画面下部オーバーレイ) */}
-        {isPlaying && !isGameOver && !isCleared && (
-          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-slate-900/80 text-white text-[11px] sm:text-xs font-semibold backdrop-blur-md border border-slate-700/60 pointer-events-none shadow-lg">
+        {isPlaying && !isPaused && (
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 w-max max-w-[calc(100%-1rem)] text-center px-3 py-1.5 rounded-xl bg-slate-900/80 text-white text-[10px] sm:text-xs font-semibold backdrop-blur-md border border-slate-700/60 pointer-events-none shadow-lg">
             💡 {STAGES[currentStageIdx].hint}
+          </div>
+        )}
+
+        {isPlaying && isPaused && !showHelp && !showStageSelect && (
+          <div className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/70 backdrop-blur-sm rounded-2xl">
+            <button onClick={() => { setIsManuallyPaused(false); setIsPageActive(!document.hidden); }}
+              className="px-6 py-3 rounded-2xl bg-indigo-600 text-white font-bold shadow-xl cursor-pointer">
+              ▶ 再開する <span className="text-xs opacity-70">[P / Esc]</span>
+            </button>
           </div>
         )}
 
@@ -1932,7 +1983,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
         {isGameOver && (
           <div className="absolute inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center rounded-2xl z-30 animate-in fade-in duration-200">
             <div
-              className={`max-w-xs w-full mx-4 p-6 rounded-3xl border text-center shadow-2xl ${
+              className={`max-w-xs w-full max-h-full overflow-y-auto mx-4 p-5 rounded-3xl border text-center shadow-2xl ${
                 isDark ? 'bg-slate-900 border-rose-500/40' : 'bg-white border-rose-300'
               }`}
               onClick={(e) => e.stopPropagation()}
@@ -1942,12 +1993,13 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
               </div>
               <h3 className="text-xl font-black text-rose-500 mb-1">MISS!</h3>
               <p className="text-xs text-slate-400 mb-5">
-                障害物に衝突したか、時間切れになりました。
+                {missReason}
               </p>
               <div className="flex gap-2">
                 <button
                   onClick={handleUndo}
-                  className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700"
+                  disabled={undoCount === 0 || isPaused}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700 disabled:opacity-30 disabled:cursor-default"
                 >
                   <Undo2 className="w-3.5 h-3.5" />
                   Undo
@@ -1968,7 +2020,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
         {isCleared && (
           <div className="absolute inset-0 bg-black/75 backdrop-blur-xs flex items-center justify-center rounded-2xl z-30 animate-in zoom-in-95 duration-200">
             <div
-              className={`max-w-sm w-full mx-4 p-6 rounded-3xl border text-center shadow-2xl ${
+              className={`max-w-sm w-full max-h-full overflow-y-auto mx-4 p-5 rounded-3xl border text-center shadow-2xl ${
                 isDark
                   ? 'bg-slate-900 border-amber-500/40'
                   : 'bg-white border-amber-300'
@@ -1988,7 +2040,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
               {/* 星評価 */}
               <div className="flex justify-center gap-3 mb-4">
                 {[1, 2, 3].map((starIdx) => {
-                  const collected = gearsCollected >= starIdx;
+                  const collected = clearStars >= starIdx;
                   return (
                     <div
                       key={starIdx}
@@ -2008,7 +2060,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
                 <div className="flex justify-between text-slate-400">
                   <span>残り時間ボーナス</span>
                   <span className="font-mono text-white">
-                    +{Math.round(timeRemaining * 50)}
+                    +{clearTimeBonus}
                   </span>
                 </div>
                 <div className="flex justify-between text-slate-400">
@@ -2064,8 +2116,10 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
         }`}
       >
         <button
-          onClick={handleLatch}
-          className="py-2.5 sm:py-3 px-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 active:scale-95 text-white font-black text-xs sm:text-sm shadow-md shadow-sky-600/30 transition flex flex-col items-center justify-center cursor-pointer"
+          onPointerDown={(event) => { if (event.button === 0) { event.preventDefault(); handleLatch(); } }}
+          onClick={(event) => { if (event.detail === 0) handleLatch(); }}
+          disabled={!isPlaying || isPaused}
+          className="py-2 sm:py-3 px-2 rounded-xl bg-gradient-to-r from-sky-600 to-blue-600 hover:from-sky-500 hover:to-blue-500 active:scale-95 text-white font-black text-xs sm:text-sm shadow-md shadow-sky-600/30 transition flex flex-col items-center justify-center cursor-pointer touch-none disabled:opacity-40"
         >
           <span>LATCH</span>
           <span className="text-[9px] opacity-75 font-normal">[SPACE / TAP]</span>
@@ -2073,6 +2127,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 
         <button
           onClick={handleFlip}
+          disabled={!isPlaying || isPaused}
           className="py-2.5 sm:py-3 px-2 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 active:scale-95 text-white font-black text-xs sm:text-sm shadow-md shadow-amber-600/30 transition flex flex-col items-center justify-center cursor-pointer"
         >
           <span>FLIP</span>
@@ -2080,11 +2135,17 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
         </button>
 
         <button
-          onMouseDown={() => setTurbo(true)}
-          onMouseUp={() => setTurbo(false)}
-          onTouchStart={() => setTurbo(true)}
-          onTouchEnd={() => setTurbo(false)}
-          className="py-2.5 sm:py-3 px-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 active:scale-95 text-white font-black text-xs sm:text-sm shadow-md shadow-purple-600/30 transition flex flex-col items-center justify-center cursor-pointer"
+          onPointerDown={(event) => {
+            if (event.button !== 0) return;
+            event.preventDefault();
+            event.currentTarget.setPointerCapture(event.pointerId);
+            setTurbo(true);
+          }}
+          onPointerUp={() => setTurbo(false)}
+          onPointerCancel={() => setTurbo(false)}
+          onLostPointerCapture={() => setTurbo(false)}
+          disabled={!isPlaying || isPaused}
+          className="py-2.5 sm:py-3 px-2 rounded-xl bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 active:scale-95 text-white font-black text-xs sm:text-sm shadow-md shadow-purple-600/30 transition flex flex-col items-center justify-center cursor-pointer touch-none disabled:opacity-40"
         >
           <span>TURBO</span>
           <span className="text-[9px] opacity-75 font-normal">[↑ / W]</span>
@@ -2092,7 +2153,8 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
 
         <button
           onClick={handleUndo}
-          className="py-2.5 sm:py-3 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 font-bold text-xs sm:text-sm shadow-md transition flex flex-col items-center justify-center cursor-pointer border border-slate-700"
+          disabled={undoCount === 0 || isCleared || isPaused}
+          className="py-2.5 sm:py-3 px-2 rounded-xl bg-slate-800 hover:bg-slate-700 active:scale-95 text-slate-200 font-bold text-xs sm:text-sm shadow-md transition flex flex-col items-center justify-center cursor-pointer border border-slate-700 disabled:opacity-30 disabled:cursor-default"
         >
           <div className="flex items-center gap-1">
             <Undo2 className="w-3.5 h-3.5" />
@@ -2146,7 +2208,8 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
                     key={stg.stageNumber}
                     disabled={!isUnlocked}
                     onClick={() => {
-                      setCurrentStageIdx(idx);
+                      if (idx === currentStageIdx) initStage(idx);
+                      else setCurrentStageIdx(idx);
                       setShowStageSelect(false);
                     }}
                     className={`p-3 rounded-2xl border text-center transition flex flex-col items-center justify-between cursor-pointer ${
@@ -2185,7 +2248,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
           onClick={() => setShowHelp(false)}
         >
           <div
-            className={`max-w-md w-full p-6 rounded-3xl border shadow-2xl space-y-4 ${
+            className={`max-w-md w-full max-h-[90dvh] overflow-y-auto p-5 rounded-3xl border shadow-2xl space-y-4 ${
               isDark ? 'bg-slate-900 border-slate-800 text-white' : 'bg-white border-slate-200 text-slate-900'
             }`}
             onClick={(e) => e.stopPropagation()}
@@ -2195,13 +2258,13 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
               スピンドクターの遊び方
             </h3>
 
-            <div className="text-xs space-y-2.5 text-slate-300 leading-relaxed">
+            <div className={`text-xs space-y-2.5 leading-relaxed ${isDark ? 'text-slate-300 [&_strong]:text-white' : 'text-slate-600 [&_strong]:text-slate-900'}`}>
               <div className="flex items-start gap-2.5">
                 <span className="w-5 h-5 rounded-md bg-sky-500/20 text-sky-400 flex items-center justify-center font-black shrink-0">
                   1
                 </span>
                 <div>
-                  <strong className="text-white">ピン飛び移り (LATCH)</strong>:
+                  <strong>ピン飛び移り (LATCH)</strong>:
                   針の先が次のピンに重なった瞬間に【SPACE】キーまたは画面タップ。支点が移り変わります。
                 </div>
               </div>
@@ -2211,7 +2274,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
                   2
                 </span>
                 <div>
-                  <strong className="text-white">方向反転 (FLIP)</strong>:
+                  <strong>方向反転 (FLIP)</strong>:
                   【↓】または【S】キーで時計回り・反時計回りを瞬時に切り替えます。
                 </div>
               </div>
@@ -2221,7 +2284,7 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
                   3
                 </span>
                 <div>
-                  <strong className="text-white">加速 (TURBO)</strong>:
+                  <strong>加速 (TURBO)</strong>:
                   【↑】または【W】キーで針が高速回転。一気に遠くへ渡り歩く時に有効です。
                 </div>
               </div>
@@ -2231,10 +2294,13 @@ export const SpinDoctorGame: React.FC<SpinDoctorGameProps> = ({
                   4
                 </span>
                 <div>
-                  <strong className="text-white">巻き戻し (UNDO)</strong>:
+                  <strong>巻き戻し (UNDO)</strong>:
                   【Z】キーで1手前のピン状態に安全に戻せます。
                 </div>
               </div>
+
+              <p>【P / Esc】で一時停止・再開。ヘルプやステージ選択を開いている間も時間は止まります。</p>
+              <p>クリアで★1、ギア2個で★2、ギア3個＋制限時間の25%以上を残してクリアで★3。</p>
 
               <div className="border-t border-slate-800 pt-3">
                 <div className="font-bold text-white mb-1.5">ピンの種類:</div>

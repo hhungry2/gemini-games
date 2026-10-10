@@ -86,6 +86,7 @@ const KOROBEINIKI_BASS = [
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
+  private muteListeners = new Set<(muted: boolean) => void>();
 
   // テトリス BGM シーケンサー状態
   private isTetrisBgmRunning: boolean = false;
@@ -104,7 +105,11 @@ class SoundEngine {
   private chiikawaBgmStep: number = 0;
   private chiikawaBgmTheme: 'chill' | 'battle' = 'chill';
 
-  constructor() {}
+  constructor() {
+    try {
+      this.isMuted = localStorage.getItem('gemini_games_muted_v1') === 'true';
+    } catch { /* Storage may be unavailable in private browsing or server rendering. */ }
+  }
 
   private initCtx() {
     if (!this.ctx && typeof window !== 'undefined') {
@@ -120,6 +125,8 @@ class SoundEngine {
 
   public setMuted(muted: boolean) {
     this.isMuted = muted;
+    try { localStorage.setItem('gemini_games_muted_v1', String(muted)); } catch { /* Keep the in-memory preference. */ }
+    this.muteListeners.forEach((listener) => listener(muted));
     if (muted && this.isTetrisBgmRunning) {
       // ミュート時は無音化
     }
@@ -130,8 +137,14 @@ class SoundEngine {
   }
 
   public toggleMute(): boolean {
-    this.isMuted = !this.isMuted;
+    this.setMuted(!this.isMuted);
     return this.isMuted;
+  }
+
+  public subscribeMute(listener: (muted: boolean) => void): () => void {
+    this.muteListeners.add(listener);
+    listener(this.isMuted);
+    return () => { this.muteListeners.delete(listener); };
   }
 
   // --- テトリス BGM (コロベイニキ) シーケンサー ---
