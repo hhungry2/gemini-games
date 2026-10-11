@@ -24,8 +24,8 @@ export interface GwCommonGameProps {
   isFullscreen: boolean;
   onGameOver: (score: number) => void;
   onBackToMenu: () => void;
-  onScoreChange: (score: number) => void;
-  onMissChange: (misses: number) => void;
+  isMuted: boolean;
+  onToggleMute: () => void;
   isPaused: boolean;
   onTogglePause: () => void;
   onRestart: () => void;

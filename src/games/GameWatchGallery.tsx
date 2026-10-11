@@ -5,6 +5,9 @@ import { OctopusGame } from './gwgallery/games/OctopusGame';
 import { FireGame } from './gwgallery/games/FireGame';
 import { OilPanicGame } from './gwgallery/games/OilPanicGame';
 import { gwSound } from './gwgallery/sound';
+import { readBest } from './gwgallery/storage';
+import { useGwKeys } from './gwgallery/useGwKeys';
+import './gwgallery/gallery.css';
 import {
   Trophy,
   Volume2,
@@ -55,7 +58,7 @@ const GAME_CARDS: GameCardInfo[] = [
     year: 1981,
     badge: '海底トレジャーハント',
     description:
-      '巨大オクトパスのうごめく触手をくぐり抜け、沈没船の宝箱からゴールドを回収！ボートへ無事に持ち帰ればボーナス得点！',
+      '足は左から1→2→3→4の順に伸び縮み。長さ3/3は危険！足の下のメーターを見て宝を回収し、ボートへ持ち帰るとボーナス！',
     color: 'from-sky-600 via-cyan-700 to-blue-800',
     accent: '#0284c7',
     previewIcon: '🐙💰',
@@ -100,6 +103,27 @@ export const GameWatchGallery: React.FC<GameWatchGalleryProps> = ({
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [gameKey, setGameKey] = useState<number>(1);
 
+  useGwKeys(key => {
+    if (key !== 'p' || selectedGame === null) return false;
+    gwSound.stop();
+    setIsPaused(paused => !paused);
+    return true;
+  });
+
+  useEffect(() => {
+    const pauseWhenHidden = () => {
+      if (document.hidden) {
+        setIsPaused(true);
+        gwSound.stop();
+      }
+    };
+    document.addEventListener('visibilitychange', pauseWhenHidden);
+    return () => {
+      document.removeEventListener('visibilitychange', pauseWhenHidden);
+      gwSound.stop();
+    };
+  }, []);
+
   // ハイスコア一覧の取得
   const [scores, setScores] = useState({
     manholeA: 0,
@@ -114,14 +138,14 @@ export const GameWatchGallery: React.FC<GameWatchGalleryProps> = ({
 
   const refreshScores = () => {
     setScores({
-      manholeA: parseInt(localStorage.getItem('gw_manhole_gameA') || '0', 10),
-      manholeB: parseInt(localStorage.getItem('gw_manhole_gameB') || '0', 10),
-      octopusA: parseInt(localStorage.getItem('gw_octopus_gameA') || '0', 10),
-      octopusB: parseInt(localStorage.getItem('gw_octopus_gameB') || '0', 10),
-      fireA: parseInt(localStorage.getItem('gw_fire_gameA') || '0', 10),
-      fireB: parseInt(localStorage.getItem('gw_fire_gameB') || '0', 10),
-      oilpanicA: parseInt(localStorage.getItem('gw_oilpanic_gameA') || '0', 10),
-      oilpanicB: parseInt(localStorage.getItem('gw_oilpanic_gameB') || '0', 10),
+      manholeA: readBest('manhole', 'gameA'),
+      manholeB: readBest('manhole', 'gameB'),
+      octopusA: readBest('octopus', 'gameA'),
+      octopusB: readBest('octopus', 'gameB'),
+      fireA: readBest('fire', 'gameA'),
+      fireB: readBest('fire', 'gameB'),
+      oilpanicA: readBest('oilpanic', 'gameA'),
+      oilpanicB: readBest('oilpanic', 'gameB'),
     });
   };
 
@@ -130,6 +154,7 @@ export const GameWatchGallery: React.FC<GameWatchGalleryProps> = ({
   }, [selectedGame]);
 
   const handleSelectGame = (gameId: GwGameId, diff: GameDifficulty = 'gameA') => {
+    gwSound.stop();
     gwSound.click();
     setDifficulty(diff);
     setSelectedGame(gameId);
@@ -138,6 +163,7 @@ export const GameWatchGallery: React.FC<GameWatchGalleryProps> = ({
   };
 
   const handleBackToMenu = () => {
+    gwSound.stop();
     gwSound.click();
     setSelectedGame(null);
     refreshScores();
@@ -154,6 +180,7 @@ export const GameWatchGallery: React.FC<GameWatchGalleryProps> = ({
   };
 
   const handleRestart = () => {
+    gwSound.stop();
     gwSound.click();
     setIsPaused(false);
     setGameKey((k) => k + 1);
@@ -162,16 +189,19 @@ export const GameWatchGallery: React.FC<GameWatchGalleryProps> = ({
   // プレイ中ゲームのレンダリング
   if (selectedGame !== null) {
     const commonProps = {
-      key: `${selectedGame}-${difficulty}-${screenMode}-${gameKey}`,
+      key: `${selectedGame}-${difficulty}-${gameKey}`,
       difficulty,
       screenMode,
       isFullscreen,
       onGameOver: () => refreshScores(),
       onBackToMenu: handleBackToMenu,
-      onScoreChange: () => {},
-      onMissChange: () => {},
+      isMuted,
+      onToggleMute: handleToggleMute,
       isPaused,
-      onTogglePause: () => setIsPaused((p) => !p),
+      onTogglePause: () => {
+        gwSound.stop();
+        setIsPaused(p => !p);
+      },
       onRestart: handleRestart,
       onToggleScreenMode: handleToggleScreenMode,
       onChangeDifficulty: (diff: GameDifficulty) => {
@@ -207,16 +237,16 @@ export const GameWatchGallery: React.FC<GameWatchGalleryProps> = ({
 
   return (
     <div
-      className={`w-full flex flex-col items-center select-none transition-all duration-300 ${
+      className={`gw-gallery w-full flex flex-col items-center select-none transition-all duration-300 ${
         isDark ? 'text-neutral-100' : 'text-neutral-900'
       } ${
         isFullscreen
-          ? 'h-screen w-screen max-w-none p-2 sm:p-6 bg-neutral-950 overflow-y-auto'
-          : 'max-w-5xl mx-auto p-2 sm:p-4'
+          ? 'h-full min-h-0 max-w-none p-2 sm:p-6 bg-neutral-950 overflow-y-auto'
+          : 'h-full min-h-0 max-w-5xl mx-auto p-2 sm:p-4 overflow-y-auto'
       }`}
     >
       {/* ギャラリーミュージアム ヘッダーバー */}
-      <div className="w-full flex items-center justify-between bg-neutral-900/90 text-amber-300 px-4 py-3 rounded-2xl border-2 border-amber-600/40 shadow-xl backdrop-blur-md mb-4 sm:mb-6">
+      <div className="w-full shrink-0 flex flex-wrap gap-2 items-center justify-between bg-neutral-900/90 text-amber-300 px-3 py-3 rounded-2xl border-2 border-amber-600/40 shadow-xl backdrop-blur-md mb-4 sm:mb-6">
         <div className="flex items-center space-x-3">
           <button
             onClick={onBackToHub}
@@ -276,7 +306,7 @@ export const GameWatchGallery: React.FC<GameWatchGalleryProps> = ({
       </div>
 
       {/* 4タイトル グリッドカード一覧 */}
-      <div className="w-full grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+      <div className="w-full shrink-0 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
         {GAME_CARDS.map((card) => {
           const scoreA =
             card.id === 'manhole'

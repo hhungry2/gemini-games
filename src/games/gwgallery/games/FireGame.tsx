@@ -1,15 +1,9 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React from 'react';
 import { GwCommonGameProps } from '../types';
 import { GwDeviceFrame } from '../components/GwDeviceFrame';
-import { gwSound } from '../sound';
-
-// レスキュー隊の位置 (0: 左, 1: 中央, 2: 右)
-type RescuePosition = 0 | 1 | 2;
-
-interface Victim {
-  id: number;
-  step: number; // 0..7
-}
+import { createFire, tickFire, type RescuePosition } from '../engine';
+import { useGwGame } from '../useGwGame';
+import { useGwKeys } from '../useGwKeys';
 
 export const FireGame: React.FC<GwCommonGameProps> = ({
   difficulty,
@@ -17,193 +11,31 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
   isFullscreen,
   onGameOver,
   onBackToMenu,
-  onScoreChange,
-  onMissChange,
   isPaused,
   onTogglePause,
   onRestart,
   onToggleScreenMode,
   onChangeDifficulty,
+  isMuted,
+  onToggleMute,
 }) => {
-  const [playerPos, setPlayerPos] = useState<RescuePosition>(1);
-  const playerPosRef = useRef<RescuePosition>(1);
-  useEffect(() => {
-    playerPosRef.current = playerPos;
-  }, [playerPos]);
 
-  const [victims, setVictims] = useState<Victim[]>([]);
-  const [score, setScore] = useState<number>(0);
-  const [misses, setMisses] = useState<number>(0);
-  const [bonusTriggered, setBonusTriggered] = useState<boolean>(false);
-  const [missAnimation, setMissAnimation] = useState<number | null>(null);
-  const [isMissSequence, setIsMissSequence] = useState<boolean>(false);
-  const [highScore, setHighScore] = useState<number>(() => {
-    return parseInt(localStorage.getItem(`gw_fire_${difficulty}`) || '0', 10);
+  const { state, act, highScore, blocked } = useGwGame('fire', difficulty, isPaused, createFire, tickFire,
+    score => Math.max(160, (difficulty === 'gameA' ? 440 : 330) - Math.floor(score / 20) * 15), onGameOver);
+  const { playerPos, victims, score, misses, missAnimation } = state;
+  const setPlayerPos = (playerPos: RescuePosition) => act(previous =>
+    playerPos === previous.playerPos ? previous : { ...previous, playerPos, sounds: ['catch'] });
+  const moveLeft = () => act(previous => previous.playerPos === 0 ? previous :
+    { ...previous, playerPos: (previous.playerPos - 1) as RescuePosition, sounds: ['catch'] });
+  const moveRight = () => act(previous => previous.playerPos === 2 ? previous :
+    { ...previous, playerPos: (previous.playerPos + 1) as RescuePosition, sounds: ['catch'] });
+  useGwKeys(key => {
+    if (key === 'arrowleft' || key === 'a') moveLeft();
+    else if (key === 'arrowright' || key === 'd') moveRight();
+    else if (['1', '2', '3'].includes(key)) setPlayerPos((Number(key) - 1) as RescuePosition);
+    else return false;
+    return true;
   });
-
-  const hasGameOverRef = useRef<boolean>(false);
-  const nextIdRef = useRef<number>(1);
-  const tickRef = useRef<number>(0);
-
-  const baseSpeed = difficulty === 'gameA' ? 440 : 330;
-  const currentSpeed = Math.max(160, baseSpeed - Math.floor(score / 20) * 15);
-
-  useEffect(() => {
-    onScoreChange(score);
-    if (score > highScore) {
-      setHighScore(score);
-      localStorage.setItem(`gw_fire_${difficulty}`, score.toString());
-    }
-    if (score >= 300 && !bonusTriggered) {
-      setBonusTriggered(true);
-      gwSound.bonus();
-      setMisses(0);
-      onMissChange(0);
-    }
-  }, [score, highScore, difficulty, bonusTriggered, onScoreChange, onMissChange]);
-
-  useEffect(() => {
-    onMissChange(misses);
-    if (misses >= 3 && !hasGameOverRef.current) {
-      hasGameOverRef.current = true;
-      gwSound.gameOver();
-      onGameOver(score);
-    }
-  }, [misses, onMissChange, onGameOver, score]);
-
-  const moveLeft = useCallback(() => {
-    if (misses >= 3 || isPaused) return;
-    setPlayerPos((prev) => (prev > 0 ? ((prev - 1) as RescuePosition) : prev));
-    gwSound.catch();
-  }, [misses, isPaused]);
-
-  const moveRight = useCallback(() => {
-    if (misses >= 3 || isPaused) return;
-    setPlayerPos((prev) => (prev < 2 ? ((prev + 1) as RescuePosition) : prev));
-    gwSound.catch();
-  }, [misses, isPaused]);
-
-  // キーボード
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
-        e.preventDefault();
-      }
-      if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-        moveLeft();
-      } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-        moveRight();
-      } else if (e.key === '1') {
-        setPlayerPos(0);
-        gwSound.catch();
-      } else if (e.key === '2') {
-        setPlayerPos(1);
-        gwSound.catch();
-      } else if (e.key === '3') {
-        setPlayerPos(2);
-        gwSound.catch();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [moveLeft, moveRight]);
-
-  // ゲームループ (依存配列からplayerPosとvictimsを排除)
-  useEffect(() => {
-    if (misses >= 3 || isPaused || isMissSequence) return;
-
-    const timer = setInterval(() => {
-      tickRef.current += 1;
-
-      setVictims((prev) => {
-        let currentVictims = prev;
-
-        // 飛び降り生成
-        const spawnInterval = difficulty === 'gameA' ? 5 : 3;
-        if (tickRef.current % spawnInterval === 0) {
-          const hasStarting = currentVictims.some((v) => v.step === 0);
-          if (!hasStarting) {
-            currentVictims = [...currentVictims, { id: nextIdRef.current++, step: 0 }];
-          }
-        }
-
-        const nextList: Victim[] = [];
-        let scoreGain = 0;
-        let newMiss = false;
-        let missX: number | null = null;
-        let bouncedOrMoved = false;
-
-        const curPlayerPos = playerPosRef.current;
-
-        for (const v of currentVictims) {
-          const nextStep = v.step + 1;
-
-          if (nextStep === 2) {
-            if (curPlayerPos === 0) {
-              scoreGain += 1;
-              gwSound.score();
-              nextList.push({ ...v, step: nextStep });
-            } else {
-              newMiss = true;
-              missX = 140;
-              gwSound.miss();
-            }
-          } else if (nextStep === 4) {
-            if (curPlayerPos === 1) {
-              scoreGain += 1;
-              gwSound.score();
-              nextList.push({ ...v, step: nextStep });
-            } else {
-              newMiss = true;
-              missX = 250;
-              gwSound.miss();
-            }
-          } else if (nextStep === 6) {
-            if (curPlayerPos === 2) {
-              scoreGain += 1;
-              gwSound.score();
-              nextList.push({ ...v, step: nextStep });
-            } else {
-              newMiss = true;
-              missX = 360;
-              gwSound.miss();
-            }
-          } else if (nextStep === 7) {
-            // 救急車到着！救助成功！
-            scoreGain += 1;
-            gwSound.bonus();
-          } else if (nextStep < 7) {
-            bouncedOrMoved = true;
-            nextList.push({ ...v, step: nextStep });
-          }
-        }
-
-        if (scoreGain > 0) {
-          setScore((s) => s + scoreGain);
-        } else if (bouncedOrMoved && !newMiss) {
-          gwSound.tick(); // 1Tickにつき1回のみ鳴らす（音割れ防止）
-        }
-
-        if (newMiss && missX !== null) {
-          setMisses((m) => m + 1);
-          setMissAnimation(missX);
-          setIsMissSequence(true);
-
-          setTimeout(() => {
-            setMissAnimation(null);
-            setVictims([]); // 他の避難者をクリアして安全に再開（即死防止）
-            setIsMissSequence(false);
-          }, 1100);
-
-          return [];
-        }
-
-        return nextList;
-      });
-    }, currentSpeed);
-
-    return () => clearInterval(timer);
-  }, [misses, isPaused, isMissSequence, difficulty, currentSpeed]);
 
   const isClassic = screenMode === 'classic';
   const activeColor = isClassic ? '#1c2419' : '#0f172a';
@@ -220,13 +52,14 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
       onToggleScreenMode={onToggleScreenMode}
       difficulty={difficulty}
       onChangeDifficulty={onChangeDifficulty}
-      isMuted={gwSound.getMuted()}
-      onToggleMute={() => gwSound.toggleMute()}
+      isMuted={isMuted}
+      onToggleMute={onToggleMute}
       isPaused={isPaused}
       onTogglePause={onTogglePause}
       onRestart={onRestart}
       onBackToMenu={onBackToMenu}
       isFullscreen={isFullscreen}
+      isGameOver={misses >= 3}
       controls={
         <div className="flex flex-col items-center justify-center gap-2">
           <div className="text-[10px] font-mono font-bold text-neutral-800 flex items-center justify-between w-full px-4">
@@ -239,14 +72,14 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
           <div className="grid grid-cols-2 gap-4 sm:gap-8 w-full max-w-[420px] px-2">
             <button
               onClick={moveLeft}
-              disabled={misses >= 3}
+              disabled={blocked}
               className="py-2.5 px-4 rounded-xl border-2 bg-neutral-800 hover:bg-neutral-700 active:scale-95 text-amber-300 border-neutral-900 shadow-md font-black text-sm flex items-center justify-center space-x-2 transition-all disabled:opacity-50"
             >
               <span>◀ MOVE LEFT</span>
             </button>
             <button
               onClick={moveRight}
-              disabled={misses >= 3}
+              disabled={blocked}
               className="py-2.5 px-4 rounded-xl border-2 bg-red-600 hover:bg-red-500 active:scale-95 text-white border-red-800 shadow-md font-black text-sm flex items-center justify-center space-x-2 transition-all ring-2 ring-red-300 disabled:opacity-50"
             >
               <span>MOVE RIGHT ▶</span>
@@ -269,9 +102,9 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
             )}
           </div>
 
-          <div className="text-xl sm:text-2xl font-black tracking-widest text-neutral-900 font-mono">
+          <output aria-label="スコア" className="text-xl sm:text-2xl font-black tracking-widest text-neutral-900 font-mono">
             {score.toString().padStart(4, '0')}
-          </div>
+          </output>
 
           <div className="flex items-center space-x-1">
             <span className="text-[10px] font-bold text-neutral-700">MISS:</span>
@@ -293,7 +126,6 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
           <div
             onClick={() => {
               setPlayerPos(0);
-              gwSound.catch();
             }}
             className="cursor-pointer active:bg-black/5"
             title="左へ移動"
@@ -301,7 +133,6 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
           <div
             onClick={() => {
               setPlayerPos(1);
-              gwSound.catch();
             }}
             className="cursor-pointer active:bg-black/5"
             title="中央へ移動"
@@ -309,7 +140,6 @@ export const FireGame: React.FC<GwCommonGameProps> = ({
           <div
             onClick={() => {
               setPlayerPos(2);
-              gwSound.catch();
             }}
             className="cursor-pointer active:bg-black/5"
             title="右へ移動"

@@ -2,6 +2,8 @@ import React from 'react';
 import { GameDifficulty, ScreenMode } from '../types';
 import { Volume2, VolumeX, Palette, ArrowLeft, RotateCcw, Pause, Play } from 'lucide-react';
 import { gwSound } from '../sound';
+import { GwStatusOverlay } from './GwStatusOverlay';
+import { useGwViewport } from '../useGwViewport';
 
 interface GwDeviceFrameProps {
   title: string;
@@ -18,6 +20,7 @@ interface GwDeviceFrameProps {
   onRestart: () => void;
   onBackToMenu: () => void;
   isFullscreen: boolean;
+  isGameOver: boolean;
   children: React.ReactNode;
   controls?: React.ReactNode;
 }
@@ -37,9 +40,11 @@ export const GwDeviceFrame: React.FC<GwDeviceFrameProps> = ({
   onRestart,
   onBackToMenu,
   isFullscreen,
+  isGameOver,
   children,
   controls,
 }) => {
+  const viewportRef = useGwViewport();
   const plateBgClass =
     plateColor === 'gold'
       ? 'bg-gradient-to-b from-amber-200 via-yellow-100 to-amber-300 border-amber-400'
@@ -52,18 +57,19 @@ export const GwDeviceFrame: React.FC<GwDeviceFrameProps> = ({
 
   return (
     <div
-      className={`w-full flex flex-col items-center justify-center select-none transition-all duration-300 ${
+      ref={viewportRef}
+      className={`gw-viewport gw-single w-full flex flex-col items-center justify-center select-none ${
         isFullscreen
-          ? 'h-screen w-screen max-w-none p-1 sm:p-2 bg-neutral-950 overflow-hidden'
-          : 'max-w-4xl p-2 sm:p-4'
+          ? 'gw-fullscreen h-full min-h-0 max-w-none bg-neutral-950 overflow-hidden'
+          : 'h-full min-h-0 max-w-4xl'
       }`}
     >
       {/* 筐体本体 (Nintendo Game & Watch 筐体オマージュ) */}
       <div
-        className={`relative w-full rounded-2xl sm:rounded-3xl shadow-2xl border-4 ${bodyBorderClass} transition-all duration-300 ${
+        className={`gw-device relative w-full rounded-2xl sm:rounded-3xl shadow-2xl border-4 ${bodyBorderClass}  ${
           isFullscreen
-            ? 'h-full max-h-[98vh] flex flex-col justify-between p-2 sm:p-4 max-w-[min(100vw,calc(98vh*1.55))]'
-            : 'max-w-[760px] p-3 sm:p-5'
+            ? 'flex flex-col p-2 sm:p-3'
+            : 'p-2 sm:p-3'
         }`}
         style={{
           boxShadow: '0 20px 50px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.4)',
@@ -85,7 +91,7 @@ export const GwDeviceFrame: React.FC<GwDeviceFrameProps> = ({
 
         {/* アルミ金属プレート調フェイスパネル */}
         <div
-          className={`relative w-full rounded-xl sm:rounded-2xl border-2 ${plateBgClass} p-2 sm:p-3.5 shadow-md flex flex-col ${
+          className={`gw-face relative w-full rounded-xl sm:rounded-2xl border-2 ${plateBgClass} p-2 sm:p-3.5 shadow-md flex flex-col ${
             isFullscreen ? 'flex-1 justify-between min-h-0' : ''
           }`}
         >
@@ -125,7 +131,7 @@ export const GwDeviceFrame: React.FC<GwDeviceFrameProps> = ({
                   gwSound.click();
                   onToggleScreenMode();
                 }}
-                className={`p-1 rounded text-xs border font-mono flex items-center space-x-1 ${
+                className={`gw-utility p-1 rounded text-xs border font-mono flex items-center space-x-1 ${
                   screenMode === 'modern'
                     ? 'bg-indigo-600 text-white border-indigo-700'
                     : 'bg-amber-100 text-neutral-800 border-amber-300'
@@ -143,7 +149,7 @@ export const GwDeviceFrame: React.FC<GwDeviceFrameProps> = ({
                   onToggleMute();
                   if (isMuted) gwSound.click();
                 }}
-                className={`p-1 rounded text-xs border ${
+                className={`gw-utility p-1 rounded text-xs border ${
                   isMuted
                     ? 'bg-red-200 text-red-800 border-red-300'
                     : 'bg-emerald-100 text-emerald-800 border-emerald-300'
@@ -164,7 +170,9 @@ export const GwDeviceFrame: React.FC<GwDeviceFrameProps> = ({
                   gwSound.click();
                   onChangeDifficulty('gameA');
                 }}
-                className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border shadow-inner flex items-center justify-center font-bold text-[9px] transition-transform active:scale-90 ${
+                aria-label="GAME A (NORMAL)"
+                aria-pressed={difficulty === 'gameA'}
+                className={`gw-utility rounded-full border shadow-inner flex items-center justify-center font-bold text-[9px] transition-transform active:scale-90 ${
                   difficulty === 'gameA'
                     ? 'bg-red-600 text-white border-red-800 ring-2 ring-red-400'
                     : 'bg-neutral-300 text-neutral-700 border-neutral-400 hover:bg-neutral-200'
@@ -181,7 +189,9 @@ export const GwDeviceFrame: React.FC<GwDeviceFrameProps> = ({
                   gwSound.click();
                   onChangeDifficulty('gameB');
                 }}
-                className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border shadow-inner flex items-center justify-center font-bold text-[9px] transition-transform active:scale-90 ${
+                aria-label="GAME B (HARD)"
+                aria-pressed={difficulty === 'gameB'}
+                className={`gw-utility rounded-full border shadow-inner flex items-center justify-center font-bold text-[9px] transition-transform active:scale-90 ${
                   difficulty === 'gameB'
                     ? 'bg-red-600 text-white border-red-800 ring-2 ring-red-400'
                     : 'bg-neutral-300 text-neutral-700 border-neutral-400 hover:bg-neutral-200'
@@ -198,12 +208,13 @@ export const GwDeviceFrame: React.FC<GwDeviceFrameProps> = ({
                   gwSound.click();
                   onTogglePause();
                 }}
-                className={`w-4 h-4 sm:w-5 sm:h-5 rounded-full border shadow-inner flex items-center justify-center font-bold text-[8px] transition-transform active:scale-90 ${
+                className={`gw-utility rounded-full border shadow-inner flex items-center justify-center font-bold text-[8px] transition-transform active:scale-90 ${
                   isPaused
                     ? 'bg-amber-500 text-black border-amber-700 ring-2 ring-amber-300'
                     : 'bg-neutral-300 text-neutral-700 border-neutral-400 hover:bg-neutral-200'
                 }`}
-                title="一時停止"
+                title={isPaused ? "再開 (P)" : "一時停止 (P)"}
+                aria-pressed={isPaused}
               >
                 {isPaused ? <Play className="w-2.5 h-2.5" /> : <Pause className="w-2.5 h-2.5" />}
               </button>
@@ -216,7 +227,7 @@ export const GwDeviceFrame: React.FC<GwDeviceFrameProps> = ({
                   gwSound.click();
                   onRestart();
                 }}
-                className="w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-neutral-300 hover:bg-neutral-200 text-neutral-700 border border-neutral-400 shadow-inner flex items-center justify-center font-bold text-[8px] transition-transform active:scale-90"
+                className="gw-utility rounded-full bg-neutral-300 hover:bg-neutral-200 text-neutral-700 border border-neutral-400 shadow-inner flex items-center justify-center font-bold text-[8px] transition-transform active:scale-90"
                 title="ゲームリセット"
               >
                 <RotateCcw className="w-2.5 h-2.5" />
@@ -226,8 +237,8 @@ export const GwDeviceFrame: React.FC<GwDeviceFrameProps> = ({
 
           {/* スクリーンベゼル＆LCD画面（メインコンテンツ） */}
           <div
-            className={`relative w-full rounded-lg border-4 border-neutral-800 bg-[#9fb393] overflow-hidden shadow-inner flex items-center justify-center ${
-              isFullscreen ? 'flex-1 min-h-0' : 'aspect-[4/3] sm:aspect-[16/11]'
+            className={`gw-lcd relative w-full rounded-lg border-4 border-neutral-800 bg-[#9fb393] overflow-hidden shadow-inner flex items-center justify-center ${
+              'aspect-[500/340]'
             }`}
             style={{
               boxShadow: 'inset 0 4px 12px rgba(0,0,0,0.5), 0 1px 2px rgba(255,255,255,0.4)',
@@ -238,11 +249,12 @@ export const GwDeviceFrame: React.FC<GwDeviceFrameProps> = ({
 
             {/* 画面コンテンツ */}
             <div className="w-full h-full relative z-10">{children}</div>
+            <GwStatusOverlay isPaused={isPaused} isGameOver={isGameOver} onTogglePause={onTogglePause} onRestart={onRestart} />
           </div>
 
           {/* コントローラ操作部（十字キー/アクションボタン群） */}
           {controls && (
-            <div className={`w-full mt-2 sm:mt-3 ${isFullscreen ? 'shrink-0' : ''}`}>
+            <div className="gw-controls w-full mt-2 sm:mt-3 shrink-0">
               {controls}
             </div>
           )}

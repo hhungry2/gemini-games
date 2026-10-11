@@ -4,11 +4,37 @@
 class GwSoundEngine {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
-  private lastPlayTime: number = 0;
+  private lastPlayTime: number = -Infinity;
   private masterGain: GainNode | null = null;
   private filter: BiquadFilterNode | null = null;
 
-  constructor() {}
+  private timers = new Set<ReturnType<typeof setTimeout>>();
+  private oscillators = new Set<OscillatorNode>();
+
+  constructor() {
+    try {
+      this.isMuted = localStorage.getItem('gw_muted') === 'true';
+    } catch { /* Storage can be disabled. */ }
+  }
+
+  private schedule(callback: () => void, delay: number) {
+    const timer = setTimeout(() => {
+      this.timers.delete(timer);
+      callback();
+    }, delay);
+    this.timers.add(timer);
+  }
+
+  public stop() {
+    this.timers.forEach(timer => clearTimeout(timer));
+    this.timers.clear();
+    this.oscillators.forEach(osc => {
+      try { osc.stop(); } catch { /* Already stopped. */ }
+    });
+    this.oscillators.clear();
+    this.isGameOverPlaying = false;
+    this.lastPlayTime = -Infinity;
+  }
 
   private initCtx(): AudioContext | null {
     if (typeof window === 'undefined') return null;
@@ -40,6 +66,10 @@ class GwSoundEngine {
 
   public setMuted(muted: boolean) {
     this.isMuted = muted;
+    if (muted) this.stop();
+    try {
+      localStorage.setItem('gw_muted', String(muted));
+    } catch { /* Keep the preference in memory. */ }
   }
 
   public getMuted(): boolean {
@@ -47,7 +77,7 @@ class GwSoundEngine {
   }
 
   public toggleMute(): boolean {
-    this.isMuted = !this.isMuted;
+    this.setMuted(!this.isMuted);
     return this.isMuted;
   }
 
@@ -62,7 +92,7 @@ class GwSoundEngine {
     throttleMs: number = 25
   ) {
     if (this.isMuted) return;
-    const ctx = this.initCtx();
+    const ctx = this.safeContext();
     if (!ctx || !this.filter) return;
 
     const now = ctx.currentTime;
@@ -92,11 +122,22 @@ class GwSoundEngine {
       osc.connect(gain);
       gain.connect(this.filter);
 
+      this.oscillators.add(osc);
+      osc.onended = () => {
+        this.oscillators.delete(osc);
+        osc.disconnect();
+        gain.disconnect();
+      };
+
       osc.start(now);
       osc.stop(now + durationSec);
     } catch {
       // AudioContext未初期化などのエラーを抑制
     }
+  }
+
+  private safeContext(): AudioContext | null {
+    try { return this.initCtx(); } catch { return null; }
   }
 
   /** ボタンクリック・UI操作音 */
@@ -122,11 +163,11 @@ class GwSoundEngine {
   /** 得点獲得音（救急車収容、宝箱回収、オイルドラム缶キャッチ: ピポッ） */
   public score() {
     if (this.isMuted) return;
-    const ctx = this.initCtx();
+    const ctx = this.safeContext();
     if (!ctx) return;
     try {
       this.playBeep(1500, 0.035, 0.08, 'square', 0);
-      setTimeout(() => this.playBeep(2200, 0.045, 0.09, 'square', 0), 45);
+      this.schedule(() => this.playBeep(2200, 0.045, 0.09, 'square', 0), 45);
     } catch {}
   }
 
@@ -138,11 +179,11 @@ class GwSoundEngine {
   /** オイルを窓から流す */
   public dump() {
     if (this.isMuted) return;
-    const ctx = this.initCtx();
+    const ctx = this.safeContext();
     if (!ctx) return;
     try {
       this.playBeep(1200, 0.04, 0.08, 'square', 0);
-      setTimeout(() => this.playBeep(900, 0.05, 0.08, 'square', 0), 45);
+      this.schedule(() => this.playBeep(900, 0.05, 0.08, 'square', 0), 45);
     } catch {}
   }
 
@@ -154,7 +195,7 @@ class GwSoundEngine {
   /** ミス音（LCDゲーム独特の「プーッ」という下降ブザー） */
   public miss() {
     if (this.isMuted) return;
-    const ctx = this.initCtx();
+    const ctx = this.safeContext();
     if (!ctx || !this.filter) return;
     try {
       const now = ctx.currentTime;
@@ -173,6 +214,8 @@ class GwSoundEngine {
       osc.connect(gain);
       gain.connect(this.filter);
 
+      this.oscillators.add(osc);
+      osc.onended = () => { this.oscillators.delete(osc); osc.disconnect(); gain.disconnect(); };
       osc.start(now);
       osc.stop(now + 0.35);
     } catch {}
@@ -195,14 +238,14 @@ class GwSoundEngine {
     ];
     let offset = startDelay;
     notes.forEach((n) => {
-      setTimeout(() => {
+      this.schedule(() => {
         this.playBeep(n.f, n.d, 0.075, 'square', 0);
       }, offset * 1000);
       offset += n.d + 0.05;
     });
 
     // メロディ終了後にロック解除
-    setTimeout(() => {
+    this.schedule(() => {
       this.isGameOverPlaying = false;
     }, (offset + 0.5) * 1000);
   }
@@ -218,7 +261,7 @@ class GwSoundEngine {
     ];
     let offset = 0;
     notes.forEach((n) => {
-      setTimeout(() => {
+      this.schedule(() => {
         this.playBeep(n.f, n.d, 0.1, 'square', 0);
       }, offset * 1000);
       offset += n.d + 0.03;

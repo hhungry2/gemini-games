@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test:gwgallery": "node --test tests/gwgallery.test.mjs",
     "test:spindoctor": "node --test tests/spin-doctor.test.mjs tests/spin-doctor-playthrough.test.mjs",
     "preview": "vite preview"
   },

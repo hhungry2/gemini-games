@@ -1,0 +1,188 @@
+main:has(.gw-viewport, .gw-gallery) {
+  flex: 0 0 auto;
+  height: calc(100dvh - 57px);
+  min-height: 0;
+}
+
+@media (min-width: 640px) {
+  main:has(.gw-viewport, .gw-gallery) {
+    height: calc(100dvh - 65px);
+  }
+}
+
+main:has(.gw-viewport, .gw-gallery) > div {
+  flex: 1 1 0%;
+  min-height: 0;
+}
+
+.gw-viewport {
+  padding: 4px;
+  overflow: hidden;
+  touch-action: manipulation;
+  flex: 1 1 0%;
+}
+
+.gw-gallery {
+  flex: 1 1 0%;
+  height: 0;
+  min-height: 0;
+}
+
+/* Fit the actual space below the Hub header, preserving each LCD's aspect ratio. */
+.gw-viewport .gw-device {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 760px;
+}
+
+.gw-viewport.gw-multi .gw-device {
+  width: 100%;
+  max-width: 540px;
+}
+
+.gw-viewport.gw-fullscreen .gw-device {
+  max-width: none;
+}
+
+.gw-face {
+  flex: 0 0 auto;
+}
+
+.gw-lcd {
+  flex: 0 0 auto;
+  container-type: inline-size;
+}
+
+.gw-lcd [class*="absolute"][class*="font-mono"] {
+  flex-wrap: nowrap !important;
+  gap: 4px;
+  left: clamp(6px, 3cqw, 16px);
+  right: clamp(6px, 3cqw, 16px);
+  top: clamp(4px, 1cqw, 8px);
+}
+
+.gw-lcd output[aria-label="スコア"] {
+  flex-shrink: 0;
+  font-size: clamp(10px, 4.5cqw, 24px);
+}
+
+.gw-lcd [class*="absolute"][class*="font-mono"] span {
+  font-size: clamp(7px, 2.5cqw, 14px);
+  padding-inline: clamp(1px, 0.5cqw, 4px);
+}
+
+.gw-utility {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  flex-shrink: 0;
+}
+
+.gw-viewport button {
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.gw-viewport button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.gw-viewport button:focus-visible {
+  outline: 3px solid #38bdf8;
+  outline-offset: 3px;
+}
+
+.gw-viewport .gw-device > div:last-child > div,
+.gw-viewport .gw-face > div:last-child > div {
+  min-width: 0;
+}
+
+.gw-viewport .gw-device [class*="justify-between"][class*="font-mono"] {
+  flex-wrap: wrap;
+  gap: 2px 8px;
+}
+
+.gw-viewport .gw-device [class*="max-w-"][class*="grid"] {
+  gap: 8px;
+}
+
+@media (max-width: 639px) {
+  .gw-viewport .gw-device [class*="px-4"] {
+    padding-inline: 4px;
+  }
+  .gw-viewport .gw-device button {
+    white-space: nowrap;
+  }
+  .gw-viewport .gw-device [class*="grid"] button {
+    padding-inline: 4px;
+    font-size: 11px;
+  }
+}
+
+/* Landscape phones use the two LCDs side by side to retain playable size. */
+@media (max-height: 560px) and (min-aspect-ratio: 6/5) {
+  .gw-single .gw-face {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 160px;
+    gap: 4px;
+  }
+  .gw-single .gw-face > div:first-child,
+  .gw-single .gw-face > div:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+  .gw-single .gw-controls {
+    margin-top: 0;
+    align-self: center;
+  }
+  .gw-single .gw-controls > div > div:first-child > span:first-child {
+    display: none;
+  }
+  .gw-single .gw-controls [class*="grid"] {
+    grid-template-columns: 1fr;
+    padding-inline: 4px;
+  }
+  .gw-single .gw-controls button {
+    white-space: nowrap;
+    font-size: 10px;
+  }
+  .gw-viewport.gw-multi .gw-device {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+    max-width: none;
+  }
+  .gw-multi .gw-multi-header,
+  .gw-multi .gw-controls {
+    grid-column: 1 / -1;
+  }
+  .gw-multi .gw-multi-hinge {
+    display: none;
+  }
+  .gw-multi-top > div:first-child,
+  .gw-multi-bottom > div:first-child {
+    min-height: 28px;
+    flex-wrap: nowrap !important;
+  }
+  .gw-multi-top > div:first-child {
+    justify-content: flex-end;
+  }
+  .gw-multi-top > div:first-child > span {
+    display: none;
+  }
+  .gw-viewport .gw-device [class*="justify-between"][class*="font-mono"] {
+    font-size: 9px;
+  }
+  .gw-viewport .gw-device [class*="grid"] button {
+    padding-block: 5px;
+  }
+  .gw-viewport .gw-face {
+    padding: 4px;
+  }
+  .gw-viewport .gw-face > div:first-child {
+    padding-bottom: 2px;
+    margin-bottom: 2px;
+  }
+}

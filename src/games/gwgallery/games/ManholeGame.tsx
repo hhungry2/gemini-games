@@ -1,25 +1,12 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React from 'react';
 import { GwCommonGameProps } from '../types';
 import { GwDeviceFrame } from '../components/GwDeviceFrame';
-import { gwSound } from '../sound';
+import { createManhole, tickManhole, type ManholePosition } from '../engine';
+import { useGwGame } from '../useGwGame';
+import { useGwKeys } from '../useGwKeys';
 
-// プレイヤー位置: 0: Top-Left, 1: Bottom-Left, 2: Top-Right, 3: Bottom-Right
-type Position = 0 | 1 | 2 | 3;
-
-// 歩行者ストリートと方向
-type Street = 'upper' | 'lower';
-type Direction = 'left-to-right' | 'right-to-left';
-
-interface Pedestrian {
-  id: number;
-  street: Street;
-  direction: Direction;
-  step: number; // 0..9 (端から端まで全10ステップ)
-}
-
-// ステップごとのX座標定義 (left-to-right)
+type Position = ManholePosition;
 const STEPS_L2R_X = [35, 80, 125, 190, 235, 265, 310, 375, 420, 465];
-// ステップごとのX座標定義 (right-to-left)
 const STEPS_R2L_X = [465, 420, 375, 310, 265, 235, 190, 125, 80, 35];
 
 export const ManholeGame: React.FC<GwCommonGameProps> = ({
@@ -28,236 +15,32 @@ export const ManholeGame: React.FC<GwCommonGameProps> = ({
   isFullscreen,
   onGameOver,
   onBackToMenu,
-  onScoreChange,
-  onMissChange,
   isPaused,
   onTogglePause,
   onRestart,
   onToggleScreenMode,
   onChangeDifficulty,
+  isMuted,
+  onToggleMute,
 }) => {
-  const [playerPos, setPlayerPos] = useState<Position>(1);
-  const playerPosRef = useRef<Position>(1);
-  useEffect(() => {
-    playerPosRef.current = playerPos;
-  }, [playerPos]);
 
-  const [pedestrians, setPedestrians] = useState<Pedestrian[]>([]);
-  const [score, setScore] = useState<number>(0);
-  const [misses, setMisses] = useState<number>(0);
-  const [missAnimation, setMissAnimation] = useState<Position | null>(null);
-  const [isMissSequence, setIsMissSequence] = useState<boolean>(false);
-  const [bonusTriggered, setBonusTriggered] = useState<boolean>(false);
-  const [highScore, setHighScore] = useState<number>(() => {
-    return parseInt(localStorage.getItem(`gw_manhole_${difficulty}`) || '0', 10);
+  const { state, act, highScore, blocked } = useGwGame('manhole', difficulty, isPaused, createManhole, tickManhole,
+    score => Math.max(170, (difficulty === 'gameA' ? 440 : 330) - Math.floor(score / 25) * 15), onGameOver);
+  const { playerPos, pedestrians, score, misses, missAnimation } = state;
+  const movePlayer = (posOrFn: Position | ((prev: Position) => Position)) => act(previous => {
+    const playerPos = typeof posOrFn === 'function' ? posOrFn(previous.playerPos) : posOrFn;
+    return playerPos === previous.playerPos ? previous : { ...previous, playerPos, sounds: ['catch'] };
   });
-
-  const hasGameOverRef = useRef<boolean>(false);
-  const nextIdRef = useRef<number>(1);
-  const tickRef = useRef<number>(0);
-
-  const baseSpeed = difficulty === 'gameA' ? 440 : 330;
-  const currentSpeed = Math.max(170, baseSpeed - Math.floor(score / 25) * 15);
-
-  useEffect(() => {
-    onScoreChange(score);
-    if (score > highScore) {
-      setHighScore(score);
-      localStorage.setItem(`gw_manhole_${difficulty}`, score.toString());
-    }
-    if (score >= 300 && !bonusTriggered) {
-      setBonusTriggered(true);
-      gwSound.bonus();
-      setMisses(0);
-      onMissChange(0);
-    }
-  }, [score, highScore, difficulty, bonusTriggered, onScoreChange, onMissChange]);
-
-  // ゲームオーバー判定 (多重再生防止ガード)
-  useEffect(() => {
-    onMissChange(misses);
-    if (misses >= 3 && !hasGameOverRef.current) {
-      hasGameOverRef.current = true;
-      gwSound.gameOver();
-      onGameOver(score);
-    }
-  }, [misses, onMissChange, onGameOver, score]);
-
-  const movePlayer = useCallback((posOrFn: Position | ((prev: Position) => Position)) => {
-    if (misses >= 3 || isPaused || isMissSequence) return;
-    setPlayerPos((prev) => {
-      const next = typeof posOrFn === 'function' ? posOrFn(prev) : posOrFn;
-      if (next !== prev) gwSound.catch();
-      return next;
-    });
-  }, [misses, isPaused, isMissSequence]);
-
-  // キーボード操作
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
-        e.preventDefault();
-      }
-      if (misses >= 3 || isPaused || isMissSequence) return;
-
-      switch (e.key) {
-        case 'q':
-        case 'Q':
-        case '7':
-          movePlayer(0);
-          break;
-        case 'a':
-        case 'A':
-        case '1':
-          movePlayer(1);
-          break;
-        case 'e':
-        case 'E':
-        case '9':
-          movePlayer(2);
-          break;
-        case 'd':
-        case 'D':
-        case '3':
-          movePlayer(3);
-          break;
-        case 'ArrowUp':
-          movePlayer((prev) => (prev === 1 ? 0 : prev === 3 ? 2 : prev));
-          break;
-        case 'ArrowDown':
-          movePlayer((prev) => (prev === 0 ? 1 : prev === 2 ? 3 : prev));
-          break;
-        case 'ArrowLeft':
-          movePlayer((prev) => (prev === 2 ? 0 : prev === 3 ? 1 : prev));
-          break;
-        case 'ArrowRight':
-          movePlayer((prev) => (prev === 0 ? 2 : prev === 1 ? 3 : prev));
-          break;
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [movePlayer, misses, isPaused, isMissSequence]);
-
-  // メインゲームループ Tick (端から端まで全10ステップ歩行)
-  useEffect(() => {
-    if (misses >= 3 || isPaused || isMissSequence) return;
-
-    const timer = setInterval(() => {
-      tickRef.current += 1;
-
-      setPedestrians((prev) => {
-        let currentList = prev;
-
-        // 歩行者出現ロジック (上段/下段、左発/右発)
-        const spawnInterval = difficulty === 'gameA' ? 4 : 3;
-        if (tickRef.current % spawnInterval === 0) {
-          // 出発口(step 0〜2)に既にいるストリート・方向は避ける
-          const activeStarts = new Set(
-            currentList.filter((p) => p.step <= 2).map((p) => `${p.street}-${p.direction}`)
-          );
-          const allCombos: { street: Street; direction: Direction }[] = [
-            { street: 'upper', direction: 'left-to-right' },
-            { street: 'upper', direction: 'right-to-left' },
-            { street: 'lower', direction: 'left-to-right' },
-            { street: 'lower', direction: 'right-to-left' },
-          ];
-          const freeCombos = allCombos.filter((c) => !activeStarts.has(`${c.street}-${c.direction}`));
-
-          if (freeCombos.length > 0) {
-            const chosen = freeCombos[Math.floor(Math.random() * freeCombos.length)];
-            currentList = [
-              ...currentList,
-              {
-                id: nextIdRef.current++,
-                street: chosen.street,
-                direction: chosen.direction,
-                step: 0,
-              },
-            ];
-          }
-        }
-
-        const nextList: Pedestrian[] = [];
-        let scoreGain = 0;
-        let newMiss = false;
-        let missHole: Position | null = null;
-        let walkedAny = false;
-
-        const curPlayer = playerPosRef.current;
-
-        for (const p of currentList) {
-          const nextStep = p.step + 1;
-
-          // マンホール穴の判定:
-          // left-to-right: step 3(左穴), step 6(右穴)
-          // right-to-left: step 3(右穴), step 6(左穴)
-          let requiredHole: Position | null = null;
-
-          if (p.direction === 'left-to-right') {
-            if (nextStep === 3) {
-              requiredHole = p.street === 'upper' ? 0 : 1; // 左穴
-            } else if (nextStep === 6) {
-              requiredHole = p.street === 'upper' ? 2 : 3; // 右穴
-            }
-          } else {
-            if (nextStep === 3) {
-              requiredHole = p.street === 'upper' ? 2 : 3; // 右穴
-            } else if (nextStep === 6) {
-              requiredHole = p.street === 'upper' ? 0 : 1; // 左穴
-            }
-          }
-
-          if (requiredHole !== null) {
-            // 穴の上に踏み出した！マンホールマンがいるか？
-            if (curPlayer === requiredHole) {
-              scoreGain += 1;
-              gwSound.score();
-              nextList.push({ ...p, step: nextStep });
-            } else {
-              // 落下！ミス！
-              newMiss = true;
-              missHole = requiredHole;
-              gwSound.miss();
-            }
-          } else if (nextStep === 10) {
-            // 端から端まで渡り切って建物に到着！ゴールボーナス！
-            scoreGain += 2;
-            gwSound.score();
-            // step 10 で建物内へ退場
-          } else if (nextStep < 10) {
-            walkedAny = true;
-            nextList.push({ ...p, step: nextStep });
-          }
-        }
-
-        if (scoreGain > 0) {
-          setScore((s) => s + scoreGain);
-        } else if (walkedAny && !newMiss) {
-          gwSound.tick(); // 1Tickに1回のみ軽快に再生
-        }
-
-        if (newMiss && missHole !== null) {
-          setMisses((m) => m + 1);
-          setMissAnimation(missHole);
-          setIsMissSequence(true);
-
-          setTimeout(() => {
-            setMissAnimation(null);
-            setPedestrians([]); // 他の歩行者をクリアして安全に再開
-            setIsMissSequence(false);
-          }, 1100);
-
-          return [];
-        }
-
-        return nextList;
-      });
-    }, currentSpeed);
-
-    return () => clearInterval(timer);
-  }, [misses, isPaused, isMissSequence, difficulty, currentSpeed]);
+  useGwKeys(key => {
+    const positions: Record<string, Position> = { q: 0, '7': 0, a: 1, '1': 1, e: 2, '9': 2, d: 3, '3': 3 };
+    if (key in positions) movePlayer(positions[key]);
+    else if (key === 'arrowup') movePlayer(p => (p === 1 ? 0 : p === 3 ? 2 : p));
+    else if (key === 'arrowdown') movePlayer(p => (p === 0 ? 1 : p === 2 ? 3 : p));
+    else if (key === 'arrowleft') movePlayer(p => (p === 2 ? 0 : p === 3 ? 1 : p));
+    else if (key === 'arrowright') movePlayer(p => (p === 0 ? 2 : p === 1 ? 3 : p));
+    else return false;
+    return true;
+  });
 
   const isClassic = screenMode === 'classic';
   const activeColor = isClassic ? '#1c2419' : '#0284c7';
@@ -274,13 +57,14 @@ export const ManholeGame: React.FC<GwCommonGameProps> = ({
       onToggleScreenMode={onToggleScreenMode}
       difficulty={difficulty}
       onChangeDifficulty={onChangeDifficulty}
-      isMuted={gwSound.getMuted()}
-      onToggleMute={() => gwSound.toggleMute()}
+      isMuted={isMuted}
+      onToggleMute={onToggleMute}
       isPaused={isPaused}
       onTogglePause={onTogglePause}
       onRestart={onRestart}
       onBackToMenu={onBackToMenu}
       isFullscreen={isFullscreen}
+      isGameOver={misses >= 3}
       controls={
         <div className="flex flex-col items-center justify-center gap-2">
           <div className="text-[10px] font-mono font-bold text-neutral-800 flex items-center justify-between w-full px-4">
@@ -293,6 +77,7 @@ export const ManholeGame: React.FC<GwCommonGameProps> = ({
           <div className="grid grid-cols-2 gap-x-12 sm:gap-x-24 gap-y-2 w-full max-w-[420px] px-2">
             <button
               onClick={() => movePlayer(0)}
+              disabled={blocked}
               className={`py-2 px-3 sm:py-2.5 rounded-lg border-2 shadow-md flex items-center justify-center space-x-1 font-bold text-xs active:scale-95 transition-all ${
                 playerPos === 0
                   ? 'bg-red-600 text-white border-red-800 ring-2 ring-red-300'
@@ -303,6 +88,7 @@ export const ManholeGame: React.FC<GwCommonGameProps> = ({
             </button>
             <button
               onClick={() => movePlayer(2)}
+              disabled={blocked}
               className={`py-2 px-3 sm:py-2.5 rounded-lg border-2 shadow-md flex items-center justify-center space-x-1 font-bold text-xs active:scale-95 transition-all ${
                 playerPos === 2
                   ? 'bg-red-600 text-white border-red-800 ring-2 ring-red-300'
@@ -313,6 +99,7 @@ export const ManholeGame: React.FC<GwCommonGameProps> = ({
             </button>
             <button
               onClick={() => movePlayer(1)}
+              disabled={blocked}
               className={`py-2 px-3 sm:py-2.5 rounded-lg border-2 shadow-md flex items-center justify-center space-x-1 font-bold text-xs active:scale-95 transition-all ${
                 playerPos === 1
                   ? 'bg-red-600 text-white border-red-800 ring-2 ring-red-300'
@@ -323,6 +110,7 @@ export const ManholeGame: React.FC<GwCommonGameProps> = ({
             </button>
             <button
               onClick={() => movePlayer(3)}
+              disabled={blocked}
               className={`py-2 px-3 sm:py-2.5 rounded-lg border-2 shadow-md flex items-center justify-center space-x-1 font-bold text-xs active:scale-95 transition-all ${
                 playerPos === 3
                   ? 'bg-red-600 text-white border-red-800 ring-2 ring-red-300'
@@ -349,9 +137,9 @@ export const ManholeGame: React.FC<GwCommonGameProps> = ({
             )}
           </div>
 
-          <div className="text-xl sm:text-2xl font-black tracking-widest text-neutral-900 font-mono">
+          <output aria-label="スコア" className="text-xl sm:text-2xl font-black tracking-widest text-neutral-900 font-mono">
             {score.toString().padStart(4, '0')}
-          </div>
+          </output>
 
           <div className="flex items-center space-x-1">
             <span className="text-[10px] font-bold text-neutral-700">MISS:</span>
