@@ -287,6 +287,7 @@ export const GameCard: React.FC<GameCardProps> = ({
             <circle cx="15.2" cy="8.2" r="0.8" fill="#0f172a" />
           </svg>
         );
+      case 'superkart':
       case 'mariokart':
         return (
           <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="none">

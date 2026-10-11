@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { SuperKartGame } from './games/SuperKartGame';
 import { Header } from './components/Header';
 import { GameCard, RecordItem } from './components/GameCard';
 import { TetrisGame } from './games/TetrisGame';
@@ -134,6 +135,18 @@ const GENRES: { id: GameGenre | 'all'; label: string; icon: string }[] = [
 ];
 
 const GAMES: GameInfo[] = [
+  {
+    id: 'superkart',
+    title: 'スーパーマリオカート 16-BIT GP',
+    titleEn: 'Super Mario Kart · 16-Bit Grand Prix',
+    description: 'ゼロから作ったレトロな疑似3Dカートレース！8人のドライバーでマリオサーキット、ドーナツへいや、おばけぬま、レインボーロードの全4コースに挑戦。ドリフト・ミニターボ、5種類のアイテム、50/100/150cc、グランプリ＆タイムアタック、スマホ操作に対応。',
+    badge: '🏁 NEW · 16-BIT GRAND PRIX',
+    iconName: 'mariokart',
+    color: 'from-emerald-600 via-teal-700 to-lime-500',
+    genre: 'racing',
+    genres: ['racing', 'action', 'arcade'],
+    tags: ['スーパーマリオカート', 'Super Mario Kart', '16-BIT GP', '疑似3D', 'ドリフト', 'ミニターボ', 'グランプリ', 'レインボーロード', 'スマホ・PC両対応'],
+  },
   {
     id: 'spindoctor',
     title: 'スピンドクター (Spin Doctor / ClockWerx)',
@@ -1014,6 +1027,8 @@ export function App() {
       document.title = 'スーパーロボット大戦 ネオ・ジェネシス (Super Robot Wars) | Games Hub';
     } else if (activeGame === 'circus') {
       document.title = 'サーカスチャーリー (Circus Charlie) | Games Hub';
+    } else if (activeGame === 'superkart') {
+      document.title = 'スーパーマリオカート 16-BIT GP | Games Hub';
     } else if (activeGame === 'mariokart') {
       document.title = 'スーパーマリオカート (Super Mario Kart GP) | Games Hub';
     } else if (activeGame === 'agario') {
@@ -1958,6 +1973,14 @@ export function App() {
                 onBackToHub={requestGoHome}
                 isDark={isDark}
                 isFullscreen={isFullscreen}
+              />
+            )}
+            {activeGame === 'superkart' && (
+              <SuperKartGame
+                onBackToHub={requestGoHome}
+                isDark={isDark}
+                isFullscreen={isFullscreen}
+                onToggleFullscreen={toggleFullscreen}
               />
             )}
             {activeGame === 'mariokart' && (

@@ -25,6 +25,7 @@ export type GameId =
   | 'countmasters'
   | 'agario'
   | 'mariokart'
+  | 'superkart'
   | 'circus'
   | 'srw'
   | 'othellonia'
