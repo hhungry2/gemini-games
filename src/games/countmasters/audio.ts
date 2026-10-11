@@ -8,13 +8,14 @@ class CountMastersAudio {
   private isBgmPlaying: boolean = false;
 
   private initCtx() {
-    if (!this.ctx) {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      this.ctx = new AudioCtx();
-    }
-    if (this.ctx.state === 'suspended') {
-      this.ctx.resume();
-    }
+    try {
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+        if (!AudioCtx) return;
+        this.ctx = new AudioCtx();
+      }
+      if (this.ctx.state === 'suspended') void this.ctx.resume().catch(() => {});
+    } catch { this.ctx = null; }
   }
 
   public toggleMute(): boolean {
@@ -358,6 +359,7 @@ class CountMastersAudio {
   public startBgm() {
     if (this.isMuted || this.isBgmPlaying) return;
     this.initCtx();
+    if (!this.ctx) return;
     this.isBgmPlaying = true;
     this.bgmStep = 0;
 

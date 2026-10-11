@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { countAudio } from './countmasters/audio';
+import { sound } from '../utils/audio';
 import {
   GameState,
   Stickman,
@@ -13,6 +14,9 @@ import {
 } from './countmasters/types';
 import { getStageData, ROAD_WIDTH, createStairSteps } from './countmasters/stages';
 import { CountMastersRenderer } from './countmasters/renderer';
+import { advanceClock, applyGate, getSceneScale, highestAffordableStep, MAX_CROWD, obstacleHits } from './countmasters/logic';
+import { readNumber, readStored, readUpgrades, writeStored } from './countmasters/storage';
+import './countmasters/countmasters.css';
 import {
   RotateCcw,
   Volume2,
@@ -37,6 +41,8 @@ export const COUNT_MASTERS_TOTAL_COINS_KEY = 'countmasters_total_coins_v1';
 export const COUNT_MASTERS_STAGE_KEY = 'countmasters_cleared_stage_v1';
 export const COUNT_MASTERS_UPGRADES_KEY = 'countmasters_upgrades_v1';
 export const COUNT_MASTERS_SKINS_KEY = 'countmasters_skins_v1';
+export const COUNT_MASTERS_SELECTED_SKIN_KEY = 'countmasters_selected_skin_v1';
+export const COUNT_MASTERS_MUTED_KEY = 'countmasters_muted_v1';
 
 const SKINS: Skin[] = [
   {
@@ -106,56 +112,59 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
   const rendererRef = useRef<CountMastersRenderer>(new CountMastersRenderer());
 
   // ゲーム状態
-  const [gameState, setGameState] = useState<GameState>('TITLE');
+  const gameStateRef = useRef<GameState>('TITLE');
+  const [gameState, setRenderedGameState] = useState<GameState>('TITLE');
+  const setGameState = useCallback((state: GameState) => {
+    gameStateRef.current = state;
+    setRenderedGameState(state);
+  }, []);
   const [stageNum, setStageNum] = useState<number>(1);
-  const [clearedStage, setClearedStage] = useState<number>(() => {
-    const val = localStorage.getItem(COUNT_MASTERS_STAGE_KEY);
-    return val ? parseInt(val, 10) : 1;
-  });
-  const [highScore, setHighScore] = useState<number>(() => {
-    const val = localStorage.getItem(COUNT_MASTERS_HIGH_SCORE_KEY);
-    return val ? parseInt(val, 10) : 0;
-  });
-  const [maxCrowdRecord, setMaxCrowdRecord] = useState<number>(() => {
-    const val = localStorage.getItem(COUNT_MASTERS_MAX_CROWD_KEY);
-    return val ? parseInt(val, 10) : 1;
-  });
-  const [totalCoins, setTotalCoins] = useState<number>(() => {
-    const val = localStorage.getItem(COUNT_MASTERS_TOTAL_COINS_KEY);
-    return val ? parseInt(val, 10) : 100;
-  });
+  const [clearedStage, setClearedStage] = useState(() => readNumber(COUNT_MASTERS_STAGE_KEY, 1, 1, 5));
+  const [highScore, setHighScore] = useState(() => readNumber(COUNT_MASTERS_HIGH_SCORE_KEY, 0));
+  const [maxCrowdRecord, setMaxCrowdRecord] = useState(() => readNumber(COUNT_MASTERS_MAX_CROWD_KEY, 1, 1));
+  const maxCrowdRecordRef = useRef(maxCrowdRecord);
+  const [totalCoins, setTotalCoins] = useState(() => readNumber(COUNT_MASTERS_TOTAL_COINS_KEY, 100));
 
   // アップグレード状態
-  const [upgrades, setUpgrades] = useState<Upgrades>(() => {
-    const saved = localStorage.getItem(COUNT_MASTERS_UPGRADES_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        // fallback
-      }
-    }
-    return { startCrowdLevel: 1, attackPowerLevel: 1, coinBonusLevel: 1 };
-  });
+  const [upgrades, setUpgrades] = useState<Upgrades>(() => readUpgrades(COUNT_MASTERS_UPGRADES_KEY));
 
   // スキン状態
   const [skins, setSkins] = useState<Skin[]>(() => {
-    const saved = localStorage.getItem(COUNT_MASTERS_SKINS_KEY);
-    if (saved) {
-      try {
-        const unlockedIds: string[] = JSON.parse(saved);
-        return SKINS.map((s) => ({ ...s, unlocked: s.cost === 0 || unlockedIds.includes(s.id) }));
-      } catch {
-        // fallback
-      }
-    }
-    return SKINS;
+    const saved = readStored(COUNT_MASTERS_SKINS_KEY);
+    const unlockedIds = Array.isArray(saved) ? saved.filter((id) => typeof id === 'string') : [];
+    return SKINS.map((s) => ({ ...s, unlocked: s.cost === 0 || unlockedIds.includes(s.id) }));
   });
-  const [selectedSkinId, setSelectedSkinId] = useState<string>('classic_blue');
+  const [selectedSkinId, setSelectedSkinId] = useState<string>(() => {
+    const saved = readStored(COUNT_MASTERS_SELECTED_SKIN_KEY);
+    return skins.find((s) => s.id === saved && s.unlocked)?.id ?? 'classic_blue';
+  });
 
   // サウンドミュート状態
-  const [isMuted, setIsMuted] = useState<boolean>(countAudio.isMuted);
+  const [isMuted, setIsMuted] = useState<boolean>(() => readStored(COUNT_MASTERS_MUTED_KEY) === true || sound.getMuted() || countAudio.isMuted);
   const [isPaused, setIsPaused] = useState<boolean>(false);
+  const isActive = gameState === 'RUNNING' || gameState === 'BOSS_BATTLE' || gameState === 'STAIRS_CLIMB';
+  const [hud, setHud] = useState({ progress: 0, coins: 0, crowd: 1, bossHp: 100 });
+
+  useEffect(() => {
+    sound.setMuted(isMuted);
+    return sound.subscribeMute((muted) => {
+      countAudio.isMuted = muted;
+      if (muted) countAudio.stopBgm();
+      setIsMuted(muted);
+      writeStored(COUNT_MASTERS_MUTED_KEY, muted);
+    });
+  }, []);
+
+  useEffect(() => {
+    countAudio.isMuted = isMuted;
+    if (isActive && !isPaused && !isMuted) countAudio.startBgm();
+    else countAudio.stopBgm();
+    return () => countAudio.stopBgm();
+  }, [isActive, isPaused, isMuted]);
+
+  useEffect(() => {
+    writeStored(COUNT_MASTERS_SELECTED_SKIN_KEY, selectedSkinId);
+  }, [selectedSkinId]);
 
   // アンマウント時のBGM停止
   useEffect(() => {
@@ -209,6 +218,35 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
   const isStageClearingRef = useRef<boolean>(false);
   const keysPressedRef = useRef<{ left: boolean; right: boolean }>({ left: false, right: false });
 
+  const recordCrowd = (count: number) => {
+    if (count <= maxCrowdRecordRef.current) return;
+    maxCrowdRecordRef.current = count;
+    setMaxCrowdRecord(count);
+    writeStored(COUNT_MASTERS_MAX_CROWD_KEY, count);
+  };
+
+  const clearInput = useCallback(() => {
+    keysPressedRef.current = { left: false, right: false };
+    isDraggingRef.current = false;
+    lastTouchXRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (!isActive || isPaused) clearInput();
+    if (!isActive) setIsPaused(false);
+    const pauseOnBlur = () => {
+      clearInput();
+      if (isActive) setIsPaused(true);
+    };
+    const pauseWhenHidden = () => { if (document.hidden) pauseOnBlur(); };
+    window.addEventListener('blur', pauseOnBlur);
+    document.addEventListener('visibilitychange', pauseWhenHidden);
+    return () => {
+      window.removeEventListener('blur', pauseOnBlur);
+      document.removeEventListener('visibilitychange', pauseWhenHidden);
+    };
+  }, [isActive, isPaused, clearInput]);
+
   // 現在のスキン取得
   const currentSkin = skins.find((s) => s.id === selectedSkinId) || skins[0];
 
@@ -223,8 +261,8 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       const nextUpgrades = { ...upgrades, [type]: upgrades[type] + 1 };
       setTotalCoins(nextTotal);
       setUpgrades(nextUpgrades);
-      localStorage.setItem(COUNT_MASTERS_TOTAL_COINS_KEY, nextTotal.toString());
-      localStorage.setItem(COUNT_MASTERS_UPGRADES_KEY, JSON.stringify(nextUpgrades));
+      writeStored(COUNT_MASTERS_TOTAL_COINS_KEY, nextTotal);
+      writeStored(COUNT_MASTERS_UPGRADES_KEY, nextUpgrades);
       countAudio.playCoin();
     }
   };
@@ -240,9 +278,9 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       setTotalCoins(nextTotal);
       setSkins(nextSkins);
       setSelectedSkinId(skin.id);
-      localStorage.setItem(COUNT_MASTERS_TOTAL_COINS_KEY, nextTotal.toString());
+      writeStored(COUNT_MASTERS_TOTAL_COINS_KEY, nextTotal);
       const unlockedIds = nextSkins.filter((s) => s.unlocked).map((s) => s.id);
-      localStorage.setItem(COUNT_MASTERS_SKINS_KEY, JSON.stringify(unlockedIds));
+      writeStored(COUNT_MASTERS_SKINS_KEY, unlockedIds);
       countAudio.playVictoryFanfare();
     }
   };
@@ -409,6 +447,8 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       // 初期群衆
       const initialCount = 1 + (upgrades.startCrowdLevel - 1) * 3;
       crowdCountRef.current = initialCount;
+      recordCrowd(initialCount);
+      setHud({ progress: 0, coins: 0, crowd: initialCount, bossHp: 100 });
 
       const initialStickmen: Stickman[] = [];
       for (let i = 0; i < initialCount; i++) {
@@ -436,27 +476,28 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       setIsPaused(false);
       setStageResult(null);
 
-      if (!isMuted) {
-        countAudio.startBgm();
-      }
     },
-    [upgrades.startCrowdLevel, currentSkin.color, isMuted]
+    [upgrades.startCrowdLevel, currentSkin.color]
   );
 
   // マウス＆タッチ（ポインター）操作リスナー
   const handlePointerDown = (clientX: number) => {
+    if (isPaused) return;
     if (gameState !== 'RUNNING' && gameState !== 'BOSS_BATTLE') return;
     isDraggingRef.current = true;
     lastTouchXRef.current = clientX;
   };
 
   const handlePointerMove = (clientX: number) => {
+    if (isPaused) return;
     if (!isDraggingRef.current || lastTouchXRef.current === null) return;
     const dx = clientX - lastTouchXRef.current;
     lastTouchXRef.current = clientX;
 
     // スケーリング感度 (幅220に合わせて快適かつ素直に追従)
-    const sensitivity = 0.45;
+    const rect = containerRef.current?.getBoundingClientRect();
+    const sceneScale = getSceneScale(rect?.width ?? 420, rect?.height ?? 600);
+    const sensitivity = 1 / (sceneScale * (280 / 180));
     targetPlayerXRef.current = Math.max(
       -ROAD_WIDTH / 2 + 18,
       Math.min(ROAD_WIDTH / 2 - 18, targetPlayerXRef.current + dx * sensitivity)
@@ -471,6 +512,16 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
   // キーボード操作リスナー (連続長押し検知・スムーズステアリング・OSリピート遅延完全解消)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (isActive && (e.code === 'Space' || e.key === 'Escape' || e.code === 'KeyP')) {
+        const editing = e.target instanceof HTMLElement && e.target.closest('input, select, textarea, [contenteditable="true"]');
+        const buttonSpace = e.code === 'Space' && e.target instanceof HTMLElement && e.target.closest('button');
+        if (!e.repeat && !editing && !buttonSpace) {
+          e.preventDefault();
+          clearInput();
+          setIsPaused((prev) => !prev);
+        }
+        return;
+      }
       if (gameState !== 'RUNNING' && gameState !== 'BOSS_BATTLE') return;
       if (isPaused) return;
 
@@ -523,58 +574,86 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       keysPressedRef.current.left = false;
       keysPressedRef.current.right = false;
     };
-  }, [gameState, isPaused]);
+  }, [gameState, isPaused, isActive, clearInput]);
 
   // メインゲームループ (requestAnimationFrame)
   useEffect(() => {
     let animId: number;
+    let lastTime = performance.now();
+    let accumulator = 0;
+    let lastHudTime = 0;
 
-    const loop = () => {
+    const loop = (now: number) => {
+      const elapsed = now - lastTime;
+      lastTime = now;
       const stage = currentStageRef.current;
       const canvas = canvasRef.current;
       const container = containerRef.current;
 
       if (canvas && container) {
         // キャンバスリサイズ (フルスクリーン時はコンテナの全域に拡大)
-        const dpr = window.devicePixelRatio || 1;
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
         const targetW = Math.max(100, container.clientWidth || window.innerWidth);
         const headerH = window.innerWidth < 640 ? 56 : 64;
         const targetH = Math.max(100, container.clientHeight || (window.innerHeight - headerH));
 
-        if (canvas.width !== targetW * dpr || canvas.height !== targetH * dpr) {
-          canvas.width = targetW * dpr;
-          canvas.height = targetH * dpr;
+        const pixelW = Math.round(targetW * dpr);
+        const pixelH = Math.round(targetH * dpr);
+        if (canvas.width !== pixelW || canvas.height !== pixelH) {
+          canvas.width = pixelW;
+          canvas.height = pixelH;
         }
 
         const ctx = canvas.getContext('2d');
         if (ctx) {
           ctx.resetTransform();
-          ctx.scale(dpr, dpr);
+          const sceneScale = getSceneScale(targetW, targetH);
+          ctx.scale(pixelW / targetW * sceneScale, pixelH / targetH * sceneScale);
 
           // 物理・ロジック更新 (一時停止中でない場合)
-          if (!isPaused && stage && gameState !== 'TITLE' && gameState !== 'STAGE_SELECT' && gameState !== 'SHOP') {
-            updateGameLogic(stage);
+          if (!isPaused && stage && isActive) {
+            const clock = advanceClock(accumulator, elapsed);
+            accumulator = clock.remainder;
+            for (let step = 0; step < clock.steps; step++) {
+              if (gameStateRef.current !== gameState) break;
+              updateGameLogic(stage);
+              if (shakeTimerRef.current > 0) shakeTimerRef.current--;
+            }
+          } else {
+            accumulator = 0;
+          }
+
+          if (isActive && now - lastHudTime >= 100) {
+            lastHudTime = now;
+            const coinBonus = 1 + (upgrades.coinBonusLevel - 1) * 0.25;
+            const next = {
+              progress: Math.min(100, Math.round(Math.max(0, playerZRef.current - 100) / (stage.boss.z - 100) * 100)),
+              coins: Math.round(stageCoinsRef.current * coinBonus),
+              crowd: crowdCountRef.current,
+              bossHp: Math.ceil(stage.boss.hp / stage.boss.maxHp * 100),
+            };
+            setHud((prev) => Object.keys(next).every((key) => next[key as keyof typeof next] === prev[key as keyof typeof prev]) ? prev : next);
           }
 
           // 画面振動
           let shakeX = 0;
           let shakeY = 0;
-          if (shakeTimerRef.current > 0) {
-            shakeTimerRef.current--;
+          if (!isPaused && shakeTimerRef.current > 0) {
             shakeX = (Math.random() - 0.5) * 8;
             shakeY = (Math.random() - 0.5) * 8;
           }
 
           // カメラ座標計算 (三人称背後見下ろし - 高い視点からゆったり見渡す)
           const camX = playerXRef.current * 0.35;
-          const camY = 150;
+          const stairY = stairsRef.current[Math.max(0, highestStepRef.current)]?.y ?? 0;
+          const camY = 150 + (gameState === 'STAIRS_CLIMB' || gameState === 'STAGE_CLEAR' ? stairY : 0);
           const camZ = playerZRef.current - 180;
 
           // レンダリング実行
           rendererRef.current.render({
             ctx,
-            width: targetW,
-            height: targetH,
+            width: targetW / sceneScale,
+            height: targetH / sceneScale,
             camX,
             camY,
             camZ,
@@ -606,10 +685,11 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
     animId = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(animId);
-  }, [gameState, isPaused, currentSkin]);
+  }, [gameState, isPaused, currentSkin, isActive]);
 
   // ゲームロジック更新処理
   const updateGameLogic = (stage: StageData) => {
+    if (gameStateRef.current !== gameState || !isActive) return;
     // 0. キーボード長押し・バーチャルボタン押下によるスムーズ連続ステアリング
     if (gameState === 'RUNNING' || gameState === 'BOSS_BATTLE') {
       const KEY_STEER_SPEED = 4.8; // 毎フレームの移動量（レスポンシブかつスムーズ）
@@ -638,9 +718,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
         const dx = Math.abs(playerXRef.current - coin.x);
         if (dz < 35 && dx < 28) {
           coin.collected = true;
-          const coinBonus = 1 + (upgrades.coinBonusLevel - 1) * 0.25;
-          const earned = Math.round(1 * coinBonus);
-          stageCoinsRef.current += earned;
+          stageCoinsRef.current++;
           countAudio.playCoin();
 
           particlesRef.current.push({
@@ -660,12 +738,13 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       });
 
       // ゲート判定
-      stage.gates.forEach((gate) => {
+      for (const gate of stage.gates) {
+        if (gate.leftOption.passed || gate.rightOption.passed) continue;
         // スライドゲートの移動
         if (gate.isMoving) {
           gate.moveSpeed = gate.moveSpeed || 2;
           gate.moveRange = gate.moveRange || 45;
-          gate.offsetX = Math.sin(playerZRef.current * 0.006) * gate.moveRange;
+          gate.offsetX = Math.sin(playerZRef.current * 0.003 * gate.moveSpeed) * gate.moveRange;
         }
 
         // ルーレットゲートの数値変動
@@ -694,32 +773,17 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
             gate.rightOption.passed = true;
 
             const current = crowdCountRef.current;
-            let nextCount = current;
+            const nextCount = applyGate(current, chosen.op, chosen.val);
 
-            if (chosen.op === '+') {
-              nextCount = current + chosen.val;
-              addStickmen(chosen.val, playerXRef.current, playerZRef.current);
+            if (nextCount > current) {
+              addStickmen(nextCount - current, playerXRef.current, playerZRef.current);
               countAudio.playGatePositive();
-            } else if (chosen.op === '×') {
-              const toAdd = current * (chosen.val - 1);
-              nextCount = current * chosen.val;
-              addStickmen(toAdd, playerXRef.current, playerZRef.current);
-              countAudio.playGatePositive();
-            } else if (chosen.op === '-') {
-              nextCount = Math.max(0, current - chosen.val);
-              removeStickmen(chosen.val, playerXRef.current, playerZRef.current);
-              countAudio.playGateNegative();
-            } else if (chosen.op === '÷') {
-              const toRemove = current - Math.max(1, Math.floor(current / chosen.val));
-              nextCount = Math.max(1, Math.floor(current / chosen.val));
-              removeStickmen(toRemove, playerXRef.current, playerZRef.current);
+            } else if (nextCount < current) {
+              removeStickmen(current - nextCount, playerXRef.current, playerZRef.current);
               countAudio.playGateNegative();
             }
 
-            if (nextCount > maxCrowdRecord) {
-              setMaxCrowdRecord(nextCount);
-              localStorage.setItem(COUNT_MASTERS_MAX_CROWD_KEY, nextCount.toString());
-            }
+            recordCrowd(nextCount);
 
             if (nextCount <= 0) {
               handleGameOver();
@@ -727,10 +791,10 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
             }
           }
         }
-      });
+      }
 
       // トラップ障害物判定
-      stage.obstacles.forEach((obs) => {
+      for (const obs of stage.obstacles) {
         obs.phase += 0.05 * obs.speed;
 
         // トゲ床の周期
@@ -739,18 +803,18 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
         }
 
         const dz = Math.abs(playerZRef.current - obs.z);
-        if (dz < obs.length + 20) {
+        if (dz < obs.length + Math.sqrt(crowdCountRef.current) * 6.5 + 20) {
+          let trapHit = false;
           stickmenRef.current.forEach((sm) => {
             if (!sm.isAlive) return;
-            const dist = Math.hypot(sm.x - obs.x, sm.z - obs.z);
-            if (dist < obs.radius + 12) {
+            if (obstacleHits(obs, sm.x, sm.z)) {
               sm.isAlive = false;
               sm.state = 'flying';
               crowdCountRef.current = Math.max(0, crowdCountRef.current - 1);
               shakeTimerRef.current = 6;
-              countAudio.playTrapHit();
+              trapHit = true;
 
-              particlesRef.current.push({
+              if (particlesRef.current.length < 400) particlesRef.current.push({
                 x: sm.x,
                 y: 10,
                 z: sm.z,
@@ -765,21 +829,22 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
               });
             }
           });
+          if (trapHit) countAudio.playTrapHit();
 
           if (crowdCountRef.current <= 0) {
             handleGameOver();
             return;
           }
         }
-      });
+      }
 
       // 敵小隊との相打ちバトル判定
-      stage.mobs.forEach((mob) => {
-        if (mob.currentCount <= 0) return;
+      for (const mob of stage.mobs) {
+        if (mob.currentCount <= 0) continue;
         const dz = Math.abs(playerZRef.current - mob.z);
         const dx = Math.abs(playerXRef.current - mob.x);
         if (dz < 35 && dx < 45) {
-          // プレイヤーの攻撃力レベル (1で1体相打ち、2で1.3倍相打ち...)
+          // 戦闘力に反比例する損耗率。高レベルでも完全無敵にはしない。
           const playerAtkRate = 1 + (upgrades.attackPowerLevel - 1) * 0.4;
           const alivePlayers = stickmenRef.current.filter((sm) => sm.isAlive);
 
@@ -794,7 +859,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
             if (enemySm) enemySm.isAlive = false;
 
             // プレイヤーの犠牲 (攻撃力による確率相殺)
-            if (Math.random() > playerAtkRate - 1) {
+            if (Math.random() < 1 / playerAtkRate) {
               const pSm = alivePlayers.pop();
               if (pSm) {
                 pSm.isAlive = false;
@@ -822,7 +887,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
             return;
           }
         }
-      });
+      }
 
       // ボスエリア進入判定
       if (playerZRef.current >= stage.boss.z - 180) {
@@ -835,7 +900,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       boss.animTimer += 0.05;
 
       // ボスへ向かって群衆が包囲突撃
-      playerZRef.current += forwardSpeedRef.current * 0.25;
+      playerZRef.current = Math.min(stage.boss.z - 65, playerZRef.current + forwardSpeedRef.current * 0.25);
       updateStickmenPositions(playerXRef.current, playerZRef.current);
 
       const aliveStickmen = stickmenRef.current.filter((sm) => sm.isAlive);
@@ -847,10 +912,10 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       // ボスにダメージ
       const playerDps = (1.8 + (upgrades.attackPowerLevel - 1) * 0.8) * Math.min(15, aliveStickmen.length);
       boss.hp = Math.max(0, boss.hp - playerDps * 0.1);
-      countAudio.playMobClash();
+      if (Math.floor(boss.animTimer * 20) % 6 === 0) countAudio.playMobClash();
 
       // ボスの反撃（一定確率で仲間が吹っ飛ぶ）
-      if (Math.random() < 0.18) {
+      if (boss.hp > 0 && Math.random() < 0.18) {
         const victim = aliveStickmen[Math.floor(Math.random() * aliveStickmen.length)];
         if (victim) {
           victim.isAlive = false;
@@ -859,6 +924,11 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
           shakeTimerRef.current = 6;
           countAudio.playTrapHit();
         }
+      }
+
+      if (crowdCountRef.current <= 0) {
+        handleGameOver();
+        return;
       }
 
       // ボス撃破！
@@ -886,6 +956,8 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
         // 階段タワー登攀へ移行
         setGameState('STAIRS_CLIMB');
+        targetPlayerXRef.current = 0;
+        clearInput();
         forwardSpeedRef.current = 6.0;
       }
     } else if (gameState === 'STAIRS_CLIMB') {
@@ -895,17 +967,17 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
       const stairs = stairsRef.current;
       const aliveStickmen = stickmenRef.current.filter((sm) => sm.isAlive);
+      const maxPossibleStep = highestAffordableStep(stairs, aliveStickmen.length);
 
       // 各段のチェック
       stairs.forEach((step, idx) => {
-        if (playerZRef.current >= step.z && idx > highestStepRef.current) {
+        if (playerZRef.current >= step.z && idx > highestStepRef.current && idx <= maxPossibleStep) {
           highestStepRef.current = idx;
           countAudio.playStairStep(idx);
           shakeTimerRef.current = 4;
 
           // その段に数人配置してバンザイ
-          const stickmenForThisStep = aliveStickmen.slice(idx * 3, idx * 3 + 3);
-          stickmenForThisStep.forEach((sm) => {
+          aliveStickmen.forEach((sm) => {
             sm.state = 'climbing';
             sm.y = step.y + 4;
           });
@@ -930,13 +1002,12 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       });
 
       // 人数に応じた登攀限界に到達、または最後の段を通過
-      const maxPossibleStep = Math.min(stairs.length - 1, Math.floor(aliveStickmen.length / 5));
       const reachedEnd =
-        highestStepRef.current >= maxPossibleStep ||
+        (maxPossibleStep < 0 && playerZRef.current >= stairs[0].z) ||
+        (maxPossibleStep >= 0 && highestStepRef.current >= maxPossibleStep) ||
         playerZRef.current >= stairs[stairs.length - 1].z + 60;
 
       if (reachedEnd && !isStageClearingRef.current) {
-        isStageClearingRef.current = true;
         handleStageClear();
       }
     }
@@ -950,10 +1021,13 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       p.life--;
     });
     particlesRef.current = particlesRef.current.filter((p) => p.life > 0);
+    stickmenRef.current = stickmenRef.current.filter((sm) => sm.isAlive);
   };
 
   // ゲームオーバー処理
   const handleGameOver = () => {
+    if (gameStateRef.current === 'GAME_OVER') return;
+    clearInput();
     setGameState('GAME_OVER');
     countAudio.stopBgm();
     countAudio.playGameOver();
@@ -961,33 +1035,37 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
   // ステージクリア処理
   const handleStageClear = () => {
+    if (isStageClearingRef.current) return;
+    isStageClearingRef.current = true;
+    clearInput();
     setGameState('STAGE_CLEAR');
     countAudio.stopBgm();
     countAudio.playVictoryFanfare();
 
     const stairs = stairsRef.current;
-    const finalStepIdx = Math.max(0, highestStepRef.current);
+    const finalStepIdx = highestStepRef.current;
     const multiplier = stairs[finalStepIdx] ? stairs[finalStepIdx].multiplier : 1.0;
     const finalCrowd = crowdCountRef.current;
-    const rawScore = (finalCrowd * 100 + stageCoinsRef.current * 20);
+    const collectedCoins = Math.round(stageCoinsRef.current * (1 + (upgrades.coinBonusLevel - 1) * 0.25));
+    const rawScore = (finalCrowd * 100 + collectedCoins * 20);
     const totalScore = Math.round(rawScore * multiplier);
-    const earnedCoins = Math.round(stageCoinsRef.current * multiplier) + 50;
+    const earnedCoins = Math.round(collectedCoins * multiplier) + 50;
 
     const nextTotalCoins = totalCoins + earnedCoins;
     setTotalCoins(nextTotalCoins);
-    localStorage.setItem(COUNT_MASTERS_TOTAL_COINS_KEY, nextTotalCoins.toString());
+    writeStored(COUNT_MASTERS_TOTAL_COINS_KEY, nextTotalCoins);
 
     let isNewRecord = false;
     if (totalScore > highScore) {
       setHighScore(totalScore);
-      localStorage.setItem(COUNT_MASTERS_HIGH_SCORE_KEY, totalScore.toString());
+      writeStored(COUNT_MASTERS_HIGH_SCORE_KEY, totalScore);
       isNewRecord = true;
     }
 
     if (stageNum >= clearedStage && stageNum < 5) {
       const nextStage = stageNum + 1;
       setClearedStage(nextStage);
-      localStorage.setItem(COUNT_MASTERS_STAGE_KEY, nextStage.toString());
+      writeStored(COUNT_MASTERS_STAGE_KEY, nextStage);
     }
 
     setStageResult({
@@ -1002,29 +1080,24 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
   // ミュート切り替え
   const toggleMute = () => {
-    const muted = countAudio.toggleMute();
+    const muted = !isMuted;
+    sound.setMuted(muted);
+    countAudio.isMuted = muted;
     setIsMuted(muted);
-    if (!muted && (gameState === 'RUNNING' || gameState === 'BOSS_BATTLE')) {
-      countAudio.startBgm();
-    }
+    writeStored(COUNT_MASTERS_MUTED_KEY, muted);
   };
 
   // 一時停止
   const togglePause = () => {
+    if (!isActive) return;
+    clearInput();
     setIsPaused((prev) => !prev);
-  };
-
-  // 進捗率計算 (0 ~ 100%)
-  const getProgress = () => {
-    const stage = currentStageRef.current;
-    if (!stage) return 0;
-    return Math.min(100, Math.max(0, Math.round((playerZRef.current / stage.boss.z) * 100)));
   };
 
   return (
     <div
       ref={containerRef}
-      className={`relative flex flex-col items-center justify-center select-none overflow-hidden ${
+      className={`countmasters-game relative flex flex-col items-center justify-center select-none overflow-hidden ${
         isFullscreen
           ? 'w-full h-[calc(100dvh-3.5rem)] sm:h-[calc(100dvh-4rem)] max-w-none max-h-none flex-1 p-0 m-0 rounded-none border-none shadow-none'
           : 'w-full max-w-4xl h-[min(700px,calc(100dvh-4.5rem))] rounded-2xl shadow-2xl border border-slate-700/50 my-1 sm:my-2'
@@ -1033,6 +1106,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
       {/* メインゲームCanvas */}
       <canvas
         ref={canvasRef}
+        aria-label="Count Masters ゲーム画面"
         className="absolute inset-0 w-full h-full cursor-grab active:cursor-grabbing touch-none"
         onPointerDown={(e) => {
           if (gameState !== 'RUNNING' && gameState !== 'BOSS_BATTLE') return;
@@ -1057,17 +1131,19 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
           } catch {}
           handlePointerUp();
         }}
+        onLostPointerCapture={handlePointerUp}
       />
 
       {/* 上部共通ヘッダーHUD */}
-      <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-20">
+      <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-40">
         {/* 左: 一時停止 */}
         <div className="flex items-center gap-2 pointer-events-auto">
-          {(gameState === 'RUNNING' || gameState === 'BOSS_BATTLE') && (
+          {isActive && (
             <button
               onClick={togglePause}
               className="p-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-white transition backdrop-blur shadow-md cursor-pointer border border-slate-700/50"
-              title="ポーズ"
+              title="ポーズ [P / Space / Esc]"
+              aria-label="一時停止"
             >
               <Pause className="w-4 h-4" />
             </button>
@@ -1080,12 +1156,12 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
             <div className="relative w-full h-3 bg-slate-900/70 rounded-full overflow-hidden border border-slate-700/60 backdrop-blur">
               <div
                 className="h-full bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400 transition-all duration-100"
-                style={{ width: `${getProgress()}%` }}
+                style={{ width: `${hud.progress}%` }}
               />
             </div>
             <div className="flex justify-between text-[10px] font-bold text-slate-300 mt-0.5 px-1 drop-shadow">
               <span>START</span>
-              <span>{getProgress()}%</span>
+              <span>{hud.progress}%</span>
               <span>BOSS 👑</span>
             </div>
           </div>
@@ -1095,11 +1171,13 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
         <div className="flex items-center gap-2 pointer-events-auto">
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-300 text-xs font-black backdrop-blur shadow-md">
             <Coins className="w-4 h-4 text-amber-400 fill-amber-400" />
-            <span>{totalCoins + stageCoinsRef.current}</span>
+            <span>{totalCoins.toLocaleString()}{isActive && hud.coins > 0 ? ` (+${hud.coins})` : ''}</span>
           </div>
 
           <button
             onClick={toggleMute}
+            aria-label={isMuted ? 'サウンドをオンにする' : 'サウンドをミュートにする'}
+            aria-pressed={isMuted}
             className="p-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 text-white transition backdrop-blur shadow-md cursor-pointer border border-slate-700/50"
             title="音量切替"
           >
@@ -1107,6 +1185,15 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
           </button>
         </div>
       </div>
+
+      {isActive && (
+        <div className="absolute top-16 inset-x-3 flex justify-center pointer-events-none z-20">
+          <div className="rounded-full bg-slate-900/85 border border-slate-700 px-4 py-1.5 text-xs font-bold text-white shadow-lg">
+            {gameState === 'BOSS_BATTLE' ? `ボス HP ${hud.bossHp}% · ` : gameState === 'STAIRS_CLIMB' ? 'ボーナスタワー · ' : `STAGE ${stageNum} · `}
+            仲間 {hud.crowd.toLocaleString()} 人{hud.crowd >= MAX_CROWD ? ' (MAX)' : ''}
+          </div>
+        </div>
+      )}
 
       {/* 左右バーチャルステアリングボタン (スマホ・タブレット・マウス操作用) */}
       {(gameState === 'RUNNING' || gameState === 'BOSS_BATTLE') && !isPaused && (
@@ -1127,7 +1214,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
             onPointerCancel={() => {
               keysPressedRef.current.left = false;
             }}
-            className="pointer-events-auto w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-900/70 hover:bg-slate-800 active:bg-blue-600/80 border border-slate-700/60 active:border-blue-400 text-white flex items-center justify-center backdrop-blur shadow-xl transition active:scale-90 select-none cursor-pointer"
+            className="cm-steer pointer-events-auto w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-900/70 hover:bg-slate-800 active:bg-blue-600/80 border border-slate-700/60 active:border-blue-400 text-white flex items-center justify-center backdrop-blur shadow-xl transition active:scale-90 select-none cursor-pointer"
             title="左へ移動 [←] または [A]"
           >
             <ChevronLeft className="w-7 h-7 sm:w-8 sm:h-8 text-slate-100" />
@@ -1135,8 +1222,8 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
           {/* 中央の操作ガイド */}
           <div className="pointer-events-none pb-2 text-center animate-pulse">
-            <span className="px-3.5 py-1.5 rounded-full bg-slate-900/85 border border-slate-700/70 text-[11px] sm:text-xs text-slate-200 font-bold backdrop-blur shadow-lg whitespace-nowrap">
-              スワイプ / ドラッグ / [←][→] / [A][D]
+            <span className="cm-guide px-3.5 py-1.5 rounded-full bg-slate-900/85 border border-slate-700/70 text-[11px] sm:text-xs text-slate-200 font-bold backdrop-blur shadow-lg whitespace-nowrap">
+              ドラッグ / ← → / A D
             </span>
           </div>
 
@@ -1156,7 +1243,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
             onPointerCancel={() => {
               keysPressedRef.current.right = false;
             }}
-            className="pointer-events-auto w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-900/70 hover:bg-slate-800 active:bg-blue-600/80 border border-slate-700/60 active:border-blue-400 text-white flex items-center justify-center backdrop-blur shadow-xl transition active:scale-90 select-none cursor-pointer"
+            className="cm-steer pointer-events-auto w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-slate-900/70 hover:bg-slate-800 active:bg-blue-600/80 border border-slate-700/60 active:border-blue-400 text-white flex items-center justify-center backdrop-blur shadow-xl transition active:scale-90 select-none cursor-pointer"
             title="右へ移動 [→] または [D]"
           >
             <ChevronRight className="w-7 h-7 sm:w-8 sm:h-8 text-slate-100" />
@@ -1166,7 +1253,8 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
       {/* 一時停止オーバーレイ */}
       {isPaused && (
-        <div className="absolute inset-0 bg-slate-950/70 backdrop-blur-md flex flex-col items-center justify-center z-30 animate-in fade-in duration-200">
+        <div className="cm-overlay absolute inset-0 bg-slate-950/70 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30 animate-in fade-in duration-200">
+          <div className="text-center">
           <h2 className="text-3xl font-black text-white mb-6">一時停止中</h2>
           <div className="flex gap-4">
             <button
@@ -1186,12 +1274,13 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
               タイトルへ
             </button>
           </div>
+          </div>
         </div>
       )}
 
       {/* 1. タイトル画面 */}
       {gameState === 'TITLE' && (
-        <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30">
+        <div className="cm-overlay absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30">
           <div className="text-center max-w-md">
             {/* タイトルバッジ */}
             <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-blue-500/20 border border-blue-400/30 text-blue-300 text-xs font-black tracking-wider mb-4">
@@ -1265,7 +1354,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
       {/* 2. ステージ選択画面 */}
       {gameState === 'STAGE_SELECT' && (
-        <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30">
+        <div className="cm-overlay absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30">
           <div className="w-full max-w-md">
             <h2 className="text-2xl font-black text-white text-center mb-1">ステージ選択</h2>
             <p className="text-slate-400 text-xs text-center mb-6">全5つの激闘コースを制覇せよ！</p>
@@ -1327,7 +1416,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
       {/* 3. ショップ & アップグレード画面 */}
       {gameState === 'SHOP' && (
-        <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30 overflow-y-auto">
+        <div className="cm-overlay absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30 overflow-y-auto">
           <div className="w-full max-w-md my-auto">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-black text-white">パワーアップ＆スキン</h2>
@@ -1372,7 +1461,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
                     <div>
                       <div className="font-bold text-sm text-white">攻撃力</div>
                       <div className="text-[11px] text-slate-400">
-                        相打ち優位率 +{(upgrades.attackPowerLevel - 1) * 40}% (Lv.{upgrades.attackPowerLevel})
+                        戦闘力 ×{(1 + (upgrades.attackPowerLevel - 1) * 0.4).toFixed(1)} (Lv.{upgrades.attackPowerLevel})
                       </div>
                     </div>
                   </div>
@@ -1418,6 +1507,8 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
                   return (
                     <button
                       key={s.id}
+                      aria-label={`${s.name}${s.unlocked ? isEquipped ? '（装備中）' : 'を装備' : `を購入（${s.cost}コイン）`}`}
+                      disabled={!s.unlocked && totalCoins < s.cost}
                       onClick={() => selectOrBuySkin(s)}
                       className={`p-2 rounded-xl border flex flex-col items-center justify-center transition cursor-pointer relative ${
                         isEquipped
@@ -1458,7 +1549,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
       {/* 4. ゲームオーバー画面 */}
       {gameState === 'GAME_OVER' && (
-        <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30 animate-in zoom-in-95 duration-200">
+        <div className="cm-overlay absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30 animate-in zoom-in-95 duration-200">
           <div className="text-center max-w-sm">
             <div className="w-16 h-16 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-400 flex items-center justify-center mx-auto mb-3 shadow-lg">
               <ShieldAlert className="w-8 h-8" />
@@ -1488,7 +1579,7 @@ export const CountMastersGame: React.FC<CountMastersGameProps> = ({
 
       {/* 5. ステージクリア画面 */}
       {gameState === 'STAGE_CLEAR' && stageResult && (
-        <div className="absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30 animate-in zoom-in-95 duration-300">
+        <div className="cm-overlay absolute inset-0 bg-slate-950/85 backdrop-blur-md flex flex-col items-center justify-center p-6 z-30 animate-in zoom-in-95 duration-300">
           <div className="text-center max-w-md w-full">
             <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-400/40 text-emerald-300 text-xs font-black tracking-wider mb-3">
               <Sparkles className="w-4 h-4 text-emerald-400" />

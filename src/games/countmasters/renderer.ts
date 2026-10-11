@@ -140,7 +140,7 @@ export class CountMastersRenderer {
         if (p && p.depth < 1200) {
           items.push({
             depth: p.depth,
-            draw: () => this.drawStickman(ctx, p.sx, p.sy, p.scale, mob.color, '#b91c1c', 'running', Math.random() * 5, 'none'),
+            draw: () => this.drawStickman(ctx, p.sx, p.sy, p.scale, mob.color, '#b91c1c', 'running', (rc.stickmen[0]?.animOffset ?? 0) + sm.offsetX * 0.1, 'none'),
           });
         }
       });
@@ -158,11 +158,12 @@ export class CountMastersRenderer {
     }
 
     // プレイヤースティックマン
-    rc.stickmen.forEach((sm, index) => {
+    const leader = rc.stickmen.find((sm) => sm.isAlive);
+    rc.stickmen.forEach((sm) => {
       if (!sm.isAlive) return;
       const p = this.project(sm.x, sm.y, sm.z, camX, camY, camZ, width, height, shakeX, shakeY);
       if (p && p.depth > 0 && p.depth < 1400) {
-        const isLeader = index === 0;
+        const isLeader = sm === leader;
         const acc = isLeader ? (rc.skin.accessory === 'none' ? 'crown' : rc.skin.accessory) : 'none';
         items.push({
           depth: p.depth,
@@ -771,7 +772,7 @@ export class CountMastersRenderer {
 
       case 'spikes': {
         const sw = Math.min(70, obs.width * scale);
-        const spikeHeight = (Math.sin(obs.phase) > 0 ? Math.sin(obs.phase) : 0) * 10 * scale;
+        const spikeHeight = obs.active ? Math.max(0.25, Math.sin(obs.phase)) * 10 * scale : 0;
 
         ctx.fillStyle = '#475569';
         ctx.fillRect(sx - sw / 2, sy - 2 * scale, sw, 3 * scale);

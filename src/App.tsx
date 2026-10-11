@@ -1558,7 +1558,7 @@ export function App() {
 
   return (
     <div
-      style={activeGame === 'spindoctor' ? { height: '100dvh', minHeight: 0, overflow: 'hidden' } : undefined}
+      style={activeGame === 'spindoctor' || activeGame === 'countmasters' ? { height: '100dvh', minHeight: 0, overflow: 'hidden' } : undefined}
       className={`min-h-screen flex flex-col antialiased transition-colors duration-200 ${
         isDark
           ? 'bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white'
@@ -1635,7 +1635,7 @@ export function App() {
       )}
 
       <main
-        style={activeGame === 'spindoctor' ? { minHeight: 0 } : undefined}
+        style={activeGame === 'spindoctor' || activeGame === 'countmasters' ? { minHeight: 0 } : undefined}
         className={`flex-1 w-full flex flex-col items-center justify-center transition-all duration-300 ${
           isFullscreen
             ? activeGame
@@ -1910,7 +1910,7 @@ export function App() {
             </div>
           </div>
         ) : (
-          <div className={`w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300 ${activeGame === 'spindoctor' ? 'min-h-0' : ''}`}>
+          <div className={`w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300 ${activeGame === 'spindoctor' || activeGame === 'countmasters' ? 'min-h-0' : ''}`}>
             {activeGame === 'spindoctor' && (
               <SpinDoctorGame
                 onBackToHub={requestGoHome}
