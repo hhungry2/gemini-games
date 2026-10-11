@@ -35,7 +35,7 @@ export const OctopusGame: React.FC<GwCommonGameProps> = ({
 }) => {
   const { state, act, highScore, blocked } = useGwGame('octopus', difficulty, isPaused, createOctopus, tickOctopus,
     score => Math.max(180, (difficulty === 'gameA' ? 480 : 360) - Math.floor(score / 25) * 15), onGameOver);
-  const { diverPos, tentacles, activeTentacle, tentacleDirection, goldInBag, score, misses, recoveryMs } = state;
+  const { diverPos, tentacles, tentacleDirections, goldInBag, score, misses, recoveryMs } = state;
   const isCaught = recoveryMs > 0;
   const handleRight = () => act(previous => moveDiver(previous, 1));
   const handleLeft = () => act(previous => moveDiver(previous, -1));
@@ -125,11 +125,11 @@ export const OctopusGame: React.FC<GwCommonGameProps> = ({
 
         <svg viewBox="0 0 500 340" className="w-full h-full select-none"
           preserveAspectRatio="xMidYMid meet" role="img" data-diver-position={diverPos}
-          aria-label={`オクトパス。足は左から1、2、3、4の順番。現在は足${activeTentacle + 1}の番。${tentacles.map((length, i) => `足${i + 1}は長さ${length + 1}/3${length === 2 ? '、危険' : ''}`).join('。')}`}>
+          aria-label={`オクトパス。4本の足が異なるタイミングで伸び縮み。${tentacles.map((length, i) => `足${i + 1}は長さ${length + 1}/3、${tentacleDirections[i] === 1 ? '伸びる' : '縮む'}${length === 2 ? '、危険' : ''}`).join('。')}`}>
           <line x1="0" y1="82" x2="500" y2="82" stroke={activeColor} strokeWidth="1.5" strokeDasharray="4 5" opacity=".3" />
           <path d="M0 291 Q250 287 500 291" stroke={activeColor} strokeWidth="2" fill="none" opacity=".5" />
           <text x="300" y="55" textAnchor="middle" fill={activeColor} fontSize="14" fontWeight="bold">
-            足の順番 1 → 2 → 3 → 4
+            4本の足がずれて動く
           </text>
 
           <path d="M12 65 H104 L88 82 H28 Z" fill={activeColor} />
@@ -153,7 +153,7 @@ export const OctopusGame: React.FC<GwCommonGameProps> = ({
 
           {LANES.map((lane, index) => {
             const length = tentacles[index];
-            const active = activeTentacle === index;
+            const active = length > 0;
             const danger = length === 2;
             const tip = lane.segments[length].end;
             return (
@@ -180,7 +180,7 @@ export const OctopusGame: React.FC<GwCommonGameProps> = ({
                   <circle cx="12" cy="12" r="8" fill={active ? activeColor : 'none'} stroke={activeColor} strokeWidth="1" />
                   <text x="12" y="16" textAnchor="middle" fill={active ? lcdColor : activeColor} stroke="none" fontSize="11" fontWeight="bold">{index + 1}</text>
                   <text x="43" y="18" textAnchor="middle" fill={activeColor} stroke="none" fontSize="17" fontWeight="bold" fontFamily="monospace">{length + 1}/3</text>
-                  <text x="70" y="18" textAnchor="middle" fill={activeColor} stroke="none" fontSize="16" fontWeight="bold">{danger ? '!' : active ? (tentacleDirection === 1 ? '↓' : '↑') : ''}</text>
+                  <text x="70" y="18" textAnchor="middle" fill={activeColor} stroke="none" fontSize="16" fontWeight="bold">{danger ? '!' : tentacleDirections[index] === 1 ? '↓' : '↑'}</text>
                   {[0, 1, 2].map(stage => (
                     <rect key={stage} x={11 + stage * 20} y="25" width="17" height="5" rx="1"
                       fill={stage <= length ? octopusColor : 'none'} strokeWidth="1" opacity={stage <= length ? 1 : .35} />

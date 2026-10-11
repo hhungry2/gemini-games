@@ -74,41 +74,53 @@ test('Octopus: both movement into a tentacle and extension onto a diver cause on
   const recovered = tickOctopus(caught, 'gameA');
   assert.equal(recovered.diverPos, 0);
   assert.deepEqual(recovered.tentacles, [0, 0, 0, 0]);
-  assert.equal(recovered.activeTentacle, 0);
-  assert.equal(recovered.tentacleDirection, 1);
+  assert.deepEqual(recovered.tentacleDirections, [1, 1, 1, 1]);
+  assert.deepEqual(recovered.tentacleTimers, [1, 2, 3, 4]);
 });
 
-test('Octopus: arms cycle left to right, extending and retracting one stage at a time', () => {
+test('Octopus: all four arms overlap with staggered timing and traverse adjacent stages', () => {
   let state = createOctopus();
-  for (let cycle = 0; cycle < 5; cycle++) {
-    for (let arm = 0; arm < 4; arm++) {
-      assert.equal(state.activeTentacle, arm);
-      for (const expectedLength of [1, 2, 1, 0]) {
-        const before = structuredClone(state);
-        const next = tickOctopus(state);
-        assert.deepEqual(state, before, 'a clock transition must not mutate the previous snapshot');
-        assert.equal(next.tentacles[arm], expectedLength);
-        assert.ok(next.tentacles.every((length, index) => index === arm || length === 0), 'other arms must stay retracted');
-        assert.equal(next.activeTentacle, expectedLength === 0 ? (arm + 1) % 4 : arm);
-        assert.equal(next.misses, 0);
-        state = next;
-      }
+  const histories = [[], [], [], []];
+  let overlapping = false;
+  let simultaneousDanger = false;
+  for (let tick = 0; tick < 200; tick++) {
+    const before = structuredClone(state);
+    const next = tickOctopus(state);
+    assert.deepEqual(state, before, 'a clock transition must not mutate the previous snapshot');
+    next.tentacles.forEach((length, arm) => {
+      assert.ok([0, 1, 2].includes(length));
+      assert.ok(Math.abs(length - state.tentacles[arm]) <= 1, 'an arm must never skip its warning stage');
+      if (length !== state.tentacles[arm]) histories[arm].push(length);
+    });
+    overlapping ||= next.tentacles.every(length => length > 0);
+    simultaneousDanger ||= next.tentacles.filter(length => length === 2).length > 1;
+    assert.equal(next.misses, 0);
+    state = next;
+  }
+  assert.ok(overlapping, 'all four arms must be able to extend concurrently');
+  assert.ok(simultaneousDanger, 'one dangerous arm must not block another arm from extending');
+  assert.ok(new Set(histories.map(history => history.length)).size > 1, 'the arms need independent cadences');
+  for (const history of histories) {
+    assert.ok(history.length > 30, 'every arm must keep moving');
+    for (let index = 0; index < history.length; index++) {
+      assert.equal(history[index], [1, 2, 1, 0][index % 4]);
     }
   }
 });
 
 test('Octopus: the longest stage catches the matching diver position on each of the four arms', () => {
   for (let arm = 0; arm < 4; arm++) {
-    const initial = { ...createOctopus(), diverPos: arm + 2, activeTentacle: arm, goldInBag: 2 };
-    const middle = tickOctopus(initial);
-    assert.equal(middle.misses, 0, 'the middle stage must leave room to pass');
-    const longest = tickOctopus(middle);
+    let longest = { ...createOctopus(), diverPos: arm + 2, goldInBag: 2 };
+    while (longest.tentacles[arm] !== 2) {
+      assert.equal(longest.misses, 0, 'other arms and the middle stage must leave room to pass');
+      longest = tickOctopus(longest);
+    }
     assert.equal(longest.misses, 1);
     assert.equal(longest.diverPos, arm + 2);
     assert.equal(longest.goldInBag, 0);
     assert.equal(moveDiver(longest, -1), longest, 'inputs must be blocked during the catch');
     const recovered = tickOctopus(longest);
-    assert.equal(recovered.activeTentacle, 0);
+    assert.deepEqual(recovered.tentacleTimers, [1, 2, 3, 4]);
     assert.equal(recovered.diverPos, 0);
     assert.deepEqual(recovered.tentacles, [0, 0, 0, 0]);
     assert.equal(tickOctopus(recovered).tentacles[0], 1);

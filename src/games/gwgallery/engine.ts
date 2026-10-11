@@ -123,17 +123,23 @@ export function tickFire(state: FireState, difficulty: GameDifficulty): FireStat
 
 export type DiverPosition = 0 | 1 | 2 | 3 | 4 | 5;
 type TentacleLength = 0 | 1 | 2;
-type TentacleIndex = 0 | 1 | 2 | 3;
 type Tentacles = [TentacleLength, TentacleLength, TentacleLength, TentacleLength];
+type TentacleDirections = [-1 | 1, -1 | 1, -1 | 1, -1 | 1];
+type TentacleTimers = [number, number, number, number];
+const restingTentacles = () => ({
+  tentacles: [0, 0, 0, 0] as Tentacles,
+  tentacleDirections: [1, 1, 1, 1] as TentacleDirections,
+  tentacleTimers: [1, 2, 3, 4] as TentacleTimers,
+});
 export interface OctopusState extends SessionState {
   diverPos: DiverPosition;
   tentacles: Tentacles;
-  activeTentacle: TentacleIndex;
-  tentacleDirection: -1 | 1;
+  tentacleDirections: TentacleDirections;
+  tentacleTimers: TentacleTimers;
   goldInBag: number;
 }
 export const createOctopus = (): OctopusState => ({
-  ...initialSession(), diverPos: 0, tentacles: [0, 0, 0, 0], activeTentacle: 0, tentacleDirection: 1, goldInBag: 0,
+  ...initialSession(), ...restingTentacles(), diverPos: 0, goldInBag: 0,
 });
 function catchDiver(state: OctopusState): OctopusState {
   return { ...state, misses: state.misses + 1, goldInBag: 0, recoveryMs: 1200, sounds: ['miss'] };
@@ -155,18 +161,27 @@ export function moveDiver(state: OctopusState, direction: -1 | 1): OctopusState 
 export function tickOctopus(state: OctopusState): OctopusState {
   if (state.misses >= 3) return state;
   if (state.recoveryMs) return {
-    ...state, diverPos: 0, tentacles: [0, 0, 0, 0], activeTentacle: 0, tentacleDirection: 1,
+    ...state, ...restingTentacles(), diverPos: 0,
     recoveryMs: 0, tick: 0, sounds: [],
   };
   const tentacles = [...state.tentacles] as Tentacles;
-  // Each arm completes short -> middle -> long -> middle -> short before the next arm.
-  // Difficulty changes the clock in OctopusGame, keeping this left-to-right order readable.
-  const length = (tentacles[state.activeTentacle] + state.tentacleDirection) as TentacleLength;
-  tentacles[state.activeTentacle] = length;
+  const tentacleDirections = [...state.tentacleDirections] as TentacleDirections;
+  const tentacleTimers = [...state.tentacleTimers] as TentacleTimers;
+  let changed = false;
+  // Independent clocks overlap the arms' motion. Every arm still traverses adjacent stages.
+  for (let arm = 0; arm < 4; arm++) {
+    tentacleTimers[arm]--;
+    if (tentacleTimers[arm] > 0) continue;
+    const length = (tentacles[arm] + tentacleDirections[arm]) as TentacleLength;
+    tentacles[arm] = length;
+    if (length === 2) tentacleDirections[arm] = -1;
+    else if (length === 0) tentacleDirections[arm] = 1;
+    tentacleTimers[arm] = arm % 2 === 0 ? 2 : 3;
+    changed = true;
+  }
   const next: OctopusState = {
-    ...state, tick: state.tick + 1, tentacles, sounds: ['octoStep'],
-    activeTentacle: length === 0 ? ((state.activeTentacle + 1) % 4) as TentacleIndex : state.activeTentacle,
-    tentacleDirection: length === 2 ? -1 : length === 0 ? 1 : state.tentacleDirection,
+    ...state, tick: state.tick + 1, tentacles, tentacleDirections, tentacleTimers,
+    sounds: changed ? ['octoStep'] : [],
   };
   return next.diverPos >= 2 && tentacles[next.diverPos - 2] === 2 ? catchDiver(next) : next;
 }
