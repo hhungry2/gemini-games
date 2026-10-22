@@ -63,7 +63,7 @@ export const Header: React.FC<HeaderProps> = ({
               </div>
               <div className="flex items-center gap-1 sm:gap-2">
                 <span
-                  className={`font-black text-base sm:text-xl tracking-wider ${
+                  className={`${activeGame ? 'hidden min-[440px]:inline' : ''} font-black text-base sm:text-xl tracking-wider ${
                     isDark
                       ? 'bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-pink-300'
                       : 'bg-clip-text text-transparent bg-gradient-to-r from-slate-900 via-indigo-700 to-purple-700'
@@ -183,9 +183,13 @@ export const Header: React.FC<HeaderProps> = ({
             {/* 操作方法ボタン (ゲームプレイ時に表示) */}
             {activeGame && (
               <button
+                aria-label="操作方法"
                 onClick={() => {
                   if (activeGame === 'spindoctor') window.dispatchEvent(new Event('spindoctor:help'));
-                  else setShowHelp(true);
+                  else {
+                    window.dispatchEvent(new Event('games-hub:pause'));
+                    setShowHelp(true);
+                  }
                 }}
                 className={`flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-xl border transition ${
                   isDark
@@ -203,7 +207,7 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* 操作方法モーダル */}
       {showHelp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+        <div data-game-modal="help" className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
           <div
             className={`border rounded-3xl max-w-md w-full p-6 shadow-2xl relative max-h-[90vh] overflow-y-auto ${
               isDark
@@ -223,6 +227,18 @@ export const Header: React.FC<HeaderProps> = ({
               <X className="w-5 h-5" />
             </button>
 
+            {activeGame && ['agario', 'wario', 'holeio', 'jewel'].includes(activeGame) && (
+              <>
+                <h3 className="text-xl font-black mb-4 flex items-center gap-2"><Gamepad2 className="w-5 h-5 text-indigo-500" />操作方法</h3>
+                <div className="space-y-3 text-sm leading-7">
+                  {activeGame === 'agario' && <><p>小さな粒と自分より小さい細胞を食べて成長。大きい細胞からは逃げよう。</p><p>マウス・ドラッグ・方向キーで移動。タッチスティックも使えます。<b>Space</b> で分裂、<b>W</b> で質量放出。分裂した細胞は12秒後から再結合できます。</p><p>フリーアリーナと90秒アタックでCPUに挑戦。</p></>}
+                  {activeGame === 'wario' && <><p>画面に出る指令を、数秒でクリアしよう。4ライフで8種類のゲームに挑戦し、5クリアごとにスピードアップ。</p><p>タップ / <b>Space</b> が基本操作。移動や選択はドラッグ / <b>← →</b>。各ゲームの指令に操作方法も表示されます。</p><p>「えらんで練習」では、好きなゲームをくり返し遊べます。</p></>}
+                  {activeGame === 'holeio' && <><p>光る輪がついたものを飲み込んで成長。小物から木、車、建物へと食べられるものが増えます。</p><p>ドラッグ・<b>WASD</b>・方向キーで移動。<b>Space / Shift</b> またはダッシュボタンの長押しで加速。スタミナは離すと回復します。</p><p>大きいライバルに注意。90秒 / 2分のラウンド終了時にスコアで順位が決まります。</p></>}
+                  {activeGame === 'jewel' && <><p>隣り合う宝石をスワイプ、または順番にクリックして交換。同じ色が3つ以上で消えます。</p><p>4つで光線、交差で爆弾、5つでレインボー。レインボーは隣の色を一掃します。</p><p>ヒント・ハンマー・シャッフル・一手戻すを活用しよう。キーボードは方向キーで選択、<b>Enter / Space</b> で確定。</p></>}
+                  <p className="text-xs text-slate-400">P / Esc またはゲーム内の停止ボタンで一時停止。この説明を閉じたら、ゲームの再開ボタンで続けられます。</p>
+                </div>
+              </>
+            )}
             {activeGame === 'shooter' && (
               <>
                 <h3 className="text-xl font-black mb-4 flex items-center gap-2">

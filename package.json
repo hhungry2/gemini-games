@@ -9,6 +9,7 @@
     "test:gwgallery": "node --test tests/gwgallery.test.mjs",
     "test:spindoctor": "node --test tests/spin-doctor.test.mjs tests/spin-doctor-playthrough.test.mjs",
     "test:superkart": "node --test tests/superkart.test.mjs",
+    "test:rebuild": "node --test tests/agario.test.mjs tests/wario.test.mjs tests/holeio.test.mjs tests/jewel.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

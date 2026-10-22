@@ -276,15 +276,15 @@ const GAMES: GameInfo[] = [
   {
     id: 'agario',
     title: '寒天セル.io (Agar.io)',
-    titleEn: 'Agar.io: Cell Devourer Action',
+    titleEn: 'Agar.io · Cell Arena',
     description:
-      '世界的大ヒット細胞捕食マルチプレイヤーゲームを完全再現！マップ中のエサ（Pellets）を吸い込み巨大化せよ！Spaceキーで細胞分裂（Split）急襲捕食、Wキーで質量射出（Feed）、トゲ（Virus）爆散＆トゲ発射ギミック、24体のAIボット対戦、3大ゲームモード（FFA・バトロワ・タイムアタック）、12種以上の美麗スキン完備！',
-    badge: '🔥 最新作！細胞捕食io',
+      '小さな粒から、アリーナの主役へ。CPUの細胞と競いながら成長するサバイバル。分裂・質量放出・再結合、フリーアリーナ＆90秒アタック、6色のカラー、マウス・キーボード・タッチ操作に対応。',
+    badge: 'RENEWAL · 細胞アリーナ',
     iconName: 'agario',
     color: 'from-cyan-500 via-sky-500 to-indigo-600',
     genre: 'io',
     genres: ['io', 'action', 'arcade'],
-    tags: ['アガリオ', '細胞捕食', '分裂スプリット', 'ウイルス爆散', 'バトロワ', 'リアルタイム対戦', 'スマホ・PC両対応'],
+    tags: ['アガリオ', '細胞捕食', '分裂スプリット', '再結合', '90秒アタック', 'CPU対戦', 'スマホ・PC両対応'],
   },
   {
     id: 'countmasters',
@@ -354,10 +354,10 @@ const GAMES: GameInfo[] = [
   {
     id: 'wario',
     title: 'メイド イン ワリオ (WarioWare)',
-    titleEn: 'Microgame Frenzy Action',
+    titleEn: 'Microgame Rush · Instant Arcade',
     description:
-      '4秒間の超短時間プチゲームが次々と襲来！「よけろ！」「ぬけ！」「つかめ！」「いれろ！」「おせ！」「きれ！」など直感反射アクションをクリアせよ！BPMが加速するスピードアップ＆プチゲーム図鑑（練習モード）完備！',
-    badge: '超爽快！瞬間アクション',
+      '数秒でひらめく、8種類のプチゲームラッシュ！跳ぶ・つかむ・連打・タイミングなどの指令に挑戦。4ライフ制、スピードアップ、えらんで練習、タッチ＆キーボード操作、ベスト記録に対応。',
+    badge: 'RENEWAL · 瞬間アクション',
     iconName: 'wario',
     color: 'from-amber-500 via-orange-600 to-rose-600',
     genre: 'action',
@@ -421,8 +421,8 @@ const GAMES: GameInfo[] = [
     title: 'ジュエルクエスト (Jewel Quest)',
     titleEn: 'Match-3 Cascade Puzzle',
     description:
-      '3つ以上つなげて爽快粉砕！4消し雷光レーザー、交差爆弾、5消しレインボーを駆使して超絶連鎖を決めろ！タイムアタック・エンドレス・全5面ステージミッションの3モード完備。',
-    badge: '新作！爽快パズル',
+      'ひらめきが、きらめきになる。宝石を3つそろえて連鎖をつなぐマッチ3パズル。4つで光線・交差で爆弾・5つでレインボー。30手チャレンジ・90秒アタック・全5ステージの冒険、ヒント・ハンマー・一手戻す機能を搭載。',
+    badge: 'RENEWAL · 宝石の連鎖',
     iconName: 'jewel',
     color: 'from-pink-500 via-purple-600 to-cyan-500',
     genre: 'puzzle',
@@ -432,10 +432,10 @@ const GAMES: GameInfo[] = [
   {
     id: 'holeio',
     title: 'ブラックホール.io (Hole.io)',
-    titleEn: 'City Devourer Physics Action',
+    titleEn: 'Hole City · A Delicious Little Rampage',
     description:
-      '地面のブラックホールとなり街のすべてを飲み込め！歩行者や車から始まり、ビルやライバルホールまで吸い込んで超巨大化！2.5D都市・8体の賢いBot対戦・3つのゲームモード・パワーアップ完備。',
-    badge: '新作！大迫力io',
+      '街をまるごと、いただきます。小さなものを飲み込んで成長し、車や建物、ライバルへ挑戦。飲み込めるものがわかる街並み、CPU対戦、ダッシュ、2分＆90秒ラウンド、スマホ・キーボード操作に対応。',
+    badge: 'RENEWAL · 街を飲み込もう',
     iconName: 'holeio',
     color: 'from-sky-500 via-indigo-600 to-rose-600',
     genre: 'io',
@@ -942,6 +942,7 @@ export function App() {
   // ゲーム一覧に戻る要求ハンドラー（ゲームプレイ中の場合は確認ダイアログを表示）
   const requestGoHome = () => {
     if (activeGame) {
+      window.dispatchEvent(new Event('games-hub:pause'));
       setShowExitConfirm(true);
     } else {
       confirmGoHome();
@@ -1571,9 +1572,11 @@ export function App() {
     );
   });
 
+  const usesViewportLayout = activeGame !== null && ['spindoctor', 'countmasters', 'agario', 'wario', 'holeio', 'jewel'].includes(activeGame);
+
   return (
     <div
-      style={activeGame === 'spindoctor' || activeGame === 'countmasters' ? { height: '100dvh', minHeight: 0, overflow: 'hidden' } : undefined}
+      style={usesViewportLayout ? { height: '100dvh', minHeight: 0, overflow: 'hidden' } : undefined}
       className={`min-h-screen flex flex-col antialiased transition-colors duration-200 ${
         isDark
           ? 'bg-slate-950 text-slate-100 selection:bg-indigo-500 selection:text-white'
@@ -1593,6 +1596,7 @@ export function App() {
       {/* ゲーム一覧に戻る確認モーダル */}
       {showExitConfirm && (
         <div
+          data-game-modal="exit"
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200"
           onClick={cancelGoHome}
         >
@@ -1650,7 +1654,7 @@ export function App() {
       )}
 
       <main
-        style={activeGame === 'spindoctor' || activeGame === 'countmasters' ? { minHeight: 0 } : undefined}
+        style={usesViewportLayout ? { minHeight: 0 } : undefined}
         className={`flex-1 w-full flex flex-col items-center justify-center transition-all duration-300 ${
           isFullscreen
             ? activeGame
@@ -1925,7 +1929,7 @@ export function App() {
             </div>
           </div>
         ) : (
-          <div className={`w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300 ${activeGame === 'spindoctor' || activeGame === 'countmasters' ? 'min-h-0' : ''}`}>
+          <div className={`w-full h-full flex flex-col items-center justify-center animate-in fade-in duration-300 ${usesViewportLayout ? 'min-h-0 flex-1' : ''}`}>
             {activeGame === 'spindoctor' && (
               <SpinDoctorGame
                 onBackToHub={requestGoHome}
