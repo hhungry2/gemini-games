@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BookOpen, Crown, Heart, Pause, Play, RotateCcw, Search, Volume2, VolumeX, X, Zap } from 'lucide-react';
 import type { WarioGameProps } from './wario/types';
-import { createRushSession, clearRushInput, emptyRushInput, pauseRush, readRushRecord, RUSH_GAMES, rushDefinition, rushRoundDefinition, rushSpeed, rushVariationName, startRush, stepRush, type RushId, type RushSession } from './wario/engine';
+import { createRushSession, clearRushInput, emptyRushInput, isRushBoss, pauseRush, readRushRecord, RUSH_BOSSES, RUSH_GAMES, rushDefinition, rushRoundDefinition, rushSpeed, rushVariationName, startRush, stepRush, type RushId, type RushSession } from './wario/engine';
 import { renderRush } from './wario/render';
 import { warioAudio } from './wario/WarioAudio';
 import { sound } from '../utils/audio';
@@ -19,11 +19,11 @@ const practiceCategories = [
 ] as const;
 type PracticeCategory = typeof practiceCategories[number]['id'];
 const normalizePracticeSearch = (value: string) => value.normalize('NFKC').toLowerCase().trim();
-const filterPracticeGames = (category: PracticeCategory, search: string) => {
+const filterPracticeGames = (category: PracticeCategory, search: string, bosses = false) => {
   const terms = normalizePracticeSearch(search).split(/\s+/).filter(Boolean);
-  return RUSH_GAMES.filter(game => (category === 'all' || game.category === category) && terms.every(term => {
-    if (/^#?\d+$/.test(term)) return Number(game.number) === Number(term.replace('#', ''));
-    return normalizePracticeSearch(`${game.name} ${game.command} ${game.hint} ${game.variations?.map(variant => `${variant.name} ${variant.command ?? ''} ${variant.hint ?? ''}`).join(' ') ?? ''}`).includes(term);
+  return (bosses ? RUSH_BOSSES : RUSH_GAMES).filter((game, index) => (bosses || category === 'all' || game.category === category) && terms.every(term => {
+    if (/^#?\d+$/.test(term)) return (bosses ? index + 1 : Number(game.number)) === Number(term.replace('#', ''));
+    return normalizePracticeSearch(`${bosses ? `B${index + 1}` : game.number} ${game.name} ${game.command} ${game.hint} ${game.variations?.map(variant => `${variant.name} ${variant.command ?? ''} ${variant.hint ?? ''}`).join(' ') ?? ''}`).includes(term);
   }));
 };
 
@@ -42,6 +42,8 @@ export function WarioGame({ isDark, isFullscreen = false }: WarioGameProps) {
   const [muted, setMuted] = useState(sound.getMuted());
   const [selected, setSelected] = useState<RushId>('jump');
   const selectedRef = useRef(selected);
+  const selectedBossRef = useRef<RushId>('boss');
+  const selectedMicrogameRef = useRef<RushId>('jump');
   const [practiceVariations, setPracticeVariations] = useState<Partial<Record<RushId, number | null>>>({});
   const practiceVariationsRef = useRef(practiceVariations);
   const [category, setCategory] = useState<PracticeCategory>('all');
@@ -49,7 +51,11 @@ export function WarioGame({ isDark, isFullscreen = false }: WarioGameProps) {
   const [fit, setFit] = useState({ width: 640, height: 480 });
   const sync = () => setView({ ...sessionRef.current });
   const focusCanvas = () => canvasRef.current?.focus({ preventScroll: true });
-  const selectPractice = (id: RushId) => { setSelected(id); selectedRef.current = id; };
+  const selectPractice = (id: RushId) => {
+    setSelected(id); selectedRef.current = id;
+    if (isRushBoss(id)) selectedBossRef.current = id;
+    else selectedMicrogameRef.current = id;
+  };
   const chooseVariation = (variation: number | null) => {
     const next = { ...practiceVariationsRef.current, [selectedRef.current]: variation };
     practiceVariationsRef.current = next; setPracticeVariations(next);
@@ -86,6 +92,11 @@ export function WarioGame({ isDark, isFullscreen = false }: WarioGameProps) {
     heldKeysRef.current.clear();
     clearRushInput(inputRef.current);
     sync();
+  };
+  const openPractice = (bosses = false) => {
+    setCategory('all'); setPracticeSearch('');
+    selectPractice(bosses ? selectedBossRef.current : selectedMicrogameRef.current);
+    showMenu('practice');
   };
   const togglePause = () => {
     const s = sessionRef.current;
@@ -259,27 +270,28 @@ export function WarioGame({ isDark, isFullscreen = false }: WarioGameProps) {
 
   const playing = activePhases.includes(view.phase);
   const practicing = Boolean(view.practice) && view.phase !== 'title';
-  const isBoss = view.game?.id === 'boss';
+  const isBoss = isRushBoss(view.game?.id);
+  const bossPractice = isRushBoss(selected);
   const bossVictory = isBoss && view.result === 'success';
   const bossProgress = isBoss && playing
     ? bossVictory ? 'ボス撃破！' : 'ボス挑戦中'
     : `次のボスまであと ${Math.max(0, 10 - view.clearsSinceBoss)} クリア`;
   const footerStatus = view.phase === 'practice'
-    ? `${selected === 'boss' ? 'BOSS ' : ''}PRACTICE · パターンをえらんで練習`
+    ? `${bossPractice ? 'BOSS ' : ''}PRACTICE · パターンをえらんで練習`
     : practicing
-    ? `${view.practice === 'boss' ? 'BOSS ' : ''}PRACTICE · 記録には入りません`
+    ? `${isRushBoss(view.practice) ? 'BOSS ' : ''}PRACTICE · 記録には入りません`
     : playing || view.phase === 'over'
       ? `${bossProgress} · 撃破 ${view.bossesDefeated}`
-      : `${RUSH_GAMES.length} 種類のプチゲーム ＋ ボスステージ`;
+      : `${RUSH_GAMES.length} 種類のプチゲーム ＋ ${RUSH_BOSSES.length} 体のボス`;
   const definition = view.game ? rushRoundDefinition(view.game) : RUSH_GAMES[0];
   const practiceVariation = practiceVariations[selected] ?? null;
   const trainingBase = rushDefinition(selected);
   const trainingDefinition = practiceVariation === null ? trainingBase : rushRoundDefinition({ id: selected, variation: practiceVariation });
   const trainingVariationName = practiceVariation === null ? 'おまかせ' : rushVariationName(selected, practiceVariation);
-  const practiceGames = filterPracticeGames(category, practiceSearch);
+  const practiceGames = filterPracticeGames(category, practiceSearch, bossPractice);
   practiceAvailableRef.current = practiceGames.length > 0;
   const preservePracticeSelection = (next: PracticeCategory, search: string) => {
-    const games = filterPracticeGames(next, search);
+    const games = filterPracticeGames(next, search, isRushBoss(selectedRef.current));
     if (!games.some(game => game.id === selectedRef.current) && games[0]) selectPractice(games[0].id);
   };
   const chooseCategory = (next: PracticeCategory) => {
@@ -355,11 +367,11 @@ export function WarioGame({ isDark, isFullscreen = false }: WarioGameProps) {
         {view.phase === 'title' && <div className="wario-overlay wario-title">
           <span className="wario-kicker">{RUSH_GAMES.length} GAMES / {RUSH_GAMES.reduce((total, game) => total + (game.variations?.length ?? 1), 0)} PATTERNS</span>
           <h1>プチゲーム<br /><span>ラッシュ！</span></h1>
-          <p>5 秒のひらめきをつなげ！<br />10 クリアごとに、20 秒のボスが出現。</p>
+          <p>5 秒のひらめきをつなげ！<br />10 クリアごとにボス戦！ 全 {RUSH_BOSSES.length} 体・20 秒の勝負。</p>
           <button className="wario-primary" onClick={() => start()}><Play size={19} fill="currentColor" />ラッシュをはじめる</button>
           <div className="wario-title-options">
-            <button className="wario-secondary" onClick={() => showMenu('practice')}><BookOpen size={16} />えらんで練習</button>
-            <button className="wario-secondary wario-boss-button" onClick={() => start('boss')}><Crown size={16} />ボスに挑戦</button>
+            <button className="wario-secondary" onClick={() => openPractice()}><BookOpen size={16} />えらんで練習</button>
+            <button className="wario-secondary wario-boss-button" onClick={() => openPractice(true)}><Crown size={16} />ボスに挑戦</button>
           </div>
           <small className="wario-title-record">4 ライフで挑戦 · 5 クリアごとにスピードアップ</small>
         </div>}
@@ -394,20 +406,20 @@ export function WarioGame({ isDark, isFullscreen = false }: WarioGameProps) {
         </div>}
 
         {view.phase === 'practice' && <div className="wario-overlay wario-practice">
-          <div className="wario-practice-head"><div><span className="wario-kicker" role="status">{practiceGames.length} / {RUSH_GAMES.length} GAMES · スクロールで選ぶ</span><h2>えらんで練習</h2></div><button className="wario-icon" aria-label="タイトルに戻る" onClick={() => showMenu('title')}><X size={20} /></button></div>
-          <div className="wario-practice-categories" role="group" aria-label="ミニゲームのジャンル">
+          <div className="wario-practice-head"><div><span className="wario-kicker" role="status">{practiceGames.length} / {bossPractice ? RUSH_BOSSES.length : RUSH_GAMES.length} {bossPractice ? 'BOSSES · 各 3 パターン / 20 秒' : 'GAMES · スクロールで選ぶ'}</span><h2>{bossPractice ? 'ボスをえらぶ' : 'えらんで練習'}</h2></div><button className="wario-icon" aria-label="タイトルに戻る" onClick={() => showMenu('title')}><X size={20} /></button></div>
+          {!bossPractice && <div className="wario-practice-categories" role="group" aria-label="ミニゲームのジャンル">
             {practiceCategories.map(item => <button key={item.id} className={category === item.id ? 'is-active' : ''} aria-pressed={category === item.id} onClick={() => chooseCategory(item.id)}>
               {item.name}<span>{item.id === 'all' ? RUSH_GAMES.length : RUSH_GAMES.filter(game => game.category === item.id).length}</span>
             </button>)}
-          </div>
+          </div>}
           <div className="wario-practice-search">
             <Search size={15} aria-hidden="true" />
-            <input ref={practiceSearchRef} type="search" aria-label="ミニゲームを名前・お題・番号で検索" placeholder="名前・お題・番号でさがす" value={practiceSearch} maxLength={60} autoComplete="off" spellCheck={false} onChange={event => searchPractice(event.target.value)} />
+            <input ref={practiceSearchRef} type="search" aria-label={`${bossPractice ? 'ボス' : 'ミニゲーム'}を名前・お題・番号で検索`} placeholder="名前・お題・番号でさがす" value={practiceSearch} maxLength={60} autoComplete="off" spellCheck={false} onChange={event => searchPractice(event.target.value)} />
             {practiceSearch && <button aria-label="検索をクリア" onClick={() => { searchPractice(''); practiceSearchRef.current?.focus({ preventScroll: true }); }}><X size={15} /></button>}
           </div>
-          <div ref={practiceGridRef} className="wario-practice-grid" role="group" aria-label={`${practiceCategories.find(item => item.id === category)?.name}のミニゲーム`}>
+          <div ref={practiceGridRef} className={`wario-practice-grid ${bossPractice ? 'wario-boss-grid' : ''}`} role="group" aria-label={bossPractice ? 'ボスステージの一覧' : `${practiceCategories.find(item => item.id === category)?.name}のミニゲーム`}>
             {practiceGames.map(game => <button key={game.id} className={`wario-game-card ${selected === game.id ? 'is-selected' : ''}`} aria-pressed={selected === game.id} onClick={() => selectPractice(game.id)}>
-              <b style={{ background: game.color }}>{game.number}</b><span><span className="wario-card-title">{game.name}{Number(game.number) >= 25 && <em className="wario-new-badge" aria-label="新作">NEW</em>}</span><small>{game.command}</small></span>
+              <b style={{ background: game.color }}>{bossPractice ? <><Crown size={18} aria-hidden="true" /><span>B{RUSH_BOSSES.findIndex(boss => boss.id === game.id) + 1}</span></> : game.number}</b><span><span className="wario-card-title">{game.name}{(bossPractice ? game.id !== 'boss' : Number(game.number) >= 25) && <em className="wario-new-badge" aria-label="新作">NEW</em>}</span><small>{game.command}</small></span>
             </button>)}
             {practiceGames.length === 0 && <div className="wario-practice-empty"><strong>見つかりませんでした</strong><p>言葉やジャンルを変えてみよう。</p><button className="wario-text-button" onClick={resetPracticeFilters}>条件をリセット</button></div>}
           </div>
@@ -416,7 +428,7 @@ export function WarioGame({ isDark, isFullscreen = false }: WarioGameProps) {
               <option value="auto">おまかせ（毎回かわる）</option>
               {trainingBase.variations?.map((variant, index) => <option key={index} value={index}>{index + 1}. {variant.name}</option>)}
             </select></label>
-            <button className={`wario-practice-boss ${selected === 'boss' ? 'is-selected' : ''}`} aria-label="ボスステージの練習を選ぶ" aria-pressed={selected === 'boss'} onClick={() => { setCategory('all'); setPracticeSearch(''); selectPractice('boss'); }}><Crown size={14} aria-hidden="true" />BOSS</button>
+            <button className={`wario-practice-boss ${bossPractice ? 'is-selected' : ''}`} aria-label={bossPractice ? 'プチゲームの練習を選ぶ' : 'ボスステージの練習を選ぶ'} aria-pressed={bossPractice} onClick={() => { setCategory('all'); setPracticeSearch(''); selectPractice(bossPractice ? selectedMicrogameRef.current : selectedBossRef.current); }}>{bossPractice ? <BookOpen size={14} aria-hidden="true" /> : <Crown size={14} aria-hidden="true" />}{bossPractice ? 'プチゲーム' : `BOSS ${RUSH_BOSSES.length}`}</button>
           </div>
           <div className="wario-practice-footer"><p aria-label={practiceGames.length > 0 ? `${trainingDefinition.name} / ${trainingVariationName}。${trainingDefinition.hint}` : undefined}>{practiceGames.length > 0 ? <><strong>{trainingDefinition.name}<em>{trainingVariationName}</em></strong><span className="wario-training-hint">{trainingDefinition.hint}</span><span className="wario-training-short">{trainingDefinition.shortHint}</span></> : 'ゲームを選ぶと、ここに遊び方が表示されます。'}</p><button className="wario-primary" disabled={practiceGames.length === 0} onClick={() => start(selected, practiceVariation)}><Play size={17} fill="currentColor" />練習する</button></div>
         </div>}

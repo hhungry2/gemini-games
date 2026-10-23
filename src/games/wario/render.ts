@@ -1,9 +1,11 @@
-import { rushRoundDefinition, rushObstacleX, type RushSession } from './engine';
+import { rushRoundDefinition, rushObstacleX, isRushBoss, type RushSession } from './engine';
 import { renderPuzzleGame } from './puzzleRender';
 import { renderActionGame } from './actionRender';
 import { renderBrainGame } from './brainRender';
 import { renderArcadeGame } from './arcadeRender';
 import { renderBossGame } from './bossRender';
+import { renderFlightBoss } from './flightBossRender';
+import { renderChallengeBoss } from './challengeBossRender';
 
 const INK = '#192338';
 const CREAM = '#fff7e3';
@@ -213,10 +215,12 @@ export function renderRush(ctx: CanvasRenderingContext2D, session: RushSession, 
   else if (g.extra?.pack === 'brain') renderBrainGame(ctx, session);
   else if (g.extra?.pack === 'arcade') renderArcadeGame(ctx, session);
   else if (g.extra?.pack === 'boss') renderBossGame(ctx, session);
+  else if (g.extra?.pack === 'flight-boss') renderFlightBoss(ctx, session);
+  else if (g.extra?.pack === 'challenge-boss') renderChallengeBoss(ctx, session);
 
   // The command remains legible against every scene without covering the active play area.
   const definition = rushRoundDefinition(g);
-  const darkHeader = g.id === 'dodge' || g.id === 'boss';
+  const darkHeader = g.id === 'dodge' || isRushBoss(g.id);
   box(ctx, 0, 0, 640, 94, darkHeader ? '#192338' : '#fffdf7', 0);
   box(ctx, 20, 20, 44, 44, definition.color, 11); text(ctx, definition.number, 42, 43, 21);
   text(ctx, `${['A', 'B', 'C'][g.variation] ?? 'A'}`, 42, 79, 11, darkHeader ? '#bac2d2' : '#79796f');

@@ -3,9 +3,12 @@ import { ACTION_GAMES, createActionState, updateActionGame, type ActionId, type 
 import { BRAIN_GAMES, createBrainState, updateBrainGame, type BrainId, type BrainState } from './brainGames';
 import { ARCADE_GAMES, createArcadeState, updateArcadeGame, type ArcadeId, type ArcadeState } from './arcadeGames';
 import { BOSS_GAME, BOSS_DURATION, createBossState, updateBossGame, type BossId, type BossState } from './bossGame';
+import { FLIGHT_BOSSES, createFlightBossState, updateFlightBossGame, type FlightBossId, type FlightBossState } from './flightBosses';
+import { CHALLENGE_BOSSES, createChallengeBossState, updateChallengeBossGame, type ChallengeBossId, type ChallengeBossState } from './challengeBosses';
 import { CORE_VARIATIONS } from './coreVariations';
 
-export type RushId = 'jump' | 'catch' | 'inflate' | 'stop' | 'match' | 'dodge' | 'react' | 'sequence' | PuzzleId | ActionId | BrainId | ArcadeId | BossId;
+export type RushBossId = BossId | FlightBossId | ChallengeBossId;
+export type RushId = 'jump' | 'catch' | 'inflate' | 'stop' | 'match' | 'dodge' | 'react' | 'sequence' | PuzzleId | ActionId | BrainId | ArcadeId | RushBossId;
 export type RushCategory = 'action' | 'timing' | 'puzzle' | 'memory';
 export type RushPhase = 'title' | 'practice' | 'brief' | 'play' | 'result' | 'speedup' | 'over';
 export type RushSound = 'instruction' | 'start' | 'success' | 'failure' | 'speedup' | 'over' | 'pop';
@@ -46,6 +49,8 @@ export const RUSH_GAMES: RushDefinition[] = [
 for (const definition of RUSH_GAMES) {
   if (CORE_VARIATIONS[definition.id]) definition.variations = CORE_VARIATIONS[definition.id];
 }
+export const RUSH_BOSSES: RushDefinition[] = [BOSS_GAME, ...FLIGHT_BOSSES, ...CHALLENGE_BOSSES];
+export const isRushBoss = (id: RushId | null | undefined): id is RushBossId => RUSH_BOSSES.some(boss => boss.id === id);
 
 export interface RushInput {
   left: boolean;
@@ -87,7 +92,7 @@ export interface RushMicrogame {
   needle: number;
   result: 'success' | 'failure' | null;
   reason: string;
-  extra?: PuzzleState | ActionState | BrainState | ArcadeState | BossState;
+  extra?: PuzzleState | ActionState | BrainState | ArcadeState | BossState | FlightBossState | ChallengeBossState;
 }
 
 export interface RushSession {
@@ -101,6 +106,8 @@ export interface RushSession {
   clearsSinceBoss: number;
   bossEncounters: number;
   bossesDefeated: number;
+  bossBag: RushBossId[];
+  lastBoss: RushBossId | null;
   practice: RushId | null;
   practiceVariation: number | null;
   variationBags: Partial<Record<RushId, number[]>>;
@@ -117,7 +124,7 @@ export interface RushSession {
 
 export const emptyRushInput = (): RushInput => ({ left: false, right: false, up: false, down: false, leftPressed: false, rightPressed: false, upPressed: false, downPressed: false, action: false, actionHeld: false, actionReleased: false, pointerPressed: false, pointerDown: false, pointerX: 320, pointerY: 240 });
 export function clearRushInput(input: RushInput) { Object.assign(input, emptyRushInput()); }
-export const rushDefinition = (id: RushId) => id === 'boss' ? BOSS_GAME : RUSH_GAMES.find(game => game.id === id) ?? RUSH_GAMES[0];
+export const rushDefinition = (id: RushId) => RUSH_BOSSES.find(game => game.id === id) ?? RUSH_GAMES.find(game => game.id === id) ?? RUSH_GAMES[0];
 export function rushRoundDefinition(game: Pick<RushMicrogame, 'id' | 'variation'>): RushDefinition {
   const base = rushDefinition(game.id), variant = base.variations?.[game.variation];
   return variant ? { ...base, ...variant, name: base.name } : base;
@@ -132,7 +139,23 @@ function random(s: RushSession) {
 }
 
 export function createRushSession(seed = Date.now()): RushSession {
-  return { phase: 'title', paused: false, phaseTime: 0, round: 0, score: 0, lives: 4, level: 1, clearsSinceBoss: 0, bossEncounters: 0, bossesDefeated: 0, practice: null, practiceVariation: null, variationBags: {}, lastVariations: {}, elapsed: 0, duration: 5, seed: (seed >>> 0) || 104729, bag: [], last: null, game: null, sounds: [], result: null };
+  return { phase: 'title', paused: false, phaseTime: 0, round: 0, score: 0, lives: 4, level: 1, clearsSinceBoss: 0, bossEncounters: 0, bossesDefeated: 0, bossBag: [], lastBoss: null, practice: null, practiceVariation: null, variationBags: {}, lastVariations: {}, elapsed: 0, duration: 5, seed: (seed >>> 0) || 104729, bag: [], last: null, game: null, sounds: [], result: null };
+}
+
+/** Boss encounters have a separate deck, so every boss appears before the roster repeats. */
+export function selectRushBoss(s: RushSession): RushBossId {
+  if (isRushBoss(s.practice)) return s.practice;
+  if (!s.bossBag.length) {
+    s.bossBag = RUSH_BOSSES.map(boss => boss.id as RushBossId);
+    for (let index = s.bossBag.length - 1; index > 0; index--) {
+      const other = Math.floor(random(s) * (index + 1));
+      [s.bossBag[index], s.bossBag[other]] = [s.bossBag[other], s.bossBag[index]];
+    }
+    if (s.bossBag[s.bossBag.length - 1] === s.lastBoss) [s.bossBag[0], s.bossBag[s.bossBag.length - 1]] = [s.bossBag[s.bossBag.length - 1], s.bossBag[0]];
+  }
+  const id = s.bossBag.pop()!;
+  s.lastBoss = id;
+  return id;
 }
 
 /** Each game uses its own shuffled pattern deck; a new deck cannot repeat its last pattern. */
@@ -176,9 +199,9 @@ export function selectRushGame(s: RushSession): RushId {
 export function rushSpeed(level: number) { return Math.min(1.7, 1 + (Math.max(1, level) - 1) * 0.12); }
 
 function beginRound(s: RushSession, input: RushInput) {
-  const boss = s.practice === 'boss' || (!s.practice && s.clearsSinceBoss >= 10);
+  const boss = isRushBoss(s.practice) || (!s.practice && s.clearsSinceBoss >= 10);
   if (boss && !s.practice) { s.clearsSinceBoss = 0; s.bossEncounters++; }
-  const id: RushId = boss ? 'boss' : selectRushGame(s);
+  const id: RushId = boss ? selectRushBoss(s) : selectRushGame(s);
   const variation = selectRushVariation(s, id);
   const options = [0, 1, 2];
   for (let i = options.length - 1; i > 0; i--) {
@@ -195,7 +218,9 @@ function beginRound(s: RushSession, input: RushInput) {
       ? (variation === 1 ? [0, 0.65, 1.3, 1.95] : [0, 0.95, 1.9]).map((start, i) => ({ x: (variation === 1 ? [180, 420, 250, 390] : [180, 460, 270])[i], baseX: (variation === 1 ? [180, 420, 250, 390] : [180, 460, 270])[i], start, caught: false }))
       : id === 'dodge' && variation === 1 ? [110, 530, 320, 110, 530, 320].map((x, i) => ({ x, start: [0, 0, 0.9, 1.8, 1.8, 2.7][i], caught: false }))
       : [0, 0.75, 1.5, 2.25, 3].map(start => ({ x: 80 + random(s) * 480, start, caught: false, aimed: id === 'dodge' && variation === 2, locked: false })),
-    result: null, reason: '', extra: boss ? createBossState(s.practice ? 1 : s.bossEncounters, variation, () => random(s)) : createPuzzleState(id, s.level, () => random(s), variation) ?? createActionState(id, s.level, () => random(s), variation) ?? createBrainState(id, s.level, () => random(s), variation) ?? createArcadeState(id, s.level, () => random(s), variation),
+    result: null, reason: '', extra: boss
+      ? id === 'boss' ? createBossState(s.practice ? 1 : s.bossEncounters, variation, () => random(s)) : createFlightBossState(id, s.practice ? 1 : s.bossEncounters, variation, () => random(s)) ?? createChallengeBossState(id, s.practice ? 1 : s.bossEncounters, variation, () => random(s))
+      : createPuzzleState(id, s.level, () => random(s), variation) ?? createActionState(id, s.level, () => random(s), variation) ?? createBrainState(id, s.level, () => random(s), variation) ?? createArcadeState(id, s.level, () => random(s), variation),
   };
   s.game.baseTarget = s.game.target;
   if (id === 'catch') s.game.needed = s.game.drops.length;
@@ -228,7 +253,7 @@ function finish(s: RushSession, input: RushInput, result: 'success' | 'failure',
   if (result === 'success') {
     s.score++;
     if (!s.practice) {
-      if (s.game?.id === 'boss') {
+      if (isRushBoss(s.game?.id)) {
         s.bossesDefeated++;
         reason += s.lives < 4 ? ' ライフ＋1！' : ' ライフ満タン！';
         s.lives = Math.min(4, s.lives + 1);
@@ -236,21 +261,21 @@ function finish(s: RushSession, input: RushInput, result: 'success' | 'failure',
     }
   } else if (!s.practice) s.lives--;
   if (s.game) { s.game.result = result; s.game.reason = reason; }
-  s.phase = 'result'; s.phaseTime = s.game?.id === 'boss' ? 2.2 : s.practice ? 1.15 : 0.85;
+  s.phase = 'result'; s.phaseTime = isRushBoss(s.game?.id) ? 2.2 : s.practice ? 1.15 : 0.85;
   s.sounds.push(result);
   clearRushInput(input);
 }
 
 function updateMicrogame(s: RushSession, input: RushInput, dt: number) {
   const g = s.game!;
-  const localDt = g.id === 'boss' ? dt : dt * rushSpeed(s.level);
+  const localDt = isRushBoss(g.id) ? dt : dt * rushSpeed(s.level);
   g.time += localDt;
   if (g.id === 'catch' || g.id === 'dodge') {
     if (input.pointerDown) g.x = clamp(input.pointerX, 48, 592);
     else g.x = clamp(g.x + (Number(input.right) - Number(input.left)) * 400 * localDt, 48, 592);
   }
-  if (g.id === 'boss') {
-    const outcome = updateBossGame(s, input, localDt);
+  if (isRushBoss(g.id)) {
+    const outcome = updateBossGame(s, input, localDt) ?? updateFlightBossGame(s, input, localDt) ?? updateChallengeBossGame(s, input, localDt);
     if (outcome) finish(s, input, outcome.result, outcome.reason);
   } else if (g.id === 'jump') {
     if (input.action && g.jumpY >= 0) { g.velocityY = -740; s.sounds.push('pop'); }

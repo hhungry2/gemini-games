@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { load } from './helpers/wario-harness.mjs';
-const { RUSH_GAMES, createRushSession, emptyRushInput, startRush, stepRush, pauseRush, rushSpeed, rushDefinition, rushRoundDefinition, selectRushVariation, rushObstacleX, rushNeedleAt } = load('engine');
-const { BOSS_GAME, createBossState, bossLaneX } = load('bossGame');
+const { RUSH_GAMES, RUSH_BOSSES, createRushSession, emptyRushInput, startRush, stepRush, pauseRush, rushSpeed, rushDefinition, rushRoundDefinition, selectRushVariation, rushObstacleX, rushNeedleAt } = load('engine');
+const { createBossState, bossLaneX } = load('bossGame');
 const dt = 1 / 60;
 function ready(id, variation, level = 1, seed = 4581) {
   const state = createRushSession(seed), input = emptyRushInput();
@@ -74,9 +74,9 @@ function solveCore(state, input, pointer) {
   }
 }
 
-test('Each of forty games and the boss exposes three distinct, described gameplay patterns', () => {
+test('Each of forty games and five bosses exposes three distinct, described gameplay patterns', () => {
   assert.equal(RUSH_GAMES.length, 40);
-  for (const definition of [...RUSH_GAMES, BOSS_GAME]) {
+  for (const definition of [...RUSH_GAMES, ...RUSH_BOSSES]) {
     assert.equal(definition.variations?.length, 3, definition.id);
     assert.equal(new Set(definition.variations.map(variation => variation.name)).size, 3, definition.id);
     for (let variation = 0; variation < 3; variation++) {
@@ -87,7 +87,7 @@ test('Each of forty games and the boss exposes three distinct, described gamepla
 });
 
 test('Per-game pattern decks use all three before repeating and never repeat across deck boundaries', () => {
-  for (const definition of [...RUSH_GAMES, BOSS_GAME]) for (const seed of [1, 28, 959]) {
+  for (const definition of [...RUSH_GAMES, ...RUSH_BOSSES]) for (const seed of [1, 28, 959]) {
     const state = createRushSession(seed); let previous;
     for (let round = 0; round < 12; round++) {
       const group = [];
@@ -114,7 +114,7 @@ test('Explicit practice selection is stable, automatic practice rotates, and res
 });
 
 test('The same seed and pattern inputs reproduce the same boards and motion parameters', () => {
-  for (const definition of [...RUSH_GAMES, BOSS_GAME]) {
+  for (const definition of [...RUSH_GAMES, ...RUSH_BOSSES]) {
     const a = createRushSession(742), b = createRushSession(742), inputA = emptyRushInput(), inputB = emptyRushInput();
     for (let variation = 0; variation < 3; variation++) {
       startRush(a, inputA, definition.id, variation); startRush(b, inputB, definition.id, variation);
@@ -165,7 +165,7 @@ test('Wrong rule inputs fail and releasing a paused hold does not submit a react
   assert.equal(late.state.game.armed, false); assert.equal(late.state.result, null, 'a late press cannot replace holding from red');
 });
 
-test('All 123 gameplay patterns render with finite, non-negative geometry and preserve simulation state', () => {
+test('All 135 gameplay patterns render with finite, non-negative geometry and preserve simulation state', () => {
   const { renderRush } = load('render');
   const context = new Proxy({}, {
     get(_target, method) {
@@ -181,7 +181,7 @@ test('All 123 gameplay patterns render with finite, non-negative geometry and pr
     },
     set(_target, _key, value) { if (typeof value === 'number') assert.ok(Number.isFinite(value)); return true; },
   });
-  for (const definition of [...RUSH_GAMES, BOSS_GAME]) for (const variation of [0, 1, 2]) {
+  for (const definition of [...RUSH_GAMES, ...RUSH_BOSSES]) for (const variation of [0, 1, 2]) {
     const { state, input } = ready(definition.id, variation, 7, 5841);
     for (let frame = 0; state.phase === 'play' && frame < 1300; frame++) {
       if (RUSH_GAMES.slice(0, 8).some(game => game.id === definition.id)) solveCore(state, input, true);

@@ -29,7 +29,7 @@ function beatBoss(state, input) {
 
 test('Ten real regular clears schedule the boss after speedup without consuming the regular deck', () => {
   const state = createRushSession(94), input = emptyRushInput();
-  startRush(state, input, 'inflate'); state.practice = null; state.bag = Array(12).fill('inflate');
+  startRush(state, input, 'inflate'); state.practice = null; state.bag = Array(12).fill('inflate'); state.bossBag = ['boss'];
   for (let clear = 1; clear <= 10; clear++) {
     nextPlay(state, input); assert.equal(state.game.id, 'inflate');
     while (state.phase === 'play') {

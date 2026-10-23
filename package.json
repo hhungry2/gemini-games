@@ -9,8 +9,8 @@
     "test:gwgallery": "node --test tests/gwgallery.test.mjs",
     "test:spindoctor": "node --test tests/spin-doctor.test.mjs tests/spin-doctor-playthrough.test.mjs",
     "test:superkart": "node --test tests/superkart.test.mjs",
-    "test:wario": "node --test --test-concurrency=1 tests/wario.test.mjs tests/wario-puzzles.test.mjs tests/wario-actions.test.mjs tests/wario-brain.test.mjs tests/wario-arcade.test.mjs tests/wario-boss.test.mjs tests/wario-boss-flow.test.mjs tests/wario-boss-render.test.mjs tests/wario-variations.test.mjs tests/wario-puzzle-variations.test.mjs",
-    "test:rebuild": "node --test --test-concurrency=1 tests/agario.test.mjs tests/wario.test.mjs tests/wario-puzzles.test.mjs tests/wario-actions.test.mjs tests/wario-brain.test.mjs tests/wario-arcade.test.mjs tests/wario-boss.test.mjs tests/wario-boss-flow.test.mjs tests/wario-boss-render.test.mjs tests/wario-variations.test.mjs tests/wario-puzzle-variations.test.mjs tests/holeio.test.mjs tests/jewel.test.mjs",
+    "test:wario": "node --test --test-concurrency=1 tests/wario.test.mjs tests/wario-puzzles.test.mjs tests/wario-actions.test.mjs tests/wario-brain.test.mjs tests/wario-arcade.test.mjs tests/wario-boss.test.mjs tests/wario-boss-flow.test.mjs tests/wario-boss-render.test.mjs tests/wario-boss-roster.test.mjs tests/wario-flight-bosses.test.mjs tests/wario-challenge-bosses.test.mjs tests/wario-variations.test.mjs tests/wario-puzzle-variations.test.mjs",
+    "test:rebuild": "node --test --test-concurrency=1 tests/agario.test.mjs tests/wario.test.mjs tests/wario-puzzles.test.mjs tests/wario-actions.test.mjs tests/wario-brain.test.mjs tests/wario-arcade.test.mjs tests/wario-boss.test.mjs tests/wario-boss-flow.test.mjs tests/wario-boss-render.test.mjs tests/wario-boss-roster.test.mjs tests/wario-flight-bosses.test.mjs tests/wario-challenge-bosses.test.mjs tests/wario-variations.test.mjs tests/wario-puzzle-variations.test.mjs tests/holeio.test.mjs tests/jewel.test.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
