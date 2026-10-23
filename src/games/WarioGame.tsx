@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { BookOpen, Heart, Pause, Play, RotateCcw, Search, Volume2, VolumeX, X, Zap } from 'lucide-react';
+import { BookOpen, Crown, Heart, Pause, Play, RotateCcw, Search, Volume2, VolumeX, X, Zap } from 'lucide-react';
 import type { WarioGameProps } from './wario/types';
 import { createRushSession, clearRushInput, emptyRushInput, pauseRush, readRushRecord, RUSH_GAMES, rushDefinition, rushSpeed, startRush, stepRush, type RushId, type RushSession } from './wario/engine';
 import { renderRush } from './wario/render';
@@ -252,6 +252,17 @@ export function WarioGame({ isDark, isFullscreen = false }: WarioGameProps) {
   }, []);
 
   const playing = activePhases.includes(view.phase);
+  const practicing = Boolean(view.practice) && view.phase !== 'title';
+  const isBoss = view.game?.id === 'boss';
+  const bossVictory = isBoss && view.result === 'success';
+  const bossProgress = isBoss && playing
+    ? bossVictory ? 'ボス撃破！' : 'ボス挑戦中'
+    : `次のボスまであと ${Math.max(0, 10 - view.clearsSinceBoss)} クリア`;
+  const footerStatus = practicing
+    ? `${view.practice === 'boss' ? 'BOSS ' : ''}PRACTICE · 記録には入りません`
+    : playing || view.phase === 'over'
+      ? `${bossProgress} · 撃破 ${view.bossesDefeated}`
+      : `${RUSH_GAMES.length} 種類のプチゲーム ＋ ボスステージ`;
   const definition = view.game ? rushDefinition(view.game.id) : RUSH_GAMES[0];
   const trainingDefinition = rushDefinition(selected);
   const practiceGames = filterPracticeGames(category, practiceSearch);
@@ -283,12 +294,12 @@ export function WarioGame({ isDark, isFullscreen = false }: WarioGameProps) {
   return <div className={`wario-root ${isFullscreen ? 'wario-fullscreen' : ''}`} data-theme={isDark ? 'dark' : 'light'}>
     <header className="wario-hud">
       <div className="wario-stats">
-        <div><small>{view.practice ? 'PRACTICE' : 'CLEAR'}</small><strong>{view.score.toString().padStart(2, '0')}</strong></div>
+        <div><small>{practicing ? 'PRACTICE' : 'CLEAR'}</small><strong>{view.score.toString().padStart(2, '0')}</strong></div>
         <div><small>BEST</small><strong className="wario-best">{records.score.toString().padStart(2, '0')}</strong></div>
         <div><small>SPEED</small><strong className="wario-speed">{rushSpeed(view.level).toFixed(2)}<em>×</em></strong></div>
       </div>
       <div className="wario-hud-right">
-        <div className="wario-lives" aria-label={view.practice ? '練習モード：ライフ無制限' : `残り ${view.lives} ライフ`}>
+        <div className="wario-lives" aria-label={practicing ? '練習モード：ライフ無制限' : `残り ${view.lives} ライフ`}>
           {[0, 1, 2, 3].map(index => <Heart key={index} size={16} fill="currentColor" style={{ opacity: index < view.lives ? 1 : 0.2 }} />)}
         </div>
         <button className="wario-icon" aria-label={muted ? '音をオン' : '音をオフ'} onClick={() => sound.toggleMute()}>{muted ? <VolumeX size={19} /> : <Volume2 size={19} />}</button>
@@ -333,22 +344,28 @@ export function WarioGame({ isDark, isFullscreen = false }: WarioGameProps) {
         {view.phase === 'title' && <div className="wario-overlay wario-title">
           <span className="wario-kicker">INSTANT ARCADE / {RUSH_GAMES.length} GAMES</span>
           <h1>プチゲーム<br /><span>ラッシュ！</span></h1>
-          <p>考えるひまは、ない。<br className="wario-mobile-break" /> 5 秒のひらめき、何回つなげる？</p>
+          <p>5 秒のひらめきをつなげ！<br />10 クリアごとに、20 秒のボスが出現。</p>
           <button className="wario-primary" onClick={() => start()}><Play size={19} fill="currentColor" />ラッシュをはじめる</button>
-          <button className="wario-secondary" onClick={() => showMenu('practice')}><BookOpen size={16} />えらんで練習</button>
+          <div className="wario-title-options">
+            <button className="wario-secondary" onClick={() => showMenu('practice')}><BookOpen size={16} />えらんで練習</button>
+            <button className="wario-secondary wario-boss-button" onClick={() => start('boss')}><Crown size={16} />ボスに挑戦</button>
+          </div>
           <small className="wario-title-record">4 ライフで挑戦 · 5 クリアごとにスピードアップ</small>
         </div>}
 
-        {view.phase === 'brief' && !view.paused && <div className="wario-overlay wario-brief" style={{ background: definition.color }}>
-          <span className="wario-kicker">{view.practice ? 'PRACTICE' : `ROUND ${String(view.round).padStart(2, '0')}`} / {definition.name}</span>
+        {view.phase === 'brief' && !view.paused && <div className={`wario-overlay wario-brief ${isBoss ? 'wario-boss-brief' : ''}`} style={{ background: definition.color }} role="status">
+          {isBoss && <Crown className="wario-boss-crown" size={38} aria-hidden="true" />}
+          <span className="wario-kicker">{isBoss ? `${view.practice ? 'PRACTICE / ' : ''}BOSS STAGE` : view.practice ? 'PRACTICE' : `ROUND ${String(view.round).padStart(2, '0')}`} / {definition.name}</span>
           <h2>{definition.command}</h2>
           <p>{definition.shortHint}</p>
+          {isBoss && <span className="wario-boss-specs">20 秒 · 3 段階 · 装甲 3</span>}
           <span className="wario-ready">{view.phaseTime < 0.4 ? 'GO!' : 'READY'}</span>
         </div>}
 
-        {view.phase === 'result' && !view.paused && <div className={`wario-overlay wario-result ${view.result === 'success' ? 'wario-success' : ''}`}>
-          <div className="wario-result-symbol">{view.result === 'success' ? '✓' : '×'}</div>
-          <h2>{view.result === 'success' ? 'やった！' : 'おしい！'}</h2>
+        {view.phase === 'result' && !view.paused && <div className={`wario-overlay wario-result ${view.result === 'success' ? 'wario-success' : ''} ${bossVictory ? 'wario-boss-victory' : ''}`} role="status">
+          {isBoss && <span className="wario-kicker">BOSS STAGE</span>}
+          <div className="wario-result-symbol">{bossVictory ? <Crown size={56} aria-hidden="true" /> : view.result === 'success' ? '✓' : '×'}</div>
+          <h2>{bossVictory ? 'ボス撃破！' : view.result === 'success' ? 'やった！' : isBoss ? 'もう一度、挑もう！' : 'おしい！'}</h2>
           <p>{view.game?.reason}</p>
           {view.practice && <small>練習中 · 同じゲームでもう一回</small>}
         </div>}
@@ -393,6 +410,6 @@ export function WarioGame({ isDark, isFullscreen = false }: WarioGameProps) {
         </div>}
       </div>
     </div>
-    <footer className="wario-footer"><span>{view.practice ? 'PRACTICE · 記録には入りません' : `${RUSH_GAMES.length} 種類のプチゲーム`}</span><span>タップ / Space / ↑ ↓ ← → <i> · P / Esc で一時停止</i></span></footer>
+    <footer className="wario-footer"><span>{footerStatus}</span><span>タップ / Space / ↑ ↓ ← → <i> · P / Esc で一時停止</i></span></footer>
   </div>;
 }

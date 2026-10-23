@@ -2,8 +2,9 @@ import { PUZZLE_GAMES, createPuzzleState, updatePuzzleGame, type PuzzleId, type 
 import { ACTION_GAMES, createActionState, updateActionGame, type ActionId, type ActionState } from './actionGames';
 import { BRAIN_GAMES, createBrainState, updateBrainGame, type BrainId, type BrainState } from './brainGames';
 import { ARCADE_GAMES, createArcadeState, updateArcadeGame, type ArcadeId, type ArcadeState } from './arcadeGames';
+import { BOSS_GAME, BOSS_DURATION, createBossState, updateBossGame, type BossId, type BossState } from './bossGame';
 
-export type RushId = 'jump' | 'catch' | 'inflate' | 'stop' | 'match' | 'dodge' | 'react' | 'sequence' | PuzzleId | ActionId | BrainId | ArcadeId;
+export type RushId = 'jump' | 'catch' | 'inflate' | 'stop' | 'match' | 'dodge' | 'react' | 'sequence' | PuzzleId | ActionId | BrainId | ArcadeId | BossId;
 export type RushCategory = 'action' | 'timing' | 'puzzle' | 'memory';
 export type RushPhase = 'title' | 'practice' | 'brief' | 'play' | 'result' | 'speedup' | 'over';
 export type RushSound = 'instruction' | 'start' | 'success' | 'failure' | 'speedup' | 'over' | 'pop';
@@ -69,7 +70,7 @@ export interface RushMicrogame {
   needle: number;
   result: 'success' | 'failure' | null;
   reason: string;
-  extra?: PuzzleState | ActionState | BrainState | ArcadeState;
+  extra?: PuzzleState | ActionState | BrainState | ArcadeState | BossState;
 }
 
 export interface RushSession {
@@ -80,6 +81,9 @@ export interface RushSession {
   score: number;
   lives: number;
   level: number;
+  clearsSinceBoss: number;
+  bossEncounters: number;
+  bossesDefeated: number;
   practice: RushId | null;
   elapsed: number;
   duration: number;
@@ -93,7 +97,7 @@ export interface RushSession {
 
 export const emptyRushInput = (): RushInput => ({ left: false, right: false, up: false, down: false, leftPressed: false, rightPressed: false, upPressed: false, downPressed: false, action: false, actionHeld: false, actionReleased: false, pointerPressed: false, pointerDown: false, pointerX: 320, pointerY: 240 });
 export function clearRushInput(input: RushInput) { Object.assign(input, emptyRushInput()); }
-export const rushDefinition = (id: RushId) => RUSH_GAMES.find(game => game.id === id) ?? RUSH_GAMES[0];
+export const rushDefinition = (id: RushId) => id === 'boss' ? BOSS_GAME : RUSH_GAMES.find(game => game.id === id) ?? RUSH_GAMES[0];
 const clamp = (n: number, low: number, high: number) => Math.min(high, Math.max(low, n));
 function random(s: RushSession) {
   let n = s.seed | 0;
@@ -103,7 +107,7 @@ function random(s: RushSession) {
 }
 
 export function createRushSession(seed = Date.now()): RushSession {
-  return { phase: 'title', paused: false, phaseTime: 0, round: 0, score: 0, lives: 4, level: 1, practice: null, elapsed: 0, duration: 5, seed: (seed >>> 0) || 104729, bag: [], last: null, game: null, sounds: [], result: null };
+  return { phase: 'title', paused: false, phaseTime: 0, round: 0, score: 0, lives: 4, level: 1, clearsSinceBoss: 0, bossEncounters: 0, bossesDefeated: 0, practice: null, elapsed: 0, duration: 5, seed: (seed >>> 0) || 104729, bag: [], last: null, game: null, sounds: [], result: null };
 }
 
 /** A shuffled deck gives every game a turn and also prevents repeats across deck boundaries. */
@@ -125,7 +129,9 @@ export function selectRushGame(s: RushSession): RushId {
 export function rushSpeed(level: number) { return Math.min(1.7, 1 + (Math.max(1, level) - 1) * 0.12); }
 
 function beginRound(s: RushSession, input: RushInput) {
-  const id = selectRushGame(s);
+  const boss = s.practice === 'boss' || (!s.practice && s.clearsSinceBoss >= 10);
+  if (boss && !s.practice) { s.clearsSinceBoss = 0; s.bossEncounters++; }
+  const id: RushId = boss ? 'boss' : selectRushGame(s);
   const options = [0, 1, 2];
   for (let i = options.length - 1; i > 0; i--) {
     const j = Math.floor(random(s) * (i + 1));
@@ -138,9 +144,9 @@ function beginRound(s: RushSession, input: RushInput) {
     drops: id === 'catch'
       ? [0, 0.95, 1.9].map((start, i) => ({ x: [180, 460, 270][i], start, caught: false }))
       : [0, 0.75, 1.5, 2.25, 3].map(start => ({ x: 80 + random(s) * 480, start, caught: false })),
-    result: null, reason: '', extra: createPuzzleState(id, s.level, () => random(s)) ?? createActionState(id, s.level, () => random(s)) ?? createBrainState(id, s.level, () => random(s)) ?? createArcadeState(id, s.level, () => random(s)),
+    result: null, reason: '', extra: boss ? createBossState(s.practice ? 1 : s.bossEncounters) : createPuzzleState(id, s.level, () => random(s)) ?? createActionState(id, s.level, () => random(s)) ?? createBrainState(id, s.level, () => random(s)) ?? createArcadeState(id, s.level, () => random(s)),
   };
-  s.phase = 'brief'; s.phaseTime = 1.1; s.elapsed = 0; s.duration = 5 / rushSpeed(s.level); s.round++; s.result = null;
+  s.phase = 'brief'; s.phaseTime = boss ? 2.6 : 1.1; s.elapsed = 0; s.duration = boss ? BOSS_DURATION : 5 / rushSpeed(s.level); s.round++; s.result = null;
   s.sounds.push('instruction');
   clearRushInput(input);
 }
@@ -159,24 +165,36 @@ export function pauseRush(s: RushSession, input: RushInput, paused = !s.paused) 
 }
 
 function finish(s: RushSession, input: RushInput, result: 'success' | 'failure', reason: string) {
+  if (s.phase !== 'play') return;
   s.result = result;
+  if (result === 'success') {
+    s.score++;
+    if (!s.practice) {
+      if (s.game?.id === 'boss') {
+        s.bossesDefeated++;
+        reason += s.lives < 4 ? ' ライフ＋1！' : ' ライフ満タン！';
+        s.lives = Math.min(4, s.lives + 1);
+      } else s.clearsSinceBoss++;
+    }
+  } else if (!s.practice) s.lives--;
   if (s.game) { s.game.result = result; s.game.reason = reason; }
-  if (result === 'success') s.score++;
-  else if (!s.practice) s.lives--;
-  s.phase = 'result'; s.phaseTime = s.practice ? 1.15 : 0.85;
+  s.phase = 'result'; s.phaseTime = s.game?.id === 'boss' ? 2.2 : s.practice ? 1.15 : 0.85;
   s.sounds.push(result);
   clearRushInput(input);
 }
 
 function updateMicrogame(s: RushSession, input: RushInput, dt: number) {
   const g = s.game!;
-  const localDt = dt * rushSpeed(s.level);
+  const localDt = g.id === 'boss' ? dt : dt * rushSpeed(s.level);
   g.time += localDt;
   if (g.id === 'catch' || g.id === 'dodge') {
     if (input.pointerDown) g.x = clamp(input.pointerX, 48, 592);
     else g.x = clamp(g.x + (Number(input.right) - Number(input.left)) * 400 * localDt, 48, 592);
   }
-  if (g.id === 'jump') {
+  if (g.id === 'boss') {
+    const outcome = updateBossGame(s, input, localDt);
+    if (outcome) finish(s, input, outcome.result, outcome.reason);
+  } else if (g.id === 'jump') {
     if (input.action && g.jumpY >= 0) { g.velocityY = -740; s.sounds.push('pop'); }
     g.velocityY += 1900 * localDt;
     g.jumpY = Math.min(0, g.jumpY + g.velocityY * localDt);

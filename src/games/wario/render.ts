@@ -3,6 +3,7 @@ import { renderPuzzleGame } from './puzzleRender';
 import { renderActionGame } from './actionRender';
 import { renderBrainGame } from './brainRender';
 import { renderArcadeGame } from './arcadeRender';
+import { renderBossGame } from './bossRender';
 
 const INK = '#192338';
 const CREAM = '#fff7e3';
@@ -193,12 +194,14 @@ export function renderRush(ctx: CanvasRenderingContext2D, session: RushSession, 
   else if (g.extra?.pack === 'action') renderActionGame(ctx, session);
   else if (g.extra?.pack === 'brain') renderBrainGame(ctx, session);
   else if (g.extra?.pack === 'arcade') renderArcadeGame(ctx, session);
+  else if (g.extra?.pack === 'boss') renderBossGame(ctx, session);
 
   // The command remains legible against every scene without covering the active play area.
   const definition = rushDefinition(g.id);
-  box(ctx, 0, 0, 640, 94, g.id === 'dodge' ? '#192338' : '#fffdf7', 0);
+  const darkHeader = g.id === 'dodge' || g.id === 'boss';
+  box(ctx, 0, 0, 640, 94, darkHeader ? '#192338' : '#fffdf7', 0);
   box(ctx, 20, 20, 44, 44, definition.color, 11); text(ctx, definition.number, 42, 43, 21);
-  text(ctx, definition.command, 345, 35, 30, g.id === 'dodge' ? CREAM : INK);
-  text(ctx, definition.shortHint, 345, 71, 16, g.id === 'dodge' ? '#bac2d2' : '#79796f');
+  text(ctx, definition.command, 345, 35, 30, darkHeader ? CREAM : INK);
+  text(ctx, definition.shortHint, 345, 71, 16, darkHeader ? '#bac2d2' : '#79796f');
   ctx.restore();
 }
