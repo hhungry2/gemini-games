@@ -1,8 +1,13 @@
-export type RushId = 'jump' | 'catch' | 'inflate' | 'stop' | 'match' | 'dodge' | 'react' | 'sequence';
+import { PUZZLE_GAMES, createPuzzleState, updatePuzzleGame, type PuzzleId, type PuzzleState } from './puzzleGames';
+import { ACTION_GAMES, createActionState, updateActionGame, type ActionId, type ActionState } from './actionGames';
+
+export type RushId = 'jump' | 'catch' | 'inflate' | 'stop' | 'match' | 'dodge' | 'react' | 'sequence' | PuzzleId | ActionId;
+export type RushCategory = 'action' | 'timing' | 'puzzle' | 'memory';
 export type RushPhase = 'title' | 'practice' | 'brief' | 'play' | 'result' | 'speedup' | 'over';
 export type RushSound = 'instruction' | 'start' | 'success' | 'failure' | 'speedup' | 'over' | 'pop';
 
 export interface RushDefinition {
+  category: RushCategory;
   id: RushId;
   name: string;
   command: string;
@@ -13,22 +18,30 @@ export interface RushDefinition {
 }
 
 export const RUSH_GAMES: RushDefinition[] = [
-  { id: 'jump', name: 'ハードル・ジャンプ', command: 'とびこえろ！', hint: 'タップ / Space でジャンプ。赤いハードルをこえよう。', shortHint: 'タップ / Space でジャンプ', number: '01', color: '#f8d94b' },
-  { id: 'catch', name: 'おやつキャッチ', command: 'ぜんぶ キャッチ！', hint: '指でカゴを動かす / ← →。3 つのドーナツを受けとめよう。', shortHint: '指でカゴを動かす / ← →', number: '02', color: '#ff9db8' },
-  { id: 'inflate', name: 'ふくらめバルーン', command: 'れんだしろ！', hint: 'タップ / Space を連打。風船を大きくしよう。', shortHint: 'タップ / Space を連打', number: '03', color: '#a4dbe8' },
-  { id: 'stop', name: 'ぴったりストップ', command: 'みどりで とめろ！', hint: '針が緑のゾーンに入ったら、タップ / Space。', shortHint: '緑のゾーンで タップ / Space', number: '04', color: '#b9e2a0' },
-  { id: 'match', name: 'かたちサーチ', command: 'おなじ形を えらべ！', hint: 'お手本と同じ形をタップ / ← → で選んで Space。', shortHint: '同じ形をタップ / ← → ＋ Space', number: '05', color: '#c9b5ef' },
-  { id: 'dodge', name: 'メテオ・ダンス', command: 'よけつづけろ！', hint: '指で動かす / ← →。時間いっぱい隕石をよけよう。', shortHint: '指で動かす / ← → でよける', number: '06', color: '#9fdcd0' },
-  { id: 'react', name: 'まだまだ・いまだ', command: 'みどりで おせ！', hint: '赤のあいだは待つ。緑になったらタップ / Space！', shortHint: '赤は待つ。緑で タップ / Space', number: '07', color: '#f8c07c' },
-  { id: 'sequence', name: 'やじるしコード', command: '順番どおりに！', hint: '左から順に ← →。画面下の左右ボタンでも入力できる。', shortHint: '左から順に ← → / 下の左右をタップ', number: '08', color: '#f5b4d1' },
+  { id: 'jump', category: 'action', name: 'ハードル・ジャンプ', command: 'とびこえろ！', hint: 'タップ / Space でジャンプ。赤いハードルをこえよう。', shortHint: 'タップ / Space でジャンプ', number: '01', color: '#f8d94b' },
+  { id: 'catch', category: 'action', name: 'おやつキャッチ', command: 'ぜんぶ キャッチ！', hint: '指でカゴを動かす / ← →。3 つのドーナツを受けとめよう。', shortHint: '指でカゴを動かす / ← →', number: '02', color: '#ff9db8' },
+  { id: 'inflate', category: 'action', name: 'ふくらめバルーン', command: 'れんだしろ！', hint: 'タップ / Space を連打。風船を大きくしよう。', shortHint: 'タップ / Space を連打', number: '03', color: '#a4dbe8' },
+  { id: 'stop', category: 'timing', name: 'ぴったりストップ', command: 'みどりで とめろ！', hint: '針が緑のゾーンに入ったら、タップ / Space。', shortHint: '緑のゾーンで タップ / Space', number: '04', color: '#b9e2a0' },
+  { id: 'match', category: 'puzzle', name: 'かたちサーチ', command: 'おなじ形を えらべ！', hint: 'お手本と同じ形をタップ / ← → で選んで Space。', shortHint: '同じ形をタップ / ← → ＋ Space', number: '05', color: '#c9b5ef' },
+  { id: 'dodge', category: 'action', name: 'メテオ・ダンス', command: 'よけつづけろ！', hint: '指で動かす / ← →。時間いっぱい隕石をよけよう。', shortHint: '指で動かす / ← → でよける', number: '06', color: '#9fdcd0' },
+  { id: 'react', category: 'timing', name: 'まだまだ・いまだ', command: 'みどりで おせ！', hint: '赤のあいだは待つ。緑になったらタップ / Space！', shortHint: '赤は待つ。緑で タップ / Space', number: '07', color: '#f8c07c' },
+  { id: 'sequence', category: 'memory', name: 'やじるしコード', command: '順番どおりに！', hint: '左から順に ← →。画面下の左右ボタンでも入力できる。', shortHint: '左から順に ← → / 下の左右をタップ', number: '08', color: '#f5b4d1' },
+  ...PUZZLE_GAMES,
+  ...ACTION_GAMES,
 ];
 
 export interface RushInput {
   left: boolean;
   right: boolean;
+  up: boolean;
+  down: boolean;
   leftPressed: boolean;
   rightPressed: boolean;
+  upPressed: boolean;
+  downPressed: boolean;
   action: boolean;
+  actionHeld: boolean;
+  actionReleased: boolean;
   pointerPressed: boolean;
   pointerDown: boolean;
   pointerX: number;
@@ -52,6 +65,7 @@ export interface RushMicrogame {
   needle: number;
   result: 'success' | 'failure' | null;
   reason: string;
+  extra?: PuzzleState | ActionState;
 }
 
 export interface RushSession {
@@ -73,7 +87,7 @@ export interface RushSession {
   result: 'success' | 'failure' | null;
 }
 
-export const emptyRushInput = (): RushInput => ({ left: false, right: false, leftPressed: false, rightPressed: false, action: false, pointerPressed: false, pointerDown: false, pointerX: 320, pointerY: 240 });
+export const emptyRushInput = (): RushInput => ({ left: false, right: false, up: false, down: false, leftPressed: false, rightPressed: false, upPressed: false, downPressed: false, action: false, actionHeld: false, actionReleased: false, pointerPressed: false, pointerDown: false, pointerX: 320, pointerY: 240 });
 export function clearRushInput(input: RushInput) { Object.assign(input, emptyRushInput()); }
 export const rushDefinition = (id: RushId) => RUSH_GAMES.find(game => game.id === id) ?? RUSH_GAMES[0];
 const clamp = (n: number, low: number, high: number) => Math.min(high, Math.max(low, n));
@@ -120,7 +134,7 @@ function beginRound(s: RushSession, input: RushInput) {
     drops: id === 'catch'
       ? [0, 0.95, 1.9].map((start, i) => ({ x: [180, 460, 270][i], start, caught: false }))
       : [0, 0.75, 1.5, 2.25, 3].map(start => ({ x: 80 + random(s) * 480, start, caught: false })),
-    result: null, reason: '',
+    result: null, reason: '', extra: createPuzzleState(id, s.level, () => random(s)) ?? createActionState(id, s.level, () => random(s)),
   };
   s.phase = 'brief'; s.phaseTime = 1.1; s.elapsed = 0; s.duration = 5 / rushSpeed(s.level); s.round++; s.result = null;
   s.sounds.push('instruction');
@@ -205,6 +219,9 @@ function updateMicrogame(s: RushSession, input: RushInput, dt: number) {
       if (direction !== g.sequence[g.count]) finish(s, input, 'failure', '左から順に やじるしを入力しよう');
       else { g.count++; s.sounds.push('pop'); if (g.count >= g.needed) finish(s, input, 'success', 'コード解除！'); }
     }
+  } else {
+    const outcome = updatePuzzleGame(s, input, localDt) ?? updateActionGame(s, input, localDt);
+    if (outcome) finish(s, input, outcome.result, outcome.reason);
   }
 }
 
@@ -228,7 +245,7 @@ export function stepRush(s: RushSession, input: RushInput, deltaSeconds: number)
       } else beginRound(s, input);
     }
   }
-  input.action = false; input.pointerPressed = false; input.leftPressed = false; input.rightPressed = false;
+  input.action = false; input.actionReleased = false; input.pointerPressed = false; input.leftPressed = false; input.rightPressed = false; input.upPressed = false; input.downPressed = false;
 }
 
 export function readRushRecord(value: string | null, fallback: number) {
