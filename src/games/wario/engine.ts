@@ -1,7 +1,9 @@
 import { PUZZLE_GAMES, createPuzzleState, updatePuzzleGame, type PuzzleId, type PuzzleState } from './puzzleGames';
 import { ACTION_GAMES, createActionState, updateActionGame, type ActionId, type ActionState } from './actionGames';
+import { BRAIN_GAMES, createBrainState, updateBrainGame, type BrainId, type BrainState } from './brainGames';
+import { ARCADE_GAMES, createArcadeState, updateArcadeGame, type ArcadeId, type ArcadeState } from './arcadeGames';
 
-export type RushId = 'jump' | 'catch' | 'inflate' | 'stop' | 'match' | 'dodge' | 'react' | 'sequence' | PuzzleId | ActionId;
+export type RushId = 'jump' | 'catch' | 'inflate' | 'stop' | 'match' | 'dodge' | 'react' | 'sequence' | PuzzleId | ActionId | BrainId | ArcadeId;
 export type RushCategory = 'action' | 'timing' | 'puzzle' | 'memory';
 export type RushPhase = 'title' | 'practice' | 'brief' | 'play' | 'result' | 'speedup' | 'over';
 export type RushSound = 'instruction' | 'start' | 'success' | 'failure' | 'speedup' | 'over' | 'pop';
@@ -28,6 +30,8 @@ export const RUSH_GAMES: RushDefinition[] = [
   { id: 'sequence', category: 'memory', name: 'やじるしコード', command: '順番どおりに！', hint: '左から順に ← →。画面下の左右ボタンでも入力できる。', shortHint: '左から順に ← → / 下の左右をタップ', number: '08', color: '#f5b4d1' },
   ...PUZZLE_GAMES,
   ...ACTION_GAMES,
+  ...BRAIN_GAMES,
+  ...ARCADE_GAMES,
 ];
 
 export interface RushInput {
@@ -65,7 +69,7 @@ export interface RushMicrogame {
   needle: number;
   result: 'success' | 'failure' | null;
   reason: string;
-  extra?: PuzzleState | ActionState;
+  extra?: PuzzleState | ActionState | BrainState | ArcadeState;
 }
 
 export interface RushSession {
@@ -134,7 +138,7 @@ function beginRound(s: RushSession, input: RushInput) {
     drops: id === 'catch'
       ? [0, 0.95, 1.9].map((start, i) => ({ x: [180, 460, 270][i], start, caught: false }))
       : [0, 0.75, 1.5, 2.25, 3].map(start => ({ x: 80 + random(s) * 480, start, caught: false })),
-    result: null, reason: '', extra: createPuzzleState(id, s.level, () => random(s)) ?? createActionState(id, s.level, () => random(s)),
+    result: null, reason: '', extra: createPuzzleState(id, s.level, () => random(s)) ?? createActionState(id, s.level, () => random(s)) ?? createBrainState(id, s.level, () => random(s)) ?? createArcadeState(id, s.level, () => random(s)),
   };
   s.phase = 'brief'; s.phaseTime = 1.1; s.elapsed = 0; s.duration = 5 / rushSpeed(s.level); s.round++; s.result = null;
   s.sounds.push('instruction');
@@ -220,7 +224,7 @@ function updateMicrogame(s: RushSession, input: RushInput, dt: number) {
       else { g.count++; s.sounds.push('pop'); if (g.count >= g.needed) finish(s, input, 'success', 'コード解除！'); }
     }
   } else {
-    const outcome = updatePuzzleGame(s, input, localDt) ?? updateActionGame(s, input, localDt);
+    const outcome = updatePuzzleGame(s, input, localDt) ?? updateActionGame(s, input, localDt) ?? updateBrainGame(s, input, localDt) ?? updateArcadeGame(s, input, localDt);
     if (outcome) finish(s, input, outcome.result, outcome.reason);
   }
 }

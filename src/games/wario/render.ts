@@ -1,6 +1,8 @@
 import { rushDefinition, type RushSession } from './engine';
 import { renderPuzzleGame } from './puzzleRender';
 import { renderActionGame } from './actionRender';
+import { renderBrainGame } from './brainRender';
+import { renderArcadeGame } from './arcadeRender';
 
 const INK = '#192338';
 const CREAM = '#fff7e3';
@@ -189,6 +191,8 @@ export function renderRush(ctx: CanvasRenderingContext2D, session: RushSession, 
 
   if (g.extra?.pack === 'puzzle') renderPuzzleGame(ctx, session);
   else if (g.extra?.pack === 'action') renderActionGame(ctx, session);
+  else if (g.extra?.pack === 'brain') renderBrainGame(ctx, session);
+  else if (g.extra?.pack === 'arcade') renderArcadeGame(ctx, session);
 
   // The command remains legible against every scene without covering the active play area.
   const definition = rushDefinition(g.id);

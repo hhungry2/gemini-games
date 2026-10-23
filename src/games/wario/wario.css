@@ -18,3 +18,18 @@
 @container (max-width:440px){.wario-practice{padding:3%;gap:6px}.wario-practice-categories{gap:4px;padding-bottom:2px}.wario-practice-categories button{min-height:27px;padding:4px 5px;gap:3px;font-size:9px;border-radius:6px}.wario-practice-categories button>span{min-width:14px;min-height:14px;font-size:8px}.wario-practice-footer p{font-size:9px;line-height:1.4}.wario-practice-footer p>strong{font-size:10px}.wario-practice-footer .wario-primary{padding:8px 10px;min-height:36px}}
 @container (max-width:310px){.wario-practice{gap:4px}.wario-practice-head h2{font-size:16px}.wario-practice-head .wario-kicker{font-size:6px}.wario-practice-head .wario-icon{width:26px;height:26px}.wario-practice-categories button{min-height:25px}.wario-game-card{min-height:47px;padding:6px;gap:5px}.wario-game-card>b{width:22px;height:27px;font-size:11px}.wario-game-card small{font-size:7px;margin-top:1px}.wario-game-card>span{font-size:9px}.wario-practice-footer{padding-top:5px;gap:5px}.wario-practice-footer p{font-size:8px;line-height:1.35}.wario-practice-footer p>strong{font-size:9px}.wario-practice-footer .wario-primary{padding:7px;min-height:32px;font-size:10px!important}.wario-practice-footer .wario-primary svg{width:13px;height:13px}}
 @container (max-width:350px){.wario-practice-categories button:not(.is-active)>span{display:none}}
+.wario-practice-search{display:flex;align-items:center;gap:7px;min-height:33px;flex-shrink:0;padding:0 9px;border:1px solid #fff7e333;border-radius:8px;background:#0e172855;color:#aebacf}
+.wario-practice-search:focus-within{border-color:#a4dbe8;box-shadow:0 0 0 1px #a4dbe8}
+.wario-practice-search>svg{flex-shrink:0}
+.wario-practice-search input{min-width:0;flex:1;padding:7px 0;border:0;outline:0;background:transparent;color:var(--wario-cream);font:inherit;font-size:clamp(10px,1.9cqw,12px);user-select:text}
+.wario-practice-search input::placeholder{color:#aebacf;opacity:1}
+.wario-practice-search input::-webkit-search-cancel-button{display:none}
+.wario-practice-search button{display:grid;place-items:center;align-self:stretch;min-width:29px;border:0;border-radius:5px;background:transparent;color:var(--wario-cream)}
+.wario-practice-search button:hover{background:#fff7e31b}
+.wario-card-title{display:flex;align-items:center;flex-wrap:wrap;gap:2px 5px}
+.wario-new-badge{display:inline-block;padding:1px 3px;border-radius:3px;background:var(--wario-yellow);color:var(--wario-ink);font-size:7px;font-style:normal;font-weight:900;letter-spacing:.4px;line-height:1.3}
+.wario-practice-empty{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:90px;padding:9px;text-align:center;color:#c6cbd5;font-size:clamp(9px,1.9cqw,12px)}
+.wario-practice-empty strong{color:var(--wario-cream)}
+.wario-practice-empty .wario-text-button{padding:4px;color:var(--wario-yellow);text-decoration:underline;text-underline-offset:3px}
+@container (max-width:440px){.wario-practice-search{min-height:29px;padding:0 7px;gap:5px}.wario-practice-search input{font-size:10px;padding:5px 0}.wario-practice-search>svg{width:13px;height:13px}.wario-card-title{gap:2px 3px}.wario-new-badge{font-size:6px;padding:1px 2px}.wario-practice-empty{min-height:68px;padding:6px;gap:3px}}
+@container (max-width:310px){.wario-practice-search{min-height:27px}.wario-practice-search input{font-size:9px}.wario-practice-empty{min-height:57px;font-size:8px;gap:2px}}

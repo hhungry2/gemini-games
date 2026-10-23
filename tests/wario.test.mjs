@@ -62,8 +62,8 @@ for (const definition of RUSH_GAMES.slice(0, 8)) {
   });
 }
 
-test('Every shuffled deck contains all 24 games, and deck boundaries never repeat', () => {
-  assert.equal(RUSH_GAMES.length, 24);
+test('Every shuffled deck contains all 40 games, and deck boundaries never repeat', () => {
+  assert.equal(RUSH_GAMES.length, 40);
   for (let seed = 1; seed <= 30; seed++) {
     const state = createRushSession(seed);
     let previous = null;
@@ -189,10 +189,10 @@ test('Corrupt or unbounded saved records use safe defaults', () => {
   assert.equal(readRushRecord('0', 0), 0); assert.equal(readRushRecord('42', 0), 42);
 });
 
-test('All 24 catalog entries have unique IDs, numbers, readable commands and supported categories', () => {
-  assert.equal(new Set(RUSH_GAMES.map(game => game.id)).size, 24);
-  assert.equal(new Set(RUSH_GAMES.map(game => game.number)).size, 24);
-  assert.deepEqual(RUSH_GAMES.map(game => game.number), Array.from({ length: 24 }, (_, i) => String(i + 1).padStart(2, '0')));
+test('All 40 catalog entries have unique IDs, numbers, readable commands and supported categories', () => {
+  assert.equal(new Set(RUSH_GAMES.map(game => game.id)).size, 40);
+  assert.equal(new Set(RUSH_GAMES.map(game => game.number)).size, 40);
+  assert.deepEqual(RUSH_GAMES.map(game => game.number), Array.from({ length: 40 }, (_, i) => String(i + 1).padStart(2, '0')));
   for (const game of RUSH_GAMES) {
     assert.ok(['action', 'timing', 'puzzle', 'memory'].includes(game.category));
     assert.ok(game.name.length > 2 && game.command.length > 2 && game.hint.length > 10);
