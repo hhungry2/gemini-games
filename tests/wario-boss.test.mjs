@@ -8,7 +8,7 @@ const dt = 1 / 120;
 
 function ready(level = 1) {
   const state = createRushSession(7919), input = emptyRushInput();
-  startRush(state, input, 'boss');
+  startRush(state, input, 'boss', 0);
   state.game.extra = createBossState(level);
   state.level = level;
   for (let frame = 0; frame < 400 && state.phase === 'brief'; frame++) stepRush(state, input, dt);

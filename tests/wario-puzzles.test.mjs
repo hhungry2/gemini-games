@@ -12,7 +12,7 @@ function rng(seed) {
 }
 function ready(id, seed = 723, level = 1) {
   const state = createRushSession(seed), input = emptyRushInput();
-  startRush(state, input, id);
+  startRush(state, input, id, 0);
   state.level = level;
   state.duration = 5 / rushSpeed(level);
   state.game.extra = createPuzzleState(id, level, rng(seed));

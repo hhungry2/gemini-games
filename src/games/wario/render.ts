@@ -1,4 +1,4 @@
-import { rushDefinition, type RushSession } from './engine';
+import { rushRoundDefinition, rushObstacleX, type RushSession } from './engine';
 import { renderPuzzleGame } from './puzzleRender';
 import { renderActionGame } from './actionRender';
 import { renderBrainGame } from './brainRender';
@@ -108,10 +108,12 @@ export function renderRush(ctx: CanvasRenderingContext2D, session: RushSession, 
     ctx.fillStyle = '#b9d3bb'; ctx.beginPath(); ctx.moveTo(0, 381); ctx.quadraticCurveTo(110, 280, 242, 381); ctx.quadraticCurveTo(420, 260, 640, 381); ctx.fill();
     box(ctx, 0, 386, 640, 94, '#c6b7a1', 0); line(ctx, 0, 384, 640, 384, INK, 5);
     for (let x = 0; x < 640; x += 60) line(ctx, x + 10, 418, x + 30, 418, '#a6947d', 4);
-    mascot(ctx, 150, 341 + g.jumpY, 1);
-    const x = 650 - g.time * 240;
-    box(ctx, x - 11, 319, 22, 65, PINK, 5, INK); box(ctx, x - 30, 315, 60, 20, PINK, 4, INK);
-    line(ctx, x - 21, 322, x - 11, 331, '#fff7e3', 6); line(ctx, x + 5, 322, x + 15, 331, '#fff7e3', 6);
+    mascot(ctx, g.x, 341 + g.jumpY, 1);
+    for (const obstacle of g.obstacles) {
+      const x = rushObstacleX(obstacle, g.time);
+      box(ctx, x - 11, 319, 22, 65, PINK, 5, INK); box(ctx, x - 30, 315, 60, 20, PINK, 4, INK);
+      line(ctx, x - 21, 322, x - 11, 331, '#fff7e3', 6); line(ctx, x + 5, 322, x + 15, 331, '#fff7e3', 6);
+    }
   } else if (g.id === 'catch') {
     box(ctx, 0, 392, 640, 88, '#a4cbbd', 0); line(ctx, 0, 392, 640, 392, INK, 4);
     for (const drop of g.drops) {
@@ -125,7 +127,7 @@ export function renderRush(ctx: CanvasRenderingContext2D, session: RushSession, 
     ctx.beginPath(); ctx.moveTo(x - 58, 347); ctx.lineTo(x - 43, 392); ctx.lineTo(x + 43, 392); ctx.lineTo(x + 58, 347); ctx.closePath(); ctx.fillStyle = YELLOW; ctx.fill(); ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.stroke();
     box(ctx, x - 63, 338, 126, 17, PINK, 7, INK);
     for (let i = -1; i <= 1; i++) line(ctx, x + i * 22, 361, x + i * 19, 381, '#cba82c', 4);
-    text(ctx, `${g.count} / 3`, 320, 432, 25);
+    text(ctx, `${g.count} / ${g.needed}`, 320, 432, 25);
   } else if (g.id === 'inflate') {
     const p = g.count / g.needed;
     const r = 43 + p * 69;
@@ -135,9 +137,14 @@ export function renderRush(ctx: CanvasRenderingContext2D, session: RushSession, 
     circle(ctx, -r * 0.24, 0, 5, INK); circle(ctx, r * 0.24, 0, 5, INK);
     ctx.beginPath(); ctx.arc(0, r * 0.08, r * 0.18, 0, Math.PI); ctx.strokeStyle = INK; ctx.lineWidth = 4; ctx.stroke(); ctx.restore();
     box(ctx, 267, 365, 106, 42, '#9dc9d1', 11, INK);
-    line(ctx, 320, 366, 320, g.count % 2 ? 329 : 343, INK, 8); line(ctx, 291, g.count % 2 ? 327 : 341, 349, g.count % 2 ? 327 : 341, INK, 10);
+    line(ctx, 320, 366, 320, Math.floor(g.count) % 2 ? 329 : 343, INK, 8); line(ctx, 291, Math.floor(g.count) % 2 ? 327 : 341, 349, Math.floor(g.count) % 2 ? 327 : 341, INK, 10);
     for (let i = 0; i < g.needed; i++) box(ctx, 320 - g.needed * 13 + i * 26, 433, 20, 13, i < g.count ? PINK : '#19233818', 4);
-    text(ctx, `${g.count} / ${g.needed}`, 502, 382, 29);
+    if (g.variation === 2) {
+      for (const [x, direction] of [[92, -1], [418, 1]]) {
+        box(ctx, x, 361, 130, 53, g.sequence[g.count] === direction ? YELLOW : '#e5dfcf', 12, INK);
+        arrow(ctx, x + 65, 387, direction, INK, 23);
+      }
+    } else text(ctx, `${Math.floor(g.count)} / ${g.needed}`, 502, 382, 29);
   } else if (g.id === 'stop') {
     box(ctx, 77, 213, 486, 116, '#e9dcc0', 28, INK); box(ctx, 99, 236, 442, 70, '#fffdf7', 12);
     box(ctx, g.target - g.targetWidth / 2, 237, g.targetWidth, 68, GREEN, 8);
@@ -146,12 +153,15 @@ export function renderRush(ctx: CanvasRenderingContext2D, session: RushSession, 
     ctx.beginPath(); ctx.moveTo(g.needle, 225); ctx.lineTo(g.needle - 13, 205); ctx.lineTo(g.needle + 13, 205); ctx.closePath(); ctx.fillStyle = PINK; ctx.fill();
     text(ctx, 'STOP!', 320, 375, 36); text(ctx, '一発勝負', 320, 153, 19, '#7e7d7b');
   } else if (g.id === 'match') {
-    box(ctx, 249, 111, 142, 95, '#e4ddf0', 18); text(ctx, 'お手本', 320, 126, 14, '#716286'); shape(ctx, g.target, 320, 164, 29);
+    box(ctx, 249, 111, 142, 95, '#e4ddf0', 18); text(ctx, 'お手本', 320, 126, 14, '#716286');
+    if (g.variation === 2) for (let i = 0; i < g.target; i++) shape(ctx, g.matchShape, 320 + (i - (g.target - 1) / 2) * 35, 165, 15);
+    else shape(ctx, g.target, 320, 164, 29);
     for (let i = 0; i < 3; i++) {
       const x = 145 + i * 175;
       box(ctx, x - 73, 240, 146, 128, '#d8cdb6', 20);
       box(ctx, x - 73, 232, 146, 128, '#fffdf7', 20, g.selected === i ? INK : '#d1c9b8');
-      shape(ctx, g.options[i], x, 294, 39);
+      if (g.variation === 2) for (let j = 0; j < g.options[i]; j++) shape(ctx, g.matchShape, x + (j - (g.options[i] - 1) / 2) * 35, 294, 15);
+      else shape(ctx, g.options[i], x, 294, 39);
       if (g.selected === i) { circle(ctx, x, 389, 5, PINK); }
     }
     text(ctx, '←  選ぶ  →     Space で決定', 320, 431, 19, '#7e7d7b');
@@ -161,6 +171,10 @@ export function renderRush(ctx: CanvasRenderingContext2D, session: RushSession, 
     ctx.fillStyle = '#62647d'; ctx.beginPath(); ctx.ellipse(320, 540, 460, 143, 0, 0, Math.PI * 2); ctx.fill();
     for (const drop of g.drops) {
       const y = -60 + (g.time - drop.start) * 285;
+      if (drop.aimed && drop.locked && y < 120) {
+        circle(ctx, drop.x, 143, 22, '#f16c9533');
+        line(ctx, drop.x - 29, 143, drop.x + 29, 143, PINK, 3); line(ctx, drop.x, 114, drop.x, 172, PINK, 3);
+      }
       if (g.time >= drop.start && y < 490) {
         line(ctx, drop.x + 17, y - 65, drop.x, y - 8, '#f16c9544', 24); line(ctx, drop.x + 9, y - 49, drop.x, y - 5, '#f8d94b99', 12);
         circle(ctx, drop.x, y, 22, '#d78974'); circle(ctx, drop.x - 5, y - 5, 7, '#f4b69a'); circle(ctx, drop.x + 7, y + 8, 5, '#b77169');
@@ -172,18 +186,22 @@ export function renderRush(ctx: CanvasRenderingContext2D, session: RushSession, 
     const ready = g.time >= g.target;
     box(ctx, 242, 119, 156, 246, '#344055', 37, INK);
     circle(ctx, 320, 185, 48, ready ? '#51434d' : PINK); circle(ctx, 320, 298, 48, ready ? GREEN : '#3e5554');
-    if (ready) { circle(ctx, 305, 285, 9, '#b9edc5'); text(ctx, 'GO', 320, 302, 27, INK); }
+    if (ready) { circle(ctx, 305, 285, 9, '#b9edc5'); if (g.variation === 1) arrow(ctx, 320, 298, g.sequence[0], INK, 22); else text(ctx, g.variation === 2 ? '離す' : 'GO', 320, 302, 27, INK); }
     else { line(ctx, 299, 185, 341, 185, CREAM, 10); }
-    text(ctx, ready ? 'いまだ！' : 'まだ まって…', 320, 413, 30, ready ? '#338663' : '#ac4964');
+    if (g.variation === 1) {
+      for (const [x, direction] of [[130, -1], [380, 1]]) { box(ctx, x, 390, 130, 48, ready ? GREEN : '#ddd9cb', 12, INK); arrow(ctx, x + 65, 414, direction, INK, 22); }
+    } else text(ctx, ready ? g.variation === 2 ? 'いま はなせ！' : 'いまだ！' : g.variation === 2 ? g.armed ? 'そのまま 長押し…' : '長押しで じゅんび' : 'まだ まって…', 320, 413, g.variation === 2 ? 24 : 30, ready ? '#338663' : '#ac4964');
     if (ready) { star(ctx, 175, 267, 16, YELLOW); star(ctx, 470, 189, 22, YELLOW); }
   } else if (g.id === 'sequence') {
     const width = 70, gap = 13, left = 320 - (g.needed * (width + gap) - gap) / 2;
     for (let i = 0; i < g.needed; i++) {
       const x = left + i * (width + gap);
-      box(ctx, x, 149, width, 82, i < g.count ? GREEN : '#fffdf7', 15, i === g.count ? INK : '#d2cbbb');
-      arrow(ctx, x + width / 2, 190, g.sequence[i], i < g.count ? '#fff' : INK, 19);
-      if (i === g.count) circle(ctx, x + width / 2, 247, 5, PINK);
+      const entered = g.variation === 1 ? i >= g.needed - g.count : i < g.count, current = g.variation === 1 ? g.needed - 1 - g.count : g.count;
+      box(ctx, x, 149, width, 82, entered ? GREEN : '#fffdf7', 15, i === current ? INK : '#d2cbbb');
+      arrow(ctx, x + width / 2, 190, g.sequence[i], entered ? '#fff' : INK, 19);
+      if (i === current) circle(ctx, x + width / 2, 247, 5, PINK);
     }
+    if (g.variation > 0) text(ctx, g.variation === 1 ? '← 右から左へ入力' : '表示と反対を入力 →', 320, 269, 17, '#7c6b8e');
     for (const [x, direction] of [[124, -1], [346, 1]]) {
       box(ctx, x, 297, 170, 100, '#c5b998', 20); box(ctx, x, 287, 170, 100, YELLOW, 20, INK); arrow(ctx, x + 85, 338, direction, INK, 30);
     }
@@ -197,10 +215,11 @@ export function renderRush(ctx: CanvasRenderingContext2D, session: RushSession, 
   else if (g.extra?.pack === 'boss') renderBossGame(ctx, session);
 
   // The command remains legible against every scene without covering the active play area.
-  const definition = rushDefinition(g.id);
+  const definition = rushRoundDefinition(g);
   const darkHeader = g.id === 'dodge' || g.id === 'boss';
   box(ctx, 0, 0, 640, 94, darkHeader ? '#192338' : '#fffdf7', 0);
   box(ctx, 20, 20, 44, 44, definition.color, 11); text(ctx, definition.number, 42, 43, 21);
+  text(ctx, `${['A', 'B', 'C'][g.variation] ?? 'A'}`, 42, 79, 11, darkHeader ? '#bac2d2' : '#79796f');
   text(ctx, definition.command, 345, 35, 30, darkHeader ? CREAM : INK);
   text(ctx, definition.shortHint, 345, 71, 16, darkHeader ? '#bac2d2' : '#79796f');
   ctx.restore();

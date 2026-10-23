@@ -54,7 +54,7 @@ test('Boss warning, strike, opening, recharge, damage and defeat views preserve 
 
 test('The full boss renderer remains finite and read-only through a real three-phase victory', () => {
   const session = createRushSession(8701), input = emptyRushInput(), context = strictContext();
-  startRush(session, input, 'boss');
+  startRush(session, input, 'boss', 0);
   while (session.phase === 'brief') stepRush(session, input, 1 / 60);
   const seen = new Set();
   for (let frame = 0; frame < BOSS_DURATION * 60 && session.phase === 'play'; frame++) {

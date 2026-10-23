@@ -15,7 +15,7 @@ function nextPlay(state, input) {
 }
 function bossRun(lives = 3) {
   const state = createRushSession(91), input = emptyRushInput();
-  startRush(state, input, 'boss'); state.practice = null; state.lives = lives; state.bossEncounters = 1;
+  startRush(state, input, 'boss', 0); state.practice = null; state.lives = lives; state.bossEncounters = 1;
   nextPlay(state, input); return { state, input };
 }
 function beatBoss(state, input) {
@@ -32,7 +32,12 @@ test('Ten real regular clears schedule the boss after speedup without consuming 
   startRush(state, input, 'inflate'); state.practice = null; state.bag = Array(12).fill('inflate');
   for (let clear = 1; clear <= 10; clear++) {
     nextPlay(state, input); assert.equal(state.game.id, 'inflate');
-    while (state.phase === 'play') { input.action = true; stepRush(state, input, dt); }
+    while (state.phase === 'play') {
+      input.action = true; input.actionHeld = true;
+      input.leftPressed = state.game.sequence[state.game.count] === -1;
+      input.rightPressed = state.game.sequence[state.game.count] === 1;
+      stepRush(state, input, dt);
+    }
     assert.equal(state.score, clear); assert.equal(state.clearsSinceBoss, clear);
     advance(state, input, 'result');
     if (state.phase === 'speedup') advance(state, input, 'speedup');

@@ -7,7 +7,7 @@ const { BRAIN_GAMES, createBrainState, brainCard, brainPad, pipeTile, LIGHT_MASK
 const dt = 1 / 60;
 function rng(seed) { let value = seed >>> 0; return () => { value = (Math.imul(value, 1664525) + 1013904223) >>> 0; return value / 4294967296; }; }
 function ready(id, seed = 723, level = 1) {
-  const state = createRushSession(seed), input = emptyRushInput(); startRush(state, input, id);
+  const state = createRushSession(seed), input = emptyRushInput(); startRush(state, input, id, 0);
   state.level = level; state.duration = 5 / rushSpeed(level); state.game.extra = createBrainState(id, level, rng(seed));
   while (state.phase === 'brief') stepRush(state, input, dt);
   assert.equal(state.game.extra.pack, 'brain'); return { state, input };

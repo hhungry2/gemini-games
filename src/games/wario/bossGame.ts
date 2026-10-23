@@ -6,6 +6,11 @@ export const BOSS_GAME: RushDefinition = {
   id: 'boss', number: 'B', category: 'action', name: 'ギアキング', command: 'ボスを たおせ！',
   hint: '← → / 指を左右に動かして赤い予告をよけよう。Space / 画面を長押しで連射。盾が開いたコアをねらえ！',
   shortHint: '左右でよける ＋ 長押しで連射。盾が開いたら攻撃！', color: '#f5bd58',
+  variations: [
+    { name: '標準レーザー' },
+    { name: '逆回りレーザー', hint: '逆回りに移動するギアキング。← → / 指で赤い予告をよけ、長押し連射で開いたコアを撃とう。', shortHint: '逆回りの砲台！ 左右で回避 ＋ 長押し連射' },
+    { name: 'ダブルレーザー', hint: '最初から2本のレーザーが来る。安全な1列に移動し、開いたコアを長押し連射で攻撃！', shortHint: '安全な1列へ移動 ＋ 長押しでコアを攻撃' },
+  ],
 };
 
 export interface BossShot { x: number; y: number }
@@ -13,6 +18,8 @@ export interface BossParticle { x: number; y: number; vx: number; vy: number; li
 export interface BossState {
   pack: 'boss';
   id: 'boss';
+  variation: number;
+  laneOrder: number[];
   hp: number;
   maxHp: number;
   phase: 1 | 2 | 3;
@@ -43,14 +50,18 @@ export const bossLaneX = (lane: number) => 160 + lane * 160;
 const approach = (value: number, target: number, distance: number) => value + clamp(target - value, -distance, distance);
 const warningDuration = (tier: number, phase = 1) => Math.max(1, 1.25 - (tier - 1) * 0.075 - (phase === 3 ? 0.1 : 0));
 
-export function createBossState(level: number): BossState {
+export function createBossState(level: number, variation = 0, random: () => number = () => 0.5): BossState {
   const tier = clamp(Math.floor(Number.isFinite(level) ? level : 1), 1, 3);
+  const selected = clamp(Math.floor(variation), 0, 2);
+  const laneOrder = selected === 0 ? [0, 2, 1] : selected === 1 ? [2, 0, 1] : Array.from({ length: 9 }, () => Math.floor(random() * 3));
+  if (selected === 2) for (let index = 1; index < laneOrder.length; index++) if (laneOrder[index] === laneOrder[index - 1]) laneOrder[index] = (laneOrder[index] + 1) % 3;
+  const targetLane = laneOrder[0];
   return {
-    pack: 'boss', id: 'boss', hp: 18, maxHp: 18, phase: 1, tier,
+    pack: 'boss', id: 'boss', variation: selected, laneOrder, hp: 18, maxHp: 18, phase: 1, tier,
     playerX: 320, playerY: 393, bossX: 320, bossY: 205,
     armor: 3, maxArmor: 3, invulnerable: 0, bossHit: 0, shooting: false,
     cycle: 0, stage: 'warning', stageTime: 0, stageDuration: warningDuration(tier),
-    dangerLanes: [1], targetLane: 0, shots: [], particles: [], damageThisOpening: 0, shotCooldown: 0,
+    dangerLanes: selected === 2 ? [0, 1, 2].filter(lane => lane !== targetLane) : [(targetLane + (selected === 1 ? 2 : 1)) % 3], targetLane, shots: [], particles: [], damageThisOpening: 0, shotCooldown: 0,
   };
 }
 
@@ -68,9 +79,9 @@ function advanceAttack(state: BossState) {
     state.stage = 'open'; state.stageDuration = state.phase === 3 ? 1.5 : 1.7; state.damageThisOpening = 0;
   } else {
     state.cycle++;
-    state.targetLane = [0, 2, 1][state.cycle % 3];
-    state.dangerLanes = state.phase === 1
-      ? [(state.targetLane + 1) % 3]
+    state.targetLane = state.laneOrder[state.cycle % state.laneOrder.length];
+    state.dangerLanes = state.phase === 1 && state.variation !== 2
+      ? [(state.targetLane + (state.variation === 1 ? 2 : 1)) % 3]
       : [0, 1, 2].filter(lane => lane !== state.targetLane);
     state.stage = 'warning'; state.stageDuration = warningDuration(state.tier, state.phase);
   }

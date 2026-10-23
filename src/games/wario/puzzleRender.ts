@@ -25,6 +25,15 @@ function star(ctx: CanvasRenderingContext2D, x: number, y: number, radius: numbe
   ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
 }
 function check(ctx: CanvasRenderingContext2D, x: number, y: number, color = WHITE) { line(ctx, x - 12, y, x - 3, y + 9, color, 5); line(ctx, x - 3, y + 9, x + 14, y - 12, color, 5); }
+function skySymbol(ctx: CanvasRenderingContext2D, x: number, y: number, kind: number, radius: number, background: string) {
+  if (kind === 1) star(ctx, x, y, radius, YELLOW);
+  else if (kind === 0) { circle(ctx, x, y, radius, '#a4dbe8'); circle(ctx, x + radius * 0.55, y - radius * 0.35, radius * 0.92, background); }
+  else { ctx.beginPath(); ctx.moveTo(x, y - radius); ctx.lineTo(x + radius * 0.78, y); ctx.lineTo(x, y + radius); ctx.lineTo(x - radius * 0.78, y); ctx.closePath(); ctx.fillStyle = '#a4dbe8'; ctx.fill(); }
+}
+function memorySymbol(ctx: CanvasRenderingContext2D, x: number, y: number, variation: number, background: string) {
+  if (variation < 2) skySymbol(ctx, x, y, variation === 0 ? 1 : 0, 32, background);
+  else { ctx.beginPath(); ctx.moveTo(x, y + 29); ctx.bezierCurveTo(x - 51, y - 7, x - 27, y - 42, x, y - 17); ctx.bezierCurveTo(x + 27, y - 42, x + 51, y - 7, x, y + 29); ctx.fillStyle = PINK; ctx.fill(); }
+}
 
 function card(ctx: CanvasRenderingContext2D, p: PuzzleState, i: number, count = 3, grid = false, fill = WHITE) {
   const r = puzzleCard(i, count, grid);
@@ -52,35 +61,39 @@ export function renderPuzzleGame(ctx: CanvasRenderingContext2D, session: RushSes
     box(ctx, 158, 134, 324, 130, '#d8cdb7', 23);
     box(ctx, 158, 126, 324, 130, '#d7eadb', 23, INK);
     text(ctx, 'QUICK MATH', 320, 148, 15, '#658375');
-    text(ctx, `${p.a} ${p.subtract ? '−' : '+'} ${p.b}`, 320, 199, 59);
+    text(ctx, `${p.a} ${p.multiply ? '×' : p.subtract ? '−' : '+'} ${p.b}`, 320, 199, 59);
     text(ctx, '＝ ?', 320, 281, 23, '#7e7d7b');
     p.choices.forEach((n, i) => { const c = card(ctx, p, i); text(ctx, String(n), c.x, c.y, 47); });
     footer(ctx);
   } else if (p.id === 'count') {
     box(ctx, 75, 119, 490, 155, INK, 24);
-    p.sky.forEach((isStar, i) => {
-      const x = 126 + (i % 4) * 127, y = 148 + Math.floor(i / 4) * 47;
-      if (isStar) star(ctx, x, y, 18, YELLOW);
-      else { circle(ctx, x, y, 17, '#a4dbe8'); circle(ctx, x + 9, y - 6, 16, INK); }
+    p.sky.forEach((kind, i) => {
+      const column = p.variation === 1 ? 3 - i % 4 : i % 4, x = 126 + column * 127, y = 148 + Math.floor(i / 4) * 47;
+      skySymbol(ctx, x, y, kind, 18, INK);
     });
-    text(ctx, '星の数は？   月は数えないよ', 320, 287, 17, '#777a7d');
-    p.choices.forEach((n, i) => { const c = card(ctx, p, i); star(ctx, c.x - 36, c.y, 12, '#d4a921'); text(ctx, String(n), c.x + 12, c.y, 45); });
+    text(ctx, `${['星', '月', 'ダイヤ'][p.variation]}だけ数えよう！`, 320, 287, 17, '#777a7d');
+    p.choices.forEach((n, i) => { const c = card(ctx, p, i); skySymbol(ctx, c.x - 36, c.y, p.countSymbol, 14, WHITE); text(ctx, String(n), c.x + 12, c.y, 45); });
     footer(ctx);
   } else if (p.id === 'odd') {
-    text(ctx, 'ひとりだけ、ちがう表情！', 320, 129, 21, '#9a5a6f');
+    text(ctx, ['ひとりだけ、ちがう表情！', 'ひとつだけ、ちがう形！', 'ひとつだけ、逆の向き！'][p.variation], 320, 129, 21, '#9a5a6f');
     for (let i = 0; i < 6; i++) {
       const c = card(ctx, p, i, 6, true);
-      face(ctx, c.x, c.y, i === p.answer ? p.face === 0 : p.face !== 0);
+      const different = i === p.answer ? p.face === 0 : p.face !== 0;
+      if (p.variation === 0) face(ctx, c.x, c.y, different);
+      else if (p.variation === 1) { if (different) circle(ctx, c.x, c.y, 31, '#e993ae'); else box(ctx, c.x - 28, c.y - 28, 56, 56, '#e993ae', 5); }
+      else { const direction = different ? -1 : 1; line(ctx, c.x - direction * 27, c.y, c.x + direction * 27, c.y, '#7f6da5', 11); line(ctx, c.x + direction * 27, c.y, c.x + direction * 9, c.y - 18, '#7f6da5', 11); line(ctx, c.x + direction * 27, c.y, c.x + direction * 9, c.y + 18, '#7f6da5', 11); }
     }
     footer(ctx, '矢印で選ぶ  /  Space で決定  /  タップ');
   } else if (p.id === 'memory') {
     const reveal = g.time < p.revealUntil || session.phase === 'result';
-    text(ctx, g.time < p.revealUntil ? '星の場所を おぼえて！' : '星があったのは どこ？', 320, 129, 21, '#786397');
+    const symbol = ['星', '月', 'ハート'][p.variation];
+    text(ctx, g.time < p.revealUntil ? `${symbol}の場所を おぼえて！` : `${symbol}があったのは どこ？`, 320, 129, 21, '#786397');
     for (let i = 0; i < 6; i++) {
       const c = card(ctx, p, i, 6, true, reveal ? i === p.answer ? '#fff0ad' : '#ebe4f2' : '#76669c');
       if (reveal) {
-        if (i === p.answer) { star(ctx, c.x, c.y, 32, YELLOW); star(ctx, c.x - 43, c.y - 29, 7, '#c7a53a'); }
-        else { circle(ctx, c.x, c.y, 11, '#c9bddb'); }
+        if (i === p.answer) { memorySymbol(ctx, c.x, c.y, p.variation, '#fff0ad'); }
+        else if (p.variation === 0) { circle(ctx, c.x, c.y, 11, '#c9bddb'); }
+        else { skySymbol(ctx, c.x, c.y, p.variation === 1 ? 1 : 2, 20, '#ebe4f2'); }
       } else {
         box(ctx, c.x - 50, c.y - 36, 100, 72, '#ffffff08', 10, '#ffffff22');
         text(ctx, '?', c.x, c.y, 44, CREAM);
@@ -88,10 +101,11 @@ export function renderPuzzleGame(ctx: CanvasRenderingContext2D, session: RushSes
     }
     footer(ctx, g.time < p.revealUntil ? 'まだ押さないで… 裏返ったら選ぼう' : '矢印で選ぶ  /  Space で決定  /  タップ');
   } else if (p.id === 'ink') {
-    box(ctx, 143, 126, 354, 138, WHITE, 24, '#e1d7c4');
+    box(ctx, 143, 126, 354, 138, p.variation === 2 ? INK_COLORS[p.background] : WHITE, 24, '#e1d7c4');
+    if (p.variation === 2) { ctx.lineWidth = 7; ctx.strokeStyle = WHITE; ctx.font = '900 68px "Arial", "Noto Sans JP", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.strokeText(INK_NAMES[p.word], 320, 193); }
     text(ctx, INK_NAMES[p.word], 320, 193, 68, INK_COLORS[p.ink]);
     line(ctx, 248, 245, 392, 245, INK_COLORS[p.ink], 5);
-    text(ctx, 'このインクは 何色？', 320, 282, 21, '#777a7d');
+    text(ctx, ['このインクは 何色？', '書いてある言葉は 何色？', '文字の後ろは 何色？'][p.variation], 320, 282, 21, '#777a7d');
     p.choices.forEach((color, i) => {
       const c = card(ctx, p, i);
       circle(ctx, c.x, c.y - 13, 19, INK_COLORS[color]);
@@ -99,7 +113,7 @@ export function renderPuzzleGame(ctx: CanvasRenderingContext2D, session: RushSes
     });
     footer(ctx);
   } else if (p.id === 'largest') {
-    text(ctx, '数字の値が 大きいのは？', 320, 143, 25);
+    text(ctx, ['数字の値が 大きいのは？', '数字の値が 小さいのは？', '3 つの数で 真ん中は？'][p.variation], 320, 143, 25);
     box(ctx, 140, 178, 360, 70, '#edd9bc', 14);
     for (let i = 0; i <= 12; i++) { const x = 155 + i * 27.5; line(ctx, x, 186, x, i % 3 === 0 ? 215 : 202, '#a08561', 2); }
     text(ctx, 'サイズに だまされないで！', 320, 232, 16, '#836c57');
@@ -123,7 +137,7 @@ export function renderPuzzleGame(ctx: CanvasRenderingContext2D, session: RushSes
     ctx.beginPath(); ctx.arc(x, y + 3, 9, 0.1, Math.PI - 0.1); ctx.strokeStyle = INK; ctx.lineWidth = 3; ctx.stroke();
     footer(ctx, '矢印キー  /  隣のマスをタップ');
   } else if (p.id === 'order') {
-    text(ctx, '小さい数から 順番に！', 320, 145, 25);
+    text(ctx, ['小さい数から 順番に！', '大きい数から 順番に！', '奇数 → 偶数、それぞれ小さい順！'][p.variation], 320, 145, p.variation === 2 ? 22 : 25);
     const start = 320 - (p.choices.length - 1) * 37;
     for (let i = 0; i < p.choices.length; i++) {
       const x = start + i * 74;

@@ -3,17 +3,18 @@ import assert from 'node:assert/strict';
 import { load } from './helpers/wario-harness.mjs';
 
 const { createRushSession, emptyRushInput, startRush, stepRush, rushSpeed, pauseRush } = load('engine');
-const { ACTION_GAMES, createActionState, fishingX, launchLandingX } = load('actionGames');
+const { ACTION_GAMES, createActionState, fishingX, glideGateY, launchLandingX } = load('actionGames');
 const dt = 1 / 120;
 function random(seed) {
   let n = seed || 1;
   return () => { n ^= n << 13; n ^= n >>> 17; n ^= n << 5; return (n >>> 0) / 4294967296; };
 }
-function ready(id, seed = 4581, level = 1) {
+function ready(id, seed = 4581, level = 1, variation = 0) {
   const state = createRushSession(seed), input = emptyRushInput();
-  startRush(state, input, id);
+  startRush(state, input, id, variation);
   state.level = level; state.duration = 5 / rushSpeed(level);
-  state.game.extra = createActionState(id, level, random(seed));
+  state.game.variation = variation;
+  state.game.extra = createActionState(id, level, random(seed), variation);
   for (let i = 0; i < 200 && state.phase === 'brief'; i++) stepRush(state, input, dt);
   assert.equal(state.phase, 'play');
   return { state, input };
@@ -40,21 +41,21 @@ function solve(state, input, pointer) {
     else direction(input, correction, 0, 0.07);
   }
   if (a.id === 'fishing') {
-    const aim = fishingX(g.time + 0.34, a.fishPhase);
+    const aim = fishingX(g.time + (a.depth - 145) / 510 + 0.016, a.fishPhase, a.variation);
     if (pointer) Object.assign(input, { pointerDown: true, pointerX: aim });
     else direction(input, aim - a.x);
     input.action = a.stage === 'aim' && (pointer || Math.abs(aim - a.x) < 20);
     input.actionHeld = a.stage !== 'aim';
   }
   if (a.id === 'launch') {
-    const targetCharge = (a.target - launchLandingX(0)) / (launchLandingX(1) - launchLandingX(0));
+    const targetCharge = (a.target - launchLandingX(0, a.variation)) / (launchLandingX(1, a.variation) - launchLandingX(0, a.variation));
     if (!a.launched && a.charge < targetCharge) {
       if (pointer) input.pointerDown = true; else input.actionHeld = true;
     } else if (!a.launched) input.actionReleased = true;
   }
   if (a.id === 'glide') {
     const gate = a.gates.find(value => value.x - g.time * 220 > 93) ?? a.gates.at(-1);
-    const held = a.y + a.vy * 0.21 > gate.y;
+    const held = a.y + a.vy * 0.21 > glideGateY(gate, g.time + 0.16, a.variation);
     if (pointer) input.pointerDown = held; else input.actionHeld = held;
   }
   if (a.id === 'rhythm') {
@@ -71,13 +72,13 @@ function solve(state, input, pointer) {
 
 for (const definition of ACTION_GAMES) {
   for (const pointer of [false, true]) {
-    test(`${definition.id}: ${pointer ? 'touch' : 'keyboard'} wins real rounds across seeds and speeds`, () => {
+    for (const variation of [0, 1, 2]) test(`${definition.id} variation ${variation}: ${pointer ? 'touch' : 'keyboard'} wins real rounds across seeds and speeds`, () => {
       for (const level of [1, 7]) for (let seed = 1; seed <= 12; seed++) {
-        const { state, input } = ready(definition.id, seed * 7919, level);
+        const { state, input } = ready(definition.id, seed * 7919, level, variation);
         for (let frame = 0; frame < 750 && state.phase === 'play'; frame++) {
           solve(state, input, pointer); stepRush(state, input, dt);
         }
-        assert.equal(state.result, 'success', `${definition.id}, ${pointer ? 'touch' : 'keyboard'}, seed ${seed}, level ${level}: ${state.game.reason}`);
+        assert.equal(state.result, 'success', `${definition.id} variation ${variation}, ${pointer ? 'touch' : 'keyboard'}, seed ${seed}, level ${level}: ${state.game.reason}`);
         assert.equal(state.score, 1);
       }
     });
@@ -85,11 +86,60 @@ for (const definition of ACTION_GAMES) {
 }
 
 test('Every action game requires intentional input; waiting cannot award a free win', () => {
-  for (const { id } of ACTION_GAMES) {
-    const { state, input } = ready(id);
+  for (const { id } of ACTION_GAMES) for (const variation of [0, 1, 2]) {
+    const { state, input } = ready(id, 4581, 1, variation);
     for (let frame = 0; frame < 650 && state.phase === 'play'; frame++) stepRush(state, input, dt);
     assert.equal(state.result, 'failure', id);
     assert.equal(state.score, 0, id);
+  }
+});
+
+test('Each action game exposes three distinct named variations and reproducible mechanical changes', () => {
+  for (const definition of ACTION_GAMES) {
+    assert.equal(definition.variations.length, 3, definition.id);
+    assert.equal(new Set(definition.variations.map(value => value.name)).size, 3, definition.id);
+    const states = [0, 1, 2].map(variation => createActionState(definition.id, 1, random(7919), variation));
+    assert.deepEqual(createActionState(definition.id, 1, random(7919)), states[0], `${definition.id}: default preserves classic mechanics`);
+    for (const variation of [0, 1, 2]) assert.equal(states[variation].variation, variation);
+    if (definition.id === 'target') assert.equal(states[1].targets.length, 4);
+    if (definition.id === 'rally') assert.notEqual(states[0].speed, states[2].speed);
+    if (definition.id === 'fishing') assert.notEqual(states[0].depth, states[2].depth);
+    if (definition.id === 'launch') assert.equal(states[2].direction, -1);
+    if (definition.id === 'glide') assert.ok(Math.abs(states[1].gates[0].y - states[1].gates[1].y) > 75);
+    if (definition.id === 'rhythm') assert.notEqual(states[1].beats[1], states[2].beats[1]);
+    if (definition.id === 'scrub') assert.equal(states[2].spots.length, 5);
+  }
+});
+
+test('Moving targets and gates change position while preserving their live collision geometry', () => {
+  const target = ready('target', 7919, 1, 2);
+  const before = { ...target.state.game.extra.targets[0] };
+  for (let i = 0; i < 24; i++) stepRush(target.state, target.input, dt);
+  assert.notDeepEqual(target.state.game.extra.targets[0], before);
+  const glide = createActionState('glide', 1, random(7919), 2);
+  assert.notEqual(glideGateY(glide.gates[0], 0, 2), glideGateY(glide.gates[0], 0.3, 2));
+});
+
+test('All 24 action layouts render finite non-negative geometry throughout their animation', () => {
+  const { renderActionGame } = load('actionRender');
+  const context = new Proxy({}, {
+    get(_target, method) {
+      return (...args) => {
+        for (const value of args) if (typeof value === 'number') assert.ok(Number.isFinite(value), String(method));
+        if (method === 'arc') assert.ok(args[2] >= 0, 'circle radius');
+        if (method === 'ellipse') assert.ok(args[2] >= 0 && args[3] >= 0, 'ellipse radius');
+        if (method === 'roundRect') assert.ok(args[2] >= 0 && args[3] >= 0, 'rectangle dimensions');
+        if (method === 'fillText') assert.equal(typeof args[0], 'string');
+      };
+    },
+    set() { return true; },
+  });
+  for (const definition of ACTION_GAMES) for (const variation of [0, 1, 2]) for (const seed of [1, 145, 7919]) {
+    const { state } = ready(definition.id, seed, 1, variation);
+    for (let frame = 0; frame <= 20; frame++) {
+      state.game.time = frame / 4;
+      assert.equal(renderActionGame(context, state), true);
+    }
   }
 });
 

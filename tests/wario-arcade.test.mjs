@@ -9,11 +9,11 @@ function random(seed) {
   let n = seed || 1;
   return () => { n ^= n << 13; n ^= n >>> 17; n ^= n << 5; return (n >>> 0) / 4294967296; };
 }
-function ready(id, seed = 4581, level = 1) {
+function ready(id, seed = 4581, level = 1, variation = 0) {
   const state = createRushSession(seed), input = emptyRushInput();
-  startRush(state, input, id);
+  startRush(state, input, id, variation);
   state.level = level; state.duration = 5 / rushSpeed(level);
-  state.game.extra = createArcadeState(id, level, random(seed));
+  state.game.extra = createArcadeState(id, level, random(seed), variation);
   for (let i = 0; i < 200 && state.phase === 'brief'; i++) stepRush(state, input, dt);
   assert.equal(state.phase, 'play');
   return { state, input, waypoint: 0 };
@@ -32,12 +32,12 @@ function solve(run, pointer) {
     // Touch steers only while thrusting; short controlled bursts supply both axes.
   }
   if (a.id === 'tower' && !a.dropping) {
-    const nextX = towerMovingX(g.time + dt * rushSpeed(state.level), a.phase), top = a.stack.at(-1);
+    const nextX = towerMovingX(g.time + dt * rushSpeed(state.level), a.phase, a.variation), top = a.stack.at(-1);
     input.action = Math.abs(nextX - top.x) < 13;
     if (pointer) input.pointerPressed = input.action;
   }
   if (a.id === 'mole') {
-    const slot = Math.floor((g.time + dt * rushSpeed(state.level) - 0.25) / 0.65);
+    const slot = Math.floor((g.time + dt * rushSpeed(state.level) - 0.25) / a.cadence);
     if (slot >= 0 && !a.hitSlots.includes(slot)) {
       const cell = a.targets[slot], point = molePosition(cell);
       if (pointer) Object.assign(input, { pointerX: point.x, pointerY: point.y, pointerPressed: true });
@@ -61,13 +61,13 @@ function solve(run, pointer) {
     } else input.actionReleased = true;
   }
   if (a.id === 'puck') {
-    const points = [[212, 220], [307, 220], [365, 330], [463, 330], [550, 205]];
+    const points = [...a.gates.flatMap(gate => [[gate.x - 48, gate.y], [gate.x + 47, gate.y]]), [550, a.goalY]];
     let point = points[Math.min(run.waypoint, points.length - 1)];
     if (Math.hypot(point[0] - a.x, point[1] - a.y) < 22 && run.waypoint < points.length - 1) point = points[++run.waypoint];
     const dx = point[0] - a.x - a.vx * 0.14, dy = point[1] - a.y - a.vy * 0.14;
     if (pointer) Object.assign(input, { pointerDown: true, pointerX: a.x + dx, pointerY: a.y + dy });
     else direction(input, dx, dy, 4);
-    if (run.waypoint === points.length - 1 && Math.hypot(a.x - 550, a.y - 205) < 32) input.actionHeld = true;
+    if (run.waypoint === points.length - 1 && Math.hypot(a.x - 550, a.y - a.goalY) < 32) input.actionHeld = true;
   }
   if (a.id === 'fire') {
     const flame = a.flames.find(f => f.heat > 0);
@@ -83,12 +83,12 @@ function solve(run, pointer) {
 }
 
 for (const definition of ARCADE_GAMES) {
-  for (const pointer of [false, true]) {
-    test(`${definition.id}: ${pointer ? 'touch' : 'keyboard'} wins real rounds across seeds and speeds`, () => {
+  for (const pointer of [false, true]) for (let variation = 0; variation < 3; variation++) {
+    test(`${definition.id} variation ${variation}: ${pointer ? 'touch' : 'keyboard'} wins real rounds across seeds and speeds`, () => {
       for (const level of [1, 7]) for (let seed = 1; seed <= 12; seed++) {
-        const run = ready(definition.id, seed * 7919, level);
+        const run = ready(definition.id, seed * 7919, level, variation);
         for (let frame = 0; frame < 750 && run.state.phase === 'play'; frame++) { solve(run, pointer); stepRush(run.state, run.input, dt); }
-        assert.equal(run.state.result, 'success', `${definition.id}, ${pointer ? 'touch' : 'keyboard'}, seed ${seed}, level ${level}: ${run.state.game.reason} ${JSON.stringify(run.state.game.extra)}`);
+        assert.equal(run.state.result, 'success', `${definition.id} variation ${variation}, ${pointer ? 'touch' : 'keyboard'}, seed ${seed}, level ${level}: ${run.state.game.reason} ${JSON.stringify(run.state.game.extra)}`);
         assert.equal(run.state.score, 1);
       }
     });
@@ -96,8 +96,8 @@ for (const definition of ARCADE_GAMES) {
 }
 
 test('Every arcade game requires intentional input; waiting awards no free wins', () => {
-  for (const { id } of ARCADE_GAMES) {
-    const { state, input } = ready(id);
+  for (const { id } of ARCADE_GAMES) for (let variation = 0; variation < 3; variation++) {
+    const { state, input } = ready(id, 4581, 1, variation);
     for (let frame = 0; frame < 650 && state.phase === 'play'; frame++) stepRush(state, input, dt);
     assert.equal(state.result, 'failure', id); assert.equal(state.score, 0, id);
   }
@@ -166,12 +166,81 @@ test('Fire consumes water for wasted sprays and tug rejects repeated same-side p
 });
 
 test('Restart clears arcade progress, held controls, and stale pointer or release events', () => {
-  for (const { id } of ARCADE_GAMES) {
-    const run = ready(id);
+  for (const { id } of ARCADE_GAMES) for (let variation = 0; variation < 3; variation++) {
+    const run = ready(id, 4581, 1, variation);
     for (let i = 0; i < 25 && run.state.phase === 'play'; i++) { solve(run, true); stepRush(run.state, run.input, dt); }
     Object.assign(run.input, { actionHeld: true, actionReleased: true, pointerDown: true, pointerPressed: true, leftPressed: true });
-    startRush(run.state, run.input, id);
+    startRush(run.state, run.input, id, variation);
     assert.equal(run.state.game.time, 0); assert.equal(run.state.score, 0); assert.equal(run.state.game.result, null);
     assert.deepEqual(run.input, emptyRushInput()); assert.equal(run.state.game.extra.pack, 'arcade');
+    assert.equal(run.state.game.extra.variation, variation);
   }
+});
+
+test('Every arcade variation changes its rules or course and has a distinct, named definition', () => {
+  for (const definition of ARCADE_GAMES) {
+    assert.equal(definition.variations.length, 3, definition.id);
+    assert.equal(new Set(definition.variations.map(variation => variation.name)).size, 3, definition.id);
+    const states = [0, 1, 2].map(variation => {
+      const state = createArcadeState(definition.id, 1, random(100), variation);
+      delete state.variation;
+      return JSON.stringify(state);
+    });
+    assert.equal(new Set(states).size, 3, `${definition.id} must change gameplay fields, not just a variation label`);
+  }
+});
+
+test('Pause freezes every arcade variation and resume cannot commit a pour release', () => {
+  for (const { id } of ARCADE_GAMES) for (let variation = 0; variation < 3; variation++) {
+    const run = ready(id, 8181, 7, variation);
+    for (let i = 0; i < 12; i++) { solve(run, true); stepRush(run.state, run.input, dt); }
+    assert.equal(run.state.phase, 'play');
+    pauseRush(run.state, run.input, true);
+    const snapshot = JSON.stringify(run.state.game), remaining = run.state.remaining;
+    for (let i = 0; i < 80; i++) stepRush(run.state, run.input, dt);
+    assert.equal(JSON.stringify(run.state.game), snapshot, `${id}/${variation}`);
+    assert.equal(run.state.remaining, remaining, `${id}/${variation}`);
+    assert.deepEqual(run.input, emptyRushInput());
+    pauseRush(run.state, run.input, false);
+    stepRush(run.state, run.input, dt);
+    if (id === 'pour') assert.equal(run.state.game.extra.cup, 0);
+  }
+});
+
+test('Two-bomb mole variation rejects either bomb and leaves its actual mole hittable', () => {
+  for (const second of [false, true]) {
+    const run = ready('mole', 117, 1, 2);
+    while (run.state.game.time < 0.3) stepRush(run.state, run.input, dt);
+    const a = run.state.game.extra, cell = (second ? a.secondBombs : a.bombs)[0], point = molePosition(cell);
+    assert.notEqual(cell, a.targets[0]);
+    assert.notEqual(a.secondBombs[0], a.bombs[0]);
+    Object.assign(run.input, { pointerPressed: true, pointerX: point.x, pointerY: point.y });
+    stepRush(run.state, run.input, dt);
+    assert.equal(run.state.result, 'failure');
+    assert.match(run.state.game.reason, /爆弾/);
+  }
+});
+
+test('Tug pair rhythm really requires a second pull on the same side before changing', () => {
+  const { state, input } = ready('tug', 100, 1, 1), a = state.game.extra;
+  input.leftPressed = true; stepRush(state, input, dt);
+  assert.equal(a.pulls, 1); assert.equal(a.next, -1);
+  const progress = a.progress;
+  input.rightPressed = true; stepRush(state, input, dt);
+  assert.equal(a.pulls, 1); assert.ok(a.progress < progress);
+  input.leftPressed = true; stepRush(state, input, dt);
+  assert.equal(a.pulls, 2); assert.equal(a.next, 1);
+});
+
+test('Four-fire rescue requires the fourth fire and the mirrored puck goal really moves', () => {
+  const fire = ready('fire', 100, 1, 2), flames = fire.state.game.extra.flames;
+  assert.equal(flames.length, 4);
+  flames.slice(0, 3).forEach(flame => { flame.heat = 0; });
+  stepRush(fire.state, fire.input, dt); assert.equal(fire.state.result, null);
+  flames[3].heat = 0; stepRush(fire.state, fire.input, dt); assert.equal(fire.state.result, 'success');
+  const puck = ready('puck', 100, 1, 1), a = puck.state.game.extra;
+  a.x = 550; a.y = 205;
+  stepRush(puck.state, puck.input, dt); assert.equal(puck.state.result, null);
+  a.y = a.goalY;
+  stepRush(puck.state, puck.input, dt); assert.equal(puck.state.result, 'success');
 });

@@ -40,7 +40,8 @@ export function renderArcadeGame(ctx: CanvasRenderingContext2D, session: RushSes
       if (a.thrust) { ctx.beginPath(); ctx.moveTo(a.x - 12, a.y + 13); ctx.lineTo(a.x, a.y + 43 + Math.sin(game.time * 60) * 7); ctx.lineTo(a.x + 12, a.y + 13); ctx.fillStyle = YELLOW; ctx.fill(); }
       line(ctx, a.x - 17, a.y + 7, a.x - 25, a.y + 20, CREAM, 4); line(ctx, a.x + 17, a.y + 7, a.x + 25, a.y + 20, CREAM, 4);
       box(ctx, a.x - 22, a.y - 23, 44, 37, CREAM, 11, INK); circle(ctx, a.x, a.y - 9, 12, BLUE); circle(ctx, a.x - 3, a.y - 12, 5, '#fff7e3bb');
-      box(ctx, 69, 134, 154, 32, a.vy > 76 ? '#f16c95' : GREEN, 10); text(ctx, `下降 ${Math.max(0, Math.round(a.vy))} / 76`, 146, 151, 16);
+      box(ctx, 69, 134, 154, 32, a.vy > a.safeSpeed ? '#f16c95' : GREEN, 10); text(ctx, `下降 ${Math.max(0, Math.round(a.vy))} / ${a.safeSpeed}`, 146, 151, 16);
+      if (a.variation) text(ctx, a.variation === 1 ? '低重力 ↓' : '高重力 ↓↓', 320, 417, 17, INK);
       break;
     }
     case 'tower': {
@@ -54,7 +55,7 @@ export function renderArcadeGame(ctx: CanvasRenderingContext2D, session: RushSes
       });
       const width = a.stack[a.stack.length - 1].width;
       if (a.stack.length < 4) { line(ctx, a.x, 153, a.x, a.y - 22, '#8995aa', 3); box(ctx, a.x - width / 2, a.y - 43, width, 43, [PINK, GREEN, YELLOW][a.stack.length - 1], 7, INK); }
-      text(ctx, 'タップで 落とす！', 320, 139, 20); progress(ctx, a.stack.length - 1, 3); break;
+      text(ctx, a.variation === 2 ? '高速！ タップで 落とす！' : 'タップで 落とす！', 320, 139, 20); progress(ctx, a.stack.length - 1, 3); break;
     }
     case 'mole': {
       box(ctx, 42, 145, 556, 267, '#b9d8a0', 24);
@@ -68,11 +69,11 @@ export function renderArcadeGame(ctx: CanvasRenderingContext2D, session: RushSes
           box(ctx, p.x - 36, p.y - 40, 72, 63, '#b68b63', 30, INK); circle(ctx, p.x - 13, p.y - 15, 4, INK); circle(ctx, p.x + 13, p.y - 15, 4, INK);
           circle(ctx, p.x, p.y - 3, 12, '#e8c6a4'); circle(ctx, p.x, p.y - 7, 5, PINK);
         }
-        if (active && a.bombs[a.slot] === i) { line(ctx, p.x, p.y - 30, p.x + 13, p.y - 47, INK, 5); circle(ctx, p.x + 15, p.y - 49, 7, YELLOW); circle(ctx, p.x, p.y - 7, 31, INK); text(ctx, '×', p.x, p.y - 6, 30, CREAM); circle(ctx, p.x - 10, p.y - 19, 6, '#fff7e344'); }
+        if (active && (a.bombs[a.slot] === i || a.secondBombs[a.slot] === i)) { line(ctx, p.x, p.y - 30, p.x + 13, p.y - 47, INK, 5); circle(ctx, p.x + 15, p.y - 49, 7, YELLOW); circle(ctx, p.x, p.y - 7, 31, INK); text(ctx, '×', p.x, p.y - 6, 30, CREAM); circle(ctx, p.x - 10, p.y - 19, 6, '#fff7e344'); }
         if (active && a.targets[a.slot] === i && a.hitSlots.includes(a.slot)) text(ctx, 'HIT!', p.x, p.y - 20, 25, '#338663');
         if (i === a.selected) { ctx.beginPath(); ctx.ellipse(p.x, p.y + 22, 61, 26, 0, 0, Math.PI * 2); ctx.strokeStyle = YELLOW; ctx.lineWidth = 5; ctx.stroke(); }
       }
-      text(ctx, 'もぐら ○     爆弾 ×', 320, 128, 20); progress(ctx, a.count, 3); break;
+      text(ctx, `もぐら ${a.required}匹     爆弾 ×`, 320, 128, 20); progress(ctx, a.count, a.required); break;
     }
     case 'racer': {
       box(ctx, 69, 119, 502, 316, '#a8c7a0', 20); box(ctx, 109, 119, 422, 316, '#677387', 5);
@@ -91,7 +92,7 @@ export function renderArcadeGame(ctx: CanvasRenderingContext2D, session: RushSes
       }
       const x = racerLaneX(a.lane); box(ctx, x - 31, 339, 62, 80, INK, 14); box(ctx, x - 25, 335, 50, 77, YELLOW, 14, INK);
       box(ctx, x - 18, 349, 36, 22, BLUE, 6); line(ctx, x - 18, 393, x + 18, 393, '#b79b24', 3); circle(ctx, x - 16, 341, 5, CREAM); circle(ctx, x + 16, 341, 5, CREAM);
-      progress(ctx, a.count, 4); break;
+      progress(ctx, a.count, a.rows.length); break;
     }
     case 'pour': {
       box(ctx, 54, 150, 532, 263, '#f1dfd9', 24); box(ctx, 54, 382, 532, 31, '#c59e83', 7);
@@ -102,16 +103,16 @@ export function renderArcadeGame(ctx: CanvasRenderingContext2D, session: RushSes
         line(ctx, x - 66, targetY, x + 66, targetY, GREEN, 5);
         line(ctx, x - 43, top + 11, x - 43, top + 100, '#ffffffbb', 5);
         text(ctx, i < a.cup ? '✓' : String(i + 1), x, 404, 25, i < a.cup ? '#338663' : INK);
-        if (i === a.cup) { text(ctx, '▼', x, 184, 25, PINK); if (a.pouring) box(ctx, x - 7, 175, 14, top + h * (1 - fill) - 175, '#f8b74b', 5); }
+        if (i === a.cup) { text(ctx, '▼', x, 184, 25, PINK); if (a.pouring) box(ctx, x - 4 - a.flow * 4, 175, 8 + a.flow * 8, top + h * (1 - fill) - 175, '#f8b74b', 5); }
       }
-      text(ctx, '緑の線で 離そう！', 320, 131, 22); break;
+      text(ctx, a.variation === 2 ? '強弱のある蛇口！ 緑の線で離す' : '緑の線で 離そう！', 320, 131, a.variation === 2 ? 19 : 22); break;
     }
     case 'puck': {
       box(ctx, 48, 133, 548, 294, '#a4d3dd', 23, INK); box(ctx, 61, 147, 522, 263, '#def0ef', 14);
       for (let i = 0; i < 9; i++) line(ctx, 86 + i * 55, 170, 111 + i * 55, 191, '#ffffffbb', 4);
       for (const gate of a.gates) {
-        box(ctx, gate.x - 10, 145, 20, gate.y - 69 - 145, '#708bb2', 5, INK);
-        box(ctx, gate.x - 10, gate.y + 69, 20, 413 - gate.y - 69, '#708bb2', 5, INK);
+        box(ctx, gate.x - 10, 145, 20, gate.y - a.gapHalf - 16 - 145, '#708bb2', 5, INK);
+        box(ctx, gate.x - 10, gate.y + a.gapHalf + 16, 20, 413 - gate.y - a.gapHalf - 16, '#708bb2', 5, INK);
         text(ctx, '→', gate.x, gate.y, 26, '#5b9a9d');
       }
       circle(ctx, 550, a.goalY, 32, '#66bd9844'); circle(ctx, 550, a.goalY, 23, '#66bd98'); text(ctx, 'GO', 550, a.goalY, 18);
@@ -122,7 +123,7 @@ export function renderArcadeGame(ctx: CanvasRenderingContext2D, session: RushSes
     case 'fire': {
       box(ctx, 48, 151, 544, 252, '#e5e3d3', 22); box(ctx, 64, 349, 512, 53, '#c5c3b6', 9);
       for (const flame of a.flames) {
-        box(ctx, flame.x - 48, 240, 96, 105, '#d99e82', 8, INK); box(ctx, flame.x - 28, 266, 56, 50, '#677387', 4, INK);
+        box(ctx, flame.x - 42, flame.y + 10, 84, 85, '#d99e82', 8, INK); box(ctx, flame.x - 25, flame.y + 30, 50, 44, '#677387', 4, INK);
         if (flame.heat > 0) {
           ctx.save(); ctx.translate(flame.x, flame.y + 11); ctx.scale(0.65 + flame.heat * 0.45, 0.65 + flame.heat * 0.45);
           const sway = Math.sin(game.time * 13 + flame.x) * 7;
@@ -136,7 +137,7 @@ export function renderArcadeGame(ctx: CanvasRenderingContext2D, session: RushSes
         for (let i = 0; i < 7; i++) { const angle = i * 2.4 + game.time * 11; circle(ctx, a.x + Math.cos(angle) * 23, a.y + Math.sin(angle) * 23, 4, BLUE); }
       }
       box(ctx, 289, 382, 62, 34, '#708bb2', 9, INK); aim(ctx, a.x, a.y);
-      text(ctx, 'WATER', 117, 129, 15); box(ctx, 166, 122, 290, 15, '#19233822', 7); box(ctx, 166, 122, a.water * 290, 15, '#67b9e8', 7); progress(ctx, a.flames.filter(f => f.heat === 0).length, 3); break;
+      text(ctx, 'WATER', 117, 129, 15); box(ctx, 166, 122, 290, 15, '#19233822', 7); box(ctx, 166, 122, a.water * 290, 15, '#67b9e8', 7); progress(ctx, a.flames.filter(f => f.heat === 0).length, a.flames.length); break;
     }
     case 'tug': {
       box(ctx, 42, 145, 556, 274, '#dbe7ce', 24); box(ctx, 42, 288, 556, 131, '#b7cd9e', 12);
@@ -152,7 +153,8 @@ export function renderArcadeGame(ctx: CanvasRenderingContext2D, session: RushSes
       line(ctx, 98 - offset, ropeY, 542 - offset, ropeY, '#a07956', 8); line(ctx, 98 - offset, ropeY - 2, 542 - offset, ropeY - 2, '#dfbf8c', 3);
       box(ctx, 313 - offset, ropeY - 14, 14, 31, PINK, 3);
       for (const direction of [-1, 1]) { const x = 320 + direction * 134; box(ctx, x - 99, 334, 198, 71, a.next === direction ? YELLOW : CREAM, 18, INK); text(ctx, direction === -1 ? '←  LEFT' : 'RIGHT  →', x, 370, 23); }
-      text(ctx, '光るほうを 交互に！', 320, 130, 22);
+      text(ctx, a.variation === 1 ? '2回ずつ！ 光るほうへ' : a.variation === 2 ? '折り返し！ 光る順に' : '光るほうを 交互に！', 320, 130, 22);
+      if (a.variation) for (let i = 0; i < 6; i++) { const side = a.pattern[(a.pulls + i) % a.pattern.length]; box(ctx, 210 + i * 37, 156, 32, 30, i === 0 ? YELLOW : CREAM, 7); text(ctx, side === -1 ? '←' : '→', 226 + i * 37, 172, 22); }
       box(ctx, 210, 421, 220, 9, '#19233822', 4); box(ctx, 210, 421, Math.max(0, Math.min(1, a.progress)) * 220, 9, GREEN, 4); break;
     }
   }

@@ -6,7 +6,7 @@ const dt = 1 / 60;
 
 function ready(id, seed = 4581) {
   const state = createRushSession(seed), input = emptyRushInput();
-  startRush(state, input, id);
+  startRush(state, input, id, 0);
   for (let i = 0; i < 90 && state.phase === 'brief'; i++) stepRush(state, input, dt);
   assert.equal(state.phase, 'play');
   return { state, input };
@@ -134,7 +134,7 @@ test('Pause freezes play, instruction and result clocks, and clears all pending 
 
 test('Held action and direction inputs from instructions cannot trigger the next game', () => {
   const state = createRushSession(91), input = emptyRushInput();
-  startRush(state, input, 'react');
+  startRush(state, input, 'react', 0);
   input.action = true; input.pointerDown = true; input.left = true;
   for (let i = 0; i < 90 && state.phase === 'brief'; i++) stepRush(state, input, dt);
   assert.equal(state.phase, 'play'); assert.deepEqual(input, emptyRushInput());
